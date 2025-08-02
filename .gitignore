@@ -4,5 +4,9 @@ build
 # Password file
 secrets.cmake
 
-# Temporary files
-*.swp
+# macOS
+.DS_Store
+.*.icloud
+
+# vim
+.*.swp
