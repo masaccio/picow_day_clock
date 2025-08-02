@@ -45,6 +45,7 @@ add_subdirectory(lib/Config)
 add_subdirectory(lib/LCD) 
 add_subdirectory(lib/Fonts)
 add_subdirectory(lib/GUI)
+add_subdirectory(fontgen)
 
 include_directories(
     ./lib/Fonts

@@ -74,13 +74,13 @@ typedef struct _vFontEntry {
 } vFONTENTRY;
 
 typedef struct _vFont {
-  vFONTENTRY *table;
+  const vFONTENTRY *table;
   uint16_t Height;
 } vFONT;
 
-extern vFONT Roboto_Font12;
-extern vFONT Roboto_Font24;
-extern vFONT Roboto_Font48;
+extern vFONT Roboto_Medium12;
+extern vFONT Roboto_Medium24;
+extern vFONT Roboto_Medium48;
 
 #ifdef __cplusplus
 }
