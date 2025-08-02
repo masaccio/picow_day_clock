@@ -358,7 +358,7 @@ int LCD_1in47_test(void) {
   DEV_SET_PWM(100);
 
   printf("drawing... (2)\r\n");
-  Paint_DrawVariableWidthString(1, 85, "Hello, World!", &Roboto_Font48, BLACK,
+  Paint_DrawVariableWidthString(1, 85, "Hello, World!", &Roboto_Medium48, BLACK,
                                 WHITE);
 
   printf("drawing... (3)\r\n");
