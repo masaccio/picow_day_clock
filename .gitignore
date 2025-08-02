@@ -1,5 +1,8 @@
+# Build artifacts
 build
-!.vscode/*
 
 # Password file
 secrets.cmake
+
+# Temporary files
+*.swp
