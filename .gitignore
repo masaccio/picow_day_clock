@@ -1,0 +1,5 @@
+build
+!.vscode/*
+
+# Password file
+secrets.cmake
