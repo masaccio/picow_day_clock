@@ -46,6 +46,14 @@
         "dev_config.h": "c",
         "charconv": "c"
     },
-    "ruff.configFile": "",
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "ruff.lineLength": 120,
     "ruff.enable": true
 }
