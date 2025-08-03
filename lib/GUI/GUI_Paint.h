@@ -155,6 +155,16 @@ void Paint_DrawNum(UWORD Xpoint, UWORD Ypoint, double Nummber, sFONT *Font,
 void Paint_DrawTime(UWORD Xstart, UWORD Ystart, PAINT_TIME *pTime, sFONT *Font,
                     UWORD Color_Foreground, UWORD Color_Background);
 
+// Additional string functions not present in the original library
+int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint,
+                                const char Acsii_Char, vFONT *Font,
+                                UWORD Color_Foreground, UWORD Color_Background);
+
+void Paint_DrawVariableWidthString(UWORD Xstart, UWORD Ystart,
+                                   const char *pString, vFONT *Font,
+                                   UWORD Color_Foreground,
+                                   UWORD Color_Background);
+
 // pic
 void Paint_DrawBitMap(const unsigned char *image_buffer);
 void Paint_DrawBitMap_Block(const unsigned char *image_buffer, UBYTE Region);
