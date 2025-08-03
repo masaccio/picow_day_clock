@@ -6,6 +6,8 @@ from typing import TextIO
 
 from PIL import Image, ImageDraw, ImageFont  # pyright: ignore[reportMissingImports]
 
+DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+CLOCK_CHAR_RANGE = sorted(set("".join(DAYS_OF_WEEK))) + [str(x) for x in range(0, 10)]
 ASCII_CHAR_RANGE = [chr(i) for i in range(32, 127)]
 
 
@@ -72,7 +74,7 @@ def max_font_size(font_filename: str, target_height: int) -> int:
     return max_font_size
 
 
-def generate_variable_width_font(font_filename: str, char_height: int, target: TextIO) -> None:
+def generate_variable_width_font(font_filename: str, char_height: int, target: TextIO, clock: bool) -> None:
     font_size = max_font_size(font_filename, char_height)
     font = ImageFont.truetype(font_filename, font_size)
 
@@ -82,7 +84,7 @@ def generate_variable_width_font(font_filename: str, char_height: int, target: T
     font_struct_name = f"{font_name}{char_height}"
 
     target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
-    target.write('#include "fonts.h"\n\n')
+    target.write('#include "fonts_extra.h"\n\n')
 
     min_x = min(font.getbbox(char)[0] for char in ASCII_CHAR_RANGE)
     max_x = max(font.getbbox(char)[2] for char in ASCII_CHAR_RANGE)
@@ -95,6 +97,10 @@ def generate_variable_width_font(font_filename: str, char_height: int, target: T
         raise ValueError(f"Font height {max_height} exceeds output height {char_height}.")
 
     for char in ASCII_CHAR_RANGE:
+        if clock and char not in CLOCK_CHAR_RANGE:
+            glyph_entries.append((-1, "(const uint8_t *)0"))
+            continue
+
         image = Image.new(
             "1",  # 1-bit pixels, black and white
             (bytes_per_row * 8, char_height),
@@ -148,9 +154,11 @@ def main() -> None:
 
     parser.add_argument("--height", type=int, required=True, help="Height of the font in points.")
 
+    parser.add_argument("--clock", action="store_true", help="Only generate clock characters.")
+
     args = parser.parse_args()
 
-    generate_variable_width_font(args.font, args.height, args.output)
+    generate_variable_width_font(args.font, args.height, args.output, args.clock)
 
 
 if __name__ == "__main__":
