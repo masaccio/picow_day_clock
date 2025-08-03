@@ -55,6 +55,7 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR})
 
 add_executable(pico-dow-clock 
+    ntp.c
     pico-dow-clock.c
     )
 
