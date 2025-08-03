@@ -9,12 +9,18 @@
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
 
+typedef void (*ntp_time_handler)(time_t *time);
+
+typedef void (*ntp_error_handler)(const char *format, ...);
+
 typedef struct NTP_T_ {
     ip_addr_t ntp_server_address;
     bool dns_request_sent;
     struct udp_pcb *ntp_pcb;
     absolute_time_t ntp_test_time;
     alarm_id_t ntp_resend_alarm;
+    ntp_time_handler time_handler;
+    ntp_error_handler error_handler;
 } NTP_T;
 
 #ifndef NTP_SERVER
@@ -33,6 +39,6 @@ extern void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *a
 
 extern void ntp_request(NTP_T *state);
 
-extern NTP_T *ntp_init(void);
+extern NTP_T *ntp_init(ntp_time_handler time_handler, ntp_error_handler error_handler);
 
 extern void ntp_result(NTP_T *state, int status, time_t *result);

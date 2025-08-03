@@ -1,6 +1,8 @@
 /**
  * Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
  *
+ * Additional code copyright (c) 2025 Jon Connell
+ *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -15,46 +17,10 @@
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
-// Determines if given UTC time is in British Summer Time (BST)
-int is_bst(struct tm *utc) {
-    if (!utc) return false;
-
-    int year = utc->tm_year + 1900;
-
-    // Find last Sunday in March
-    struct tm start = {
-        .tm_year = year - 1900, .tm_mon = 2, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 0};
-    mktime(&start);
-    while (start.tm_wday != 0) {
-        start.tm_mday--;
-        mktime(&start);
-    }
-
-    // Find last Sunday in October
-    struct tm end = {
-        .tm_year = year - 1900, .tm_mon = 9, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 1};
-    mktime(&end);
-    while (end.tm_wday != 0) {
-        end.tm_mday--;
-        mktime(&end);
-    }
-
-    time_t now = mktime(utc);
-    time_t start_time = mktime(&start);
-    time_t end_time = mktime(&end);
-
-    return now >= start_time && now < end_time;
-}
-
 // Called with results of operation
 void ntp_result(NTP_T *state, int status, time_t *result) {
     if (status == 0 && result) {
-        int bst = is_bst(gmtime(result));
-        time_t local_time_t = *result + (bst ? 3600 : 0);
-        struct tm *local = gmtime(&local_time_t);
-
-        printf("NTP time is %02d/%02d/%04d %02d:%02d:%02d (%s)\n", local->tm_mday, local->tm_mon + 1,
-               local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec, bst ? "BST" : "GMT");
+        state->time_handler(result);
     }
 
     if (state->ntp_resend_alarm > 0) {
@@ -84,7 +50,7 @@ void ntp_request(NTP_T *state) {
 
 int64_t ntp_failed_handler(alarm_id_t id, void *user_data) {
     NTP_T *state = (NTP_T *)user_data;
-    printf("ntp request failed\n");
+    state->error_handler("NTP request failed");
     ntp_result(state, -1, NULL);
     return 0;
 }
@@ -94,10 +60,10 @@ void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     NTP_T *state = (NTP_T *)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        printf("NTP address: %s\n", ipaddr_ntoa(ipaddr));
+        printf("NTP address: %s\r\n", ipaddr_ntoa(ipaddr));
         ntp_request(state);
     } else {
-        printf("NTP DNS request failed\n");
+        state->error_handler("NTP DNS request failed");
         ntp_result(state, -1, NULL);
     }
 }
@@ -119,22 +85,25 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         time_t epoch = seconds_since_1970;
         ntp_result(state, 0, &epoch);
     } else {
-        printf("invalid ntp response\n");
+        state->error_handler("NTP response error");
         ntp_result(state, -1, NULL);
     }
     pbuf_free(p);
 }
 
 // Perform initialisation
-NTP_T *ntp_init(void) {
+extern NTP_T *ntp_init(ntp_time_handler time_handler, ntp_error_handler error_handler) {
     NTP_T *state = (NTP_T *)calloc(1, sizeof(NTP_T));
     if (!state) {
-        printf("failed to allocate state\n");
+        printf("Failed to allocate NTP state\r\n");
         return NULL;
     }
+    state->time_handler = time_handler;
+    state->error_handler = error_handler;
+
     state->ntp_pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->ntp_pcb) {
-        printf("failed to create pcb\n");
+        state->error_handler("Failed to create UDP PCB");
         free(state);
         return NULL;
     }
