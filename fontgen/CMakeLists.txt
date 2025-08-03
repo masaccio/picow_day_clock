@@ -1,13 +1,10 @@
 # Set variables
 set(FONTGEN_DIR ${CMAKE_SOURCE_DIR}/fontgen)
 set(FONT_SCRIPT ${FONTGEN_DIR}/create-font-bitmaps.py)
-set(FONT_FILE ${FONTGEN_DIR}/Roboto-Medium.ttf) # Default font file, can override
+set(FONT_FILE ${FONTGEN_DIR}/Roboto-Medium.ttf)
 set(FONT_SIZES 12 24 48)
 set(FONT_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/lib/Fonts)
 set(VENV_DIR ${CMAKE_BINARY_DIR}/fontgen_venv)
-
-# Allow override of font file
-set(FONT_FILE_PATH "${FONT_FILE}" CACHE STRING "Path to the TTF font file")
 
 # Step 1: Create Python virtual environment
 add_custom_command(
@@ -33,8 +30,8 @@ foreach(SIZE ${FONT_SIZES})
 
     add_custom_command(
         OUTPUT ${OUT_FILE}
-        DEPENDS ${FONT_SCRIPT} ${FONT_FILE_PATH} ${VENV_DIR}/.pip_installed
-        COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} ${FONT_FILE_PATH} ${SIZE} ${OUT_FILE}
+        DEPENDS ${FONT_SCRIPT} ${FONT_FILE} ${VENV_DIR}/.pip_installed
+        COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --height=${SIZE} ${FONT_FILE} ${OUT_FILE}
         COMMENT "Generating font file ${OUT_FILE}"
     )
 endforeach()
