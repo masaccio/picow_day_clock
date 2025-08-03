@@ -48,16 +48,16 @@ include_directories(
     waveshare/Config
     waveshare/GUI
     waveshare/LCD
+    src
     ${CMAKE_BINARY_DIR}/generated
     ${CMAKE_CURRENT_LIST_DIR})
 
+file(GLOB SRC_FILES src/*.c)
 add_executable(pico-dow-clock 
     waveshare/Config/DEV_Config.c
     waveshare/LCD/LCD_1in47.c
     waveshare/GUI/GUI_Paint.c
-    gui_paint_extra.c
-    ntp.c
-    pico-dow-clock.c
+    ${SRC_FILES}
     ${GENERATED_FONTS}
     )
 
@@ -66,11 +66,11 @@ add_dependencies(pico-dow-clock generate_fonts)
 
 # Configuration options for the clock. Wi-Fi credentials are required
 # and found in secrets.cmake
-add_compile_definitions(
+target_compile_definitions(pico-dow-clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"uk.pool.ntp.org\"
-    DEBUG=1
+    # DEBUG=1
 )
 
 pico_set_program_name(pico-dow-clock "pico-dow-clock")
