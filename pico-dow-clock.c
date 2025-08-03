@@ -281,8 +281,7 @@ int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint,
       if (Column % 8 == 7)
         ptr++;
     } // Write a line
-    if (font_width % 8 != 0)
-      ptr++;
+    ptr += Font->Width - font_width / 8; // Move to next line
   } // Write all
 
   Debug("Paint_DrawVariableWidthChar: last width %d\n", font_width);
@@ -389,10 +388,9 @@ int main() {
 
   cyw43_arch_enable_sta_mode();
 
-  if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD,
-                                         CYW43_AUTH_WPA2_AES_PSK, 10000)) {
-    printf("Failed to connect\n");
-    return 1;
+  while (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD,
+                                            CYW43_AUTH_WPA2_AES_PSK, 10000)) {
+    printf("Timeout\n");
   }
   printf("Connected to %s\n", WIFI_SSID);
 
