@@ -2,6 +2,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Font Generator",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/fontgen/create-font-bitmaps.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--height",
+                "48",
+                "${workspaceFolder}/fontgen/Roboto-Medium.ttf",
+                "${workspaceFolder}/lib/Fonts/RobotoMedium48.c"
+            ],
+            "python": "${workspaceFolder}/build/fontgen_venv/bin/python3"
+        },
+        {
             "name": "Pico Debug (Cortex-Debug)",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
             "executable": "${command:raspberry-pi-pico.launchTargetPath}",
