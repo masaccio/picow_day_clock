@@ -43,11 +43,7 @@
     "editor.formatOnSave": true,
     "files.associations": {
         "*.json": "json",
-        "spi.h": "c",
-        "dev_config.h": "c",
-        "charconv": "c",
-        "cyw43_arch.h": "c",
-        "stdlib.h": "c"
+        "*.h": "c",
     },
     "[c]": {
         "editor.tabSize": 4
