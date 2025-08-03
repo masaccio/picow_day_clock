@@ -37,14 +37,18 @@
     "raspberry-pi-pico.useCmakeTools": false,
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
     "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
-    "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "LLVM",
+    "C_Cpp.clang_format_style": "file",
+    // "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 120, AllowShortIfStatementsOnASingleLine: true, AllowShortLoopsOnASingleLine: true }",
     "editor.formatOnSave": true,
     "files.associations": {
         "*.json": "json",
         "spi.h": "c",
         "dev_config.h": "c",
         "charconv": "c"
+    },
+    "[c]": {
+        "editor.tabSize": 4
     },
     "[python]": {
         "editor.formatOnSave": true,
