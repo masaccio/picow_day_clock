@@ -51,3 +51,5 @@ add_custom_target(generate_fonts ALL
     DEPENDS ${GENERATED_FONT_FILES}
     COMMENT "Generating all fonts from ${FONT_FILE_PATH}"
 )
+
+set(GENERATED_FONTS ${GENERATED_FONT_FILES} PARENT_SCOPE)

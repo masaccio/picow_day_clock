@@ -41,23 +41,28 @@ endif()
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-add_subdirectory(lib/Config)
-add_subdirectory(lib/LCD) 
-add_subdirectory(lib/Fonts)
-add_subdirectory(lib/GUI)
 add_subdirectory(fontgen)
 
 include_directories(
-    ./lib/Fonts
-    ./lib/Config
-    ./lib/GUI
-    ./lib/LCD
+    waveshare/Fonts
+    waveshare/Config
+    waveshare/GUI
+    waveshare/LCD
+    ${CMAKE_BINARY_DIR}/generated
     ${CMAKE_CURRENT_LIST_DIR})
 
 add_executable(pico-dow-clock 
+    waveshare/Config/DEV_Config.c
+    waveshare/LCD/LCD_1in47.c
+    waveshare/GUI/GUI_Paint.c
+    gui_paint_extra.c
     ntp.c
     pico-dow-clock.c
+    ${GENERATED_FONTS}
     )
+
+add_dependencies(pico-dow-clock generate_fonts)
+
 
 # Configuration options for the clock. Wi-Fi credentials are required
 # and found in secrets.cmake
@@ -73,11 +78,9 @@ pico_set_program_version(pico-dow-clock "0.1")
 
 # Add any user requested libraries
 target_link_libraries(pico-dow-clock 
-        Config
-        Fonts
-        GUI
-        LCD
         pico_stdlib
+        hardware_pwm
+        hardware_i2c
         hardware_spi
         pico_cyw43_arch_lwip_threadsafe_background
         )
