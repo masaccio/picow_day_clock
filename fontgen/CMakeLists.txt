@@ -2,8 +2,9 @@
 set(FONTGEN_DIR ${CMAKE_SOURCE_DIR}/fontgen)
 set(FONT_SCRIPT ${FONTGEN_DIR}/create-font-bitmaps.py)
 set(FONT_FILE ${FONTGEN_DIR}/Roboto-Medium.ttf)
-set(FONT_SIZES 12 24 48)
-set(FONT_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/lib/Fonts)
+set(FONT_SIZES 12 24)
+set(CLOCK_FONT_SIZE 200)
+set(FONT_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/generated)
 set(VENV_DIR ${CMAKE_BINARY_DIR}/fontgen_venv)
 
 # Step 1: Create Python virtual environment
@@ -35,6 +36,15 @@ foreach(SIZE ${FONT_SIZES})
         COMMENT "Generating font file ${OUT_FILE}"
     )
 endforeach()
+
+set(CLOCK_FONT_FILE ${FONT_OUTPUT_DIR}/RobotoMedium${CLOCK_FONT_SIZE}.c)
+list(APPEND GENERATED_FONT_FILES ${CLOCK_FONT_FILE})
+add_custom_command(
+    OUTPUT ${CLOCK_FONT_FILE}
+    DEPENDS ${FONT_SCRIPT} ${FONT_FILE} ${VENV_DIR}/.pip_installed
+    COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --clock --height=${CLOCK_FONT_SIZE} ${FONT_FILE} ${CLOCK_FONT_FILE}
+    COMMENT "Generating font file ${CLOCK_FONT_FILE}"
+)
 
 # Step 4: Create a custom target to group all font generation
 add_custom_target(generate_fonts ALL
