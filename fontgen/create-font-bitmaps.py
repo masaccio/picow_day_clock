@@ -1,89 +1,156 @@
-import sys
+import argparse
 import math
-from os.path import basename, splitext, dirname
 import os
+from os.path import basename, dirname, splitext
+from typing import TextIO
+
 from PIL import Image, ImageDraw, ImageFont  # pyright: ignore[reportMissingImports]
 
+ASCII_CHAR_RANGE = [chr(i) for i in range(32, 127)]
 
-def generate_variable_width_font(ttf_path: str, char_height: int, target: str) -> None:
-    font_name: str = basename(splitext(ttf_path)[0]).replace("-", "_").replace(" ", "_")
-    font: ImageFont.FreeTypeFont = ImageFont.truetype(ttf_path, char_height)
-    chars: list[str] = [chr(i) for i in range(32, 127)]  # Printable ASCII range
 
-    output_height = char_height
+def get_commented_license(license_path: str) -> str:
+    with open(license_path, "r") as lf:
+        license_lines = lf.readlines()
+    return "/*\n" + "".join([" * " + line.rstrip() + "\n" for line in license_lines]) + "*/\n\n"
+
+
+def ascii_c_name(char: str) -> str:
+    special_map = {
+        " ": "space",
+        "!": "excl",
+        '"': "quote",
+        "#": "hash",
+        "$": "dollar",
+        "%": "percent",
+        "&": "amp",
+        "'": "apos",
+        "(": "lparen",
+        ")": "rparen",
+        "*": "asterisk",
+        "+": "plus",
+        ",": "comma",
+        "-": "minus",
+        ".": "dot",
+        "/": "slash",
+        ":": "colon",
+        ";": "semi",
+        "<": "lt",
+        "=": "eq",
+        ">": "gt",
+        "?": "qmark",
+        "@": "at",
+        "[": "lbrack",
+        "\\": "bslash",
+        "]": "rbrack",
+        "^": "caret",
+        "_": "underscore",
+        "`": "backtick",
+        "{": "lbrace",
+        "|": "pipe",
+        "}": "rbrace",
+        "~": "tilde",
+    }
+    if char.isalnum():
+        return char
+    return special_map[char]
+
+
+def max_font_size(font_filename: str, target_height: int) -> int:
+    """Hack: determine the font size needed to achieve a target height of 12 pixels."""
+    max_font_size = int(target_height / 2)
+    font_size = max_font_size
+    while True:
+        font = ImageFont.truetype(font_filename, font_size)
+        max_y = max(font.getbbox(char)[3] for char in ASCII_CHAR_RANGE)
+        # Allow for case where a single step in font size results in a height that is too large
+        if max_y <= target_height:
+            max_font_size = font_size
+        if max_y >= target_height:
+            break
+        font_size += 1
+    return max_font_size
+
+
+def generate_variable_width_font(font_filename: str, char_height: int, target: TextIO) -> None:
+    font_size = max_font_size(font_filename, char_height)
+    font = ImageFont.truetype(font_filename, font_size)
+
     glyph_entries = []
+    font_name = basename(splitext(font_filename)[0]).replace("-", "_").replace(" ", "_")
     table_name = f"{font_name}{char_height}_Table"
     font_struct_name = f"{font_name}{char_height}"
 
-    license_path = os.path.join(dirname(dirname(__file__)), "LICENSE")
-    license_comment = ""
-    try:
-        with open(license_path, "r") as lf:
-            license_lines = lf.readlines()
-        license_comment = (
-            "/*\n"
-            + "".join([" * " + line.rstrip() + "\n" for line in license_lines])
-            + "*/\n\n"
+    target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
+    target.write('#include "fonts.h"\n\n')
+
+    min_x = min(font.getbbox(char)[0] for char in ASCII_CHAR_RANGE)
+    max_x = max(font.getbbox(char)[2] for char in ASCII_CHAR_RANGE)
+    max_width = max_x - min_x
+    max_height = max(font.getbbox(char)[3] for char in ASCII_CHAR_RANGE)
+
+    bytes_per_row = math.ceil(max_width / 8)
+
+    if max_height > char_height:
+        raise ValueError(f"Font height {max_height} exceeds output height {char_height}.")
+
+    for char in ASCII_CHAR_RANGE:
+        image = Image.new(
+            "1",  # 1-bit pixels, black and white
+            (bytes_per_row * 8, char_height),
         )
-    except Exception:
-        license_comment = "/* LICENSE file not found */\n\n"
+        draw = ImageDraw.Draw(image)
+        bbox = font.getbbox(char)
+        # Override left offset as we cannot deal with negative offsets (e.g. 'j')
+        x_offset = 0 if bbox[0] < 0 else bbox[0]
+        draw.text((x_offset, 0), char, font=font, fill=1)
+        pixels = image.load()
 
-    with open(target, "w") as fh:
-        fh.write(license_comment)
-        fh.write('#include "fonts.h"\n\n')
+        glyph_array_name = f"{font_name}{char_height}_" + ascii_c_name(char)
+        target.write(f"static const uint8_t {glyph_array_name}[] = {{\n")
+        for y in range(char_height):
+            line_bytes = []
+            comment = ""
+            for byte_index in range(bytes_per_row):
+                byte = 0
+                for bit in range(8):
+                    x = byte_index * 8 + bit
+                    if pixels[x, y]:
+                        byte |= 1 << (7 - bit)
+                        comment += "#"
+                    else:
+                        comment += " "
+                line_bytes.append(byte)
+            target.write("  " + ", ".join(f"0x{b:02X}" for b in line_bytes) + f", // {comment}\n")
+        target.write("};\n\n")
 
-        for char in chars:
-            bbox = font.getbbox(char)
-            glyph_width = bbox[2] - bbox[0]
-            glyph_height = bbox[3] - bbox[1]
-            y_offset = max((output_height - glyph_height) // 2, 0)
+        glyph_width = bbox[2] - bbox[0]
+        glyph_entries.append((glyph_width, glyph_array_name))
 
-            image = Image.new("1", (glyph_width, output_height), 0)
-            draw = ImageDraw.Draw(image)
-            draw.text((-bbox[0], y_offset - bbox[1]), char, font=font, fill=1)
+    target.write(f"static const vFONTENTRY {table_name}[] = {{\n")
+    for width, glyph_array_name in glyph_entries:
+        target.write(f"  {{ {width}, {glyph_array_name} }},\n")
+    target.write("};\n\n")
 
-            pixels = image.load()
-            bytes_per_row = math.ceil(glyph_width / 8)
-
-            glyph_array_name = f"{font_name}{char_height}_{ord(char)}"
-
-            fh.write(f"static const uint8_t {glyph_array_name}[] = {{\n")
-            for y in range(output_height):
-                comment = ""
-                for byte_index in range(bytes_per_row):
-                    byte = 0
-                    for bit in range(8):
-                        x = byte_index * 8 + bit
-                        if x < glyph_width and pixels[x, y] != 0:
-                            byte |= 1 << (7 - bit)
-                            comment += "#"
-                        elif x < glyph_width:
-                            comment += " "
-                    fh.write(f"  0x{byte:02X}, // {comment}\n")
-            fh.write("};\n\n")
-
-            glyph_entries.append((glyph_width, glyph_array_name))
-
-        fh.write(f"static const vFONTENTRY {table_name}[] = {{\n")
-        for width, glyph_array_name in glyph_entries:
-            fh.write(f"  {{ {width}, {glyph_array_name} }},\n")
-        fh.write("};\n\n")
-
-        fh.write(f"vFONT {font_struct_name} = {{\n")
-        fh.write(f"  {table_name},\n")
-        fh.write(f"  {output_height}\n")
-        fh.write("};\n")
+    target.write(f"vFONT {font_struct_name} = {{\n")
+    target.write(f"  {table_name},\n")
+    target.write(f"  {bytes_per_row},\n")
+    target.write(f"  {char_height}\n")
+    target.write("};\n")
 
 
 def main() -> None:
-    if len(sys.argv) != 4:
-        print("Usage: python stm32_fontgen.py path/to/font.ttf height path/to/output.c")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Generate bitmap font tables from a TTF font.")
 
-    ttf_path: str = sys.argv[1]
-    height: int = int(sys.argv[2])
-    target: str = sys.argv[3]
-    generate_variable_width_font(ttf_path, height, target)
+    parser.add_argument("font", help="Path to the TTF font file.")
+
+    parser.add_argument("output", type=argparse.FileType("w"), help="Path to the output C file.")
+
+    parser.add_argument("--height", type=int, required=True, help="Height of the font in points.")
+
+    args = parser.parse_args()
+
+    generate_variable_width_font(args.font, args.height, args.output)
 
 
 if __name__ == "__main__":
