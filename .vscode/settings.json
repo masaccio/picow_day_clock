@@ -45,7 +45,9 @@
         "*.json": "json",
         "spi.h": "c",
         "dev_config.h": "c",
-        "charconv": "c"
+        "charconv": "c",
+        "cyw43_arch.h": "c",
+        "stdlib.h": "c"
     },
     "[c]": {
         "editor.tabSize": 4
