@@ -9,9 +9,9 @@
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
 
-typedef void (*ntp_time_handler)(time_t *time);
+typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 
-typedef void (*ntp_error_handler)(const char *format, ...);
+typedef void (*ntp_error_handler_t)(void *state, const char *format, ...);
 
 typedef struct NTP_T_ {
     ip_addr_t ntp_server_address;
@@ -19,9 +19,10 @@ typedef struct NTP_T_ {
     struct udp_pcb *ntp_pcb;
     absolute_time_t ntp_test_time;
     alarm_id_t ntp_resend_alarm;
-    ntp_time_handler time_handler;
-    ntp_error_handler error_handler;
-} NTP_T;
+    void *parent_state;
+    ntp_time_handler_t time_handler;
+    ntp_error_handler_t error_handler;
+} ntp_state_t;
 
 #ifndef NTP_SERVER
 #define NTP_SERVER "pool.ntp.org" // Default NTP server
@@ -37,8 +38,10 @@ extern int64_t ntp_failed_handler(alarm_id_t id, void *user_data);
 
 extern void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
 
-extern void ntp_request(NTP_T *state);
+extern void ntp_request(ntp_state_t *state);
 
-extern NTP_T *ntp_init(ntp_time_handler time_handler, ntp_error_handler error_handler);
+extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler, ntp_error_handler_t error_handler);
 
-extern void ntp_result(NTP_T *state, int status, time_t *result);
+extern void ntp_result(ntp_state_t *state, int status, time_t *result);
+
+extern void print_memory_usage(void);
