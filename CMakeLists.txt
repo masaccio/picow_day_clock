@@ -85,8 +85,8 @@ target_link_libraries(pico-dow-clock
         pico_cyw43_arch_lwip_threadsafe_background
         )
 
-# enable usb output, disable uart output
-pico_enable_stdio_usb(pico-dow-clock 1)
-pico_enable_stdio_uart(pico-dow-clock 0)
+# Serial output to UART, not USB
+pico_enable_stdio_usb(pico-dow-clock 0)
+pico_enable_stdio_uart(pico-dow-clock 1)
 
 pico_add_extra_outputs(pico-dow-clock)
