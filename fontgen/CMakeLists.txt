@@ -2,7 +2,7 @@
 set(FONTGEN_DIR ${CMAKE_SOURCE_DIR}/fontgen)
 set(FONT_SCRIPT ${FONTGEN_DIR}/create-font-bitmaps.py)
 set(FONT_FILE ${FONTGEN_DIR}/Roboto-Medium.ttf)
-set(FONT_SIZES 12 24 48)
+set(FONT_SIZES 24)
 set(CLOCK_FONT_SIZE 200)
 set(FONT_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/generated)
 set(VENV_DIR ${CMAKE_BINARY_DIR}/fontgen_venv)

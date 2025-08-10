@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include "fonts.h"
+#include <stdint.h>
 
 typedef struct _vFontEntry {
     const uint8_t Width;
@@ -12,7 +12,5 @@ typedef struct _vFont {
     uint16_t Height;
 } vFONT;
 
-extern vFONT Roboto_Medium12;
 extern vFONT Roboto_Medium24;
-extern vFONT Roboto_Medium48;
 extern vFONT Roboto_Medium200;
