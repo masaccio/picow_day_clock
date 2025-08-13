@@ -82,6 +82,7 @@ target_link_libraries(pico-dow-clock
         hardware_pwm
         hardware_i2c
         hardware_spi
+        # pico_multicore
         pico_cyw43_arch_lwip_threadsafe_background
         )
 
