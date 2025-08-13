@@ -12,30 +12,21 @@
 #error "WIFI_PASSWORD is not defined. Please define it in secrets.cmake or via a compile flag."
 #endif
 
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
 /* Pico SDK includes */
 #include "lwip/dns.h"
 #include "pico/cyw43_arch.h"
+#include "pico/multicore.h"
 #include "pico/stdlib.h"
-
-/* Waveshare SDK includes */
-#include "DEV_Config.h"
-#include "GUI_Paint.h"
-#include "LCD_1in47.h"
 
 /* Local includes */
 #include "fonts_extra.h"
 #include "gui_paint_extra.h"
+#include "lcd.h"
 #include "ntp.h"
-
-void ntp_error_callback(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
-}
 
 // Determines if given UTC time is in British Summer Time (BST)
 int is_bst(struct tm *utc) {
@@ -68,34 +59,40 @@ int is_bst(struct tm *utc) {
     return now >= start_time && now < end_time;
 }
 
-void ntp_timer_callback(time_t *ntp_time) {
+void ntp_timer_callback(lcd_state_t *state, time_t *ntp_time) {
     int bst = is_bst(gmtime(ntp_time));
     time_t local_time_t = *ntp_time + (bst ? 3600 : 0);
     struct tm *local = gmtime(&local_time_t);
 
     printf("NTP time is %02d/%02d/%04d %02d:%02d:%02d (%s)\r\n", local->tm_mday, local->tm_mon + 1,
            local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec, bst ? "BST" : "GMT");
+
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "NTP time is %02d/%02d/%04d %02d:%02d:%02d (%s)\r\n", local->tm_mday,
+             local->tm_mon + 1, local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec,
+             bst ? "BST" : "GMT");
+    print_line(state, buffer);
 }
 
 // Runs ntp test forever
-void run_ntp_test(void) {
-    NTP_T *state = ntp_init(ntp_timer_callback, ntp_error_callback);
-    if (!state) return;
+void run_ntp_test(lcd_state_t *lcd_state) {
+    ntp_state_t *ntp_state = ntp_init(lcd_state, ntp_timer_callback);
+    if (!ntp_state) return;
     while (true) {
-        if (absolute_time_diff_us(get_absolute_time(), state->ntp_test_time) < 0 && !state->dns_request_sent) {
+        if (absolute_time_diff_us(get_absolute_time(), ntp_state->ntp_test_time) < 0 && !ntp_state->dns_request_sent) {
             // Set alarm in case udp requests are lost
-            state->ntp_resend_alarm = add_alarm_in_ms(NTP_RESEND_TIME, ntp_failed_handler, state, true);
+            ntp_state->ntp_resend_alarm = add_alarm_in_ms(NTP_RESEND_TIME, ntp_failed_handler, ntp_state, true);
 
             cyw43_arch_lwip_begin();
-            int err = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_found, state);
+            int err = dns_gethostbyname(NTP_SERVER, &ntp_state->ntp_server_address, ntp_dns_found, ntp_state);
             cyw43_arch_lwip_end();
 
-            state->dns_request_sent = true;
+            ntp_state->dns_request_sent = true;
             if (err == ERR_OK) {
-                ntp_request(state);             // Cached result
+                ntp_request(ntp_state);         // Cached result
             } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
-                state->error_handler("DNS request failed");
-                ntp_result(state, -1, NULL);
+                print_line(lcd_state, "DNS request failed");
+                ntp_result(ntp_state, -1, NULL);
             }
         }
         // if you are not using pico_cyw43_arch_poll, then WiFI driver and lwIP work
@@ -103,46 +100,70 @@ void run_ntp_test(void) {
         // some (blocking) work you might be doing.
         sleep_ms(1000);
     }
-    free(state);
+    free(ntp_state);
 }
 
-int LCD_1in47_test(void) {
-    UDOUBLE Imagesize = LCD_1IN47_HEIGHT * LCD_1IN47_WIDTH * 2;
-    UWORD *BlackImage;
-    if ((BlackImage = (UWORD *)malloc(Imagesize)) == NULL) {
-        printf("Failed to apply for black memory.\r\n");
-        exit(0);
-    }
+// void core1_lcd() {
+//     printf("Core1: starting\r\n");
+//     init_lcd(lcd_state.frame_buffer);
 
-    if (DEV_Module_Init() != 0) {
-        printf("Failed to init the LCD.\r\n");
-        exit(0);
-    }
+//     Paint_SetRotate(ROTATE_0);
+//     lcd_state print_lcd(0, 0, "LCD initialised");
+//     LCD_1IN47_Display(lcd_state.frame_buffer);
 
-    LCD_1IN47_Init(VERTICAL);
-    LCD_1IN47_Clear(BLACK);
-    DEV_SET_PWM(0);
-    Paint_NewImage((UBYTE *)BlackImage, LCD_1IN47.WIDTH, LCD_1IN47.HEIGHT, 0, BLACK);
-    // Paint_SetScale(65);
-    Paint_Clear(BLACK);
-    // Paint_SetRotate(ROTATE_90);
+//     while (true) {
+//         if (clock_state.lcd_update_requested) {
+//             printf("Core1: updating LCD\r\n");
+//             clock_state.lcd_update_requested = false;
+//             LCD_1IN47_Display(clock_state.frame_buffer);
+//         }
+//         sleep_ms(10);
+//     }
+// }
 
-    Paint_DrawVariableWidthString(0, 50, "Hello, World!", &Roboto_Medium48, WHITE, BLACK);
-    LCD_1IN47_Display(BlackImage);
+// int core0_lwip() {
+//     stdio_init_all();
 
-    DEV_SET_PWM(100);
+//     // Launch LCD code on core 1 first
+//     multicore_launch_core1(core1_lcd);
 
-    free(BlackImage);
-    BlackImage = NULL;
+//     // Initialize Wi-Fi on core 0
+//     if (cyw43_arch_init()) {
+//         printf("Core0: Failed to initialise cyw43\r\n");
+//         return 1;
+//     } else {
+//         printf("Core0: cyw43 initialized\r\n");
+//     }
 
-    DEV_Module_Exit();
-    return 0;
-}
+//     printf("Core0: Attempting connection to: %s\r\n", WIFI_SSID);
+//     cyw43_arch_enable_sta_mode();
 
-int main() {
+//     while (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK,
+//                                               /* timeout ms */ 10000)) {
+//         printf("Core0: Timeout: trying again\r\n");
+//     }
+
+//     // Wi-Fi connected: update LCD with status
+//     print_lcd(0, 26, "Wi-Fi initialised:");
+//     print_lcd(0, 52, WIFI_SSID);
+
+//     // Signal core1 to update LCD
+//     clock_state.lcd_update_requested = true;
+
+//     printf("Core0: Connected to %s\r\n", WIFI_SSID);
+
+//     // Run your NTP test or main app logic
+//     run_ntp_test(&clock_state);
+
+//     // Cleanup (if ever reached)
+//     free(clock_state.frame_buffer);
+//     DEV_Module_Exit();
+//     cyw43_arch_deinit();
+//     return 0;
+// }
+
+int single_core_main() {
     stdio_init_all();
-
-    sleep_ms(2000);
 
     if (cyw43_arch_init()) {
         printf("Failed to initialise\r\n");
@@ -151,17 +172,33 @@ int main() {
         printf("Initialised\r\n");
     }
 
+    printf("Attempting connection to: %s\r\n", WIFI_SSID);
     cyw43_arch_enable_sta_mode();
-
-    while (
-        cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, /* timeout ms */ 10000)) {
+    while (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK,
+                                              /* timeout ms */ 5000)) {
         printf("Timeout: trying again\r\n");
     }
+
+    lcd_state_t *lcd_state = init_lcd();
+
+    Paint_SetRotate(ROTATE_0);
+    print_line(lcd_state, "LCD initialised");
+    LCD_1IN47_Display(lcd_state->frame_buffer);
+
+    print_line(lcd_state, "Wi-Fi initialised:");
+    print_line(lcd_state, WIFI_SSID);
     printf("Connected to %s\r\n", WIFI_SSID);
+    LCD_1IN47_Display(lcd_state->frame_buffer);
 
-    LCD_1in47_test();
+    run_ntp_test(lcd_state);
 
-    run_ntp_test();
+    free(lcd_state->frame_buffer);
+    DEV_Module_Exit();
     cyw43_arch_deinit();
     return 0;
+}
+
+int main() {
+    // return core0_lwip();
+    return single_core_main();
 }

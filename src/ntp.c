@@ -20,7 +20,7 @@
 // Called with results of operation
 void ntp_result(ntp_state_t *state, int status, time_t *result) {
     if (status == 0 && result) {
-        state->time_handler(state->parent_state, result);
+        state->time_handler(state->lcd_state, result);
     }
 
     if (state->ntp_resend_alarm > 0) {
@@ -45,7 +45,7 @@ void ntp_request(ntp_state_t *state) {
 
 int64_t ntp_failed_handler(alarm_id_t id, void *user_data) {
     ntp_state_t *state = (ntp_state_t *)user_data;
-    state->error_handler(state->parent_state, "NTP request failed");
+    print_line(state->lcd_state, "NTP request failed");
     ntp_result(state, -1, NULL);
     return 0;
 }
@@ -58,7 +58,7 @@ void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
         printf("NTP address: %s\r\n", ipaddr_ntoa(ipaddr));
         ntp_request(state);
     } else {
-        state->error_handler(state->parent_state, "NTP DNS request failed");
+        print_line(state->lcd_state, "NTP DNS request failed");
         ntp_result(state, -1, NULL);
     }
 }
@@ -80,27 +80,27 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         time_t epoch = seconds_since_1970;
         ntp_result(state, 0, &epoch);
     } else {
-        state->error_handler(state->parent_state, "NTP response error");
+        print_line(state->lcd_state, "NTP response error");
         ntp_result(state, -1, NULL);
     }
     pbuf_free(p);
 }
 
 // Perform initialisation
-extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler, ntp_error_handler_t error_handler) {
+extern ntp_state_t *ntp_init(lcd_state_t *lcd_state, ntp_time_handler_t time_handler) {
 
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
     if (!state) {
         printf("Failed to allocate NTP state\r\n");
         return NULL;
     }
-    state->parent_state = parent_state;
+
+    state->lcd_state = lcd_state;
     state->time_handler = time_handler;
-    state->error_handler = error_handler;
 
     state->ntp_pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->ntp_pcb) {
-        state->error_handler(state->parent_state, "Failed to create UDP PCB");
+        print_line(lcd_state, "Failed to create UDP PCB");
         free(state);
         return NULL;
     }
