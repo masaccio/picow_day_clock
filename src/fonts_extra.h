@@ -1,3 +1,6 @@
+#ifndef _FONTS_EXTRA_H
+#define _FONTS_EXTRA_H
+
 #include "fonts.h"
 #include <stdint.h>
 
@@ -14,3 +17,5 @@ typedef struct _vFont {
 
 extern vFONT Roboto_Medium24;
 extern vFONT Roboto_Medium200;
+
+#endif /* _FONTS_EXTRA_H */
