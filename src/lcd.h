@@ -2,9 +2,14 @@
 #ifndef _LCD_H
 #define _LCD_H
 
+/* Waveshare SDK */
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "LCD_1in47.h"
+
+/* Local includes */
+
+#include "fonts_extra.h"
 
 typedef struct lcd_state_t {
     UWORD *frame_buffer;
