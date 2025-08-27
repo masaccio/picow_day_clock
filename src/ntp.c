@@ -17,20 +17,6 @@
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
-// Called with results of operation
-void ntp_result(ntp_state_t *state, int status, time_t *result) {
-    if (status == 0 && result) {
-        state->time_handler(state->lcd_state, result);
-    }
-
-    if (state->ntp_resend_alarm > 0) {
-        cancel_alarm(state->ntp_resend_alarm);
-        state->ntp_resend_alarm = 0;
-    }
-    state->ntp_test_time = make_timeout_time_ms(NTP_TEST_TIME);
-    state->dns_request_sent = false;
-}
-
 // Make an NTP request
 void ntp_request(ntp_state_t *state) {
     cyw43_arch_lwip_begin();
@@ -43,23 +29,16 @@ void ntp_request(ntp_state_t *state) {
     cyw43_arch_lwip_end();
 }
 
-int64_t ntp_failed_handler(alarm_id_t id, void *user_data) {
-    ntp_state_t *state = (ntp_state_t *)user_data;
-    print_line(state->lcd_state, "NTP request failed");
-    ntp_result(state, -1, NULL);
-    return 0;
-}
-
-// Call back with a DNS result
-void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
+// Called by dns_gethostbyname() after a DNS request completes
+// having previously returned ERR_INPROGRESS to ntp_get_time()
+void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     ntp_state_t *state = (ntp_state_t *)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
         printf("NTP address: %s\r\n", ipaddr_ntoa(ipaddr));
         ntp_request(state);
     } else {
-        print_line(state->lcd_state, "NTP DNS request failed");
-        ntp_result(state, -1, NULL);
+        state->status = NTP_STATUS_DNS_ERROR;
     }
 }
 
@@ -78,16 +57,17 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
             seconds_buf[0] << 24 | seconds_buf[1] << 16 | seconds_buf[2] << 8 | seconds_buf[3];
         uint32_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
         time_t epoch = seconds_since_1970;
-        ntp_result(state, 0, &epoch);
+
+        state->status = NTP_STATUS_SUCCESS;
+        state->time_handler(state->parent_state, &epoch);
     } else {
-        print_line(state->lcd_state, "NTP response error");
-        ntp_result(state, -1, NULL);
+        state->status = NTP_STATUS_INVALID_RESPONSE;
     }
     pbuf_free(p);
 }
 
 // Perform initialisation
-extern ntp_state_t *ntp_init(lcd_state_t *lcd_state, ntp_time_handler_t time_handler) {
+extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler) {
 
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
     if (!state) {
@@ -95,15 +75,39 @@ extern ntp_state_t *ntp_init(lcd_state_t *lcd_state, ntp_time_handler_t time_han
         return NULL;
     }
 
-    state->lcd_state = lcd_state;
+    state->parent_state = parent_state;
     state->time_handler = time_handler;
 
     state->ntp_pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->ntp_pcb) {
-        print_line(lcd_state, "Failed to create UDP PCB");
         free(state);
         return NULL;
     }
     udp_recv(state->ntp_pcb, ntp_recv, state);
     return state;
+}
+
+ntp_status_t ntp_get_time(ntp_state_t *ntp_state) {
+    absolute_time_t start_time = get_absolute_time();
+
+    cyw43_arch_lwip_begin();
+    int dns_status = dns_gethostbyname(NTP_SERVER, &ntp_state->ntp_server_address, ntp_dns_callback, ntp_state);
+    cyw43_arch_lwip_end();
+
+    ntp_state->status = NTP_STATUS_PENDING;
+    if (dns_status == ERR_OK) {
+        ntp_request(ntp_state);
+    } else if (dns_status != ERR_INPROGRESS) {
+        return NTP_STATUS_DNS_ERROR;
+    }
+
+    while (ntp_state->status != NTP_STATUS_SUCCESS) {
+        sleep_ms(50); /* wait for background lwIP */
+
+        if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
+            return NTP_STATUS_TIMEOUT;
+        }
+    }
+
+    return NTP_STATUS_SUCCESS;
 }
