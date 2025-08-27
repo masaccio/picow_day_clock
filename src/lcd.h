@@ -2,21 +2,24 @@
 #ifndef _LCD_H
 #define _LCD_H
 
+#include <time.h>
+
 /* Waveshare SDK */
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "LCD_1in47.h"
 
 /* Local includes */
-
 #include "fonts_extra.h"
 
 typedef struct lcd_state_t {
     UWORD *frame_buffer;
+    bool ntp_updated;
+    time_t ntp_time;
     int y_offset;
 } lcd_state_t;
 
-extern lcd_state_t *init_lcd(void);
+extern lcd_state_t *lcd_init(void);
 
 extern void print_line(lcd_state_t *state, const char *format, ...);
 

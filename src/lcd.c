@@ -5,25 +5,22 @@
 
 static UWORD lcd_frame_buffer[LCD_HEIGHT * LCD_WIDTH];
 
-lcd_state_t *init_lcd(void) {
+lcd_state_t *lcd_init(void) {
     lcd_state_t *lcd_state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
 
     if (DEV_Module_Init() != 0) {
-        printf("Failed to init the LCD.\r\n");
-        exit(0);
+        return NULL;
     }
 
     lcd_state->frame_buffer = lcd_frame_buffer;
     lcd_state->y_offset = 0;
 
-    LCD_1IN47_Init(VERTICAL);
-    LCD_1IN47_Clear(BGCOLOR);
-    DEV_SET_PWM(0);
-    Paint_NewImage((UBYTE *)lcd_state->frame_buffer, LCD_WIDTH, LCD_HEIGHT, 0, BGCOLOR);
-    Paint_SetScale(65);
-    Paint_Clear(BGCOLOR);
-    LCD_1IN47_Display(lcd_state->frame_buffer);
-    DEV_SET_PWM(100);
+    // LCD_1IN47_Init(VERTICAL);
+    // DEV_SET_PWM(0);
+
+    // Paint_NewImage((UBYTE *)lcd_state->frame_buffer, LCD_WIDTH, LCD_HEIGHT, 0, BGCOLOR);
+    // Paint_SetScale(65);
+    // Paint_Clear(BGCOLOR);
 
     return lcd_state;
 }
@@ -43,4 +40,5 @@ void clear_screen(lcd_state_t *state) {
     Paint_Clear(BGCOLOR);
     state->y_offset = 0;
     LCD_1IN47_Display(state->frame_buffer);
+    DEV_SET_PWM(100);
 }
