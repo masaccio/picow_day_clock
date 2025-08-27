@@ -15,9 +15,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.1)
+set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.1.1)
+set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -28,7 +28,7 @@ set(PICO_BOARD pico2_w CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(pico-dow-clock C CXX ASM)
+project(picow_day_clock C CXX ASM)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -53,7 +53,7 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR})
 
 file(GLOB SRC_FILES src/*.c)
-add_executable(pico-dow-clock 
+add_executable(picow_day_clock 
     waveshare/Config/DEV_Config.c
     waveshare/LCD/LCD_1in47.c
     waveshare/GUI/GUI_Paint.c
@@ -61,33 +61,28 @@ add_executable(pico-dow-clock
     ${GENERATED_FONTS}
     )
 
-add_dependencies(pico-dow-clock generate_fonts)
-
+add_dependencies(picow_day_clock generate_fonts)
 
 # Configuration options for the clock. Wi-Fi credentials are required
 # and found in secrets.cmake
-target_compile_definitions(pico-dow-clock PRIVATE
+target_compile_definitions(picow_day_clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"uk.pool.ntp.org\"
+    PICO_CYW43_LOGGING_ENABLED=0
     # DEBUG=1
 )
 
-pico_set_program_name(pico-dow-clock "pico-dow-clock")
-pico_set_program_version(pico-dow-clock "0.1")
+pico_set_program_name(picow_day_clock "picow_day_clock")
+pico_set_program_version(picow_day_clock "0.1")
 
 # Add any user requested libraries
-target_link_libraries(pico-dow-clock 
+target_link_libraries(picow_day_clock 
+        pico_cyw43_arch_lwip_threadsafe_background
         pico_stdlib
         hardware_pwm
         hardware_i2c
         hardware_spi
-        # pico_multicore
-        pico_cyw43_arch_lwip_threadsafe_background
         )
 
-# Serial output to UART, not USB
-pico_enable_stdio_usb(pico-dow-clock 0)
-pico_enable_stdio_uart(pico-dow-clock 1)
-
-pico_add_extra_outputs(pico-dow-clock)
+pico_add_extra_outputs(picow_day_clock)

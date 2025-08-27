@@ -26,13 +26,15 @@
     "terminal.integrated.env.osx": {
         "PICO_SDK_PATH": "${env:HOME}/.pico-sdk/sdk/2.1.1",
         "PICO_TOOLCHAIN_PATH": "${env:HOME}/.pico-sdk/toolchain/14_2_Rel1",
-        "PATH": "${env:HOME}/.pico-sdk/toolchain/14_2_Rel1/bin:${env:HOME}/.pico-sdk/picotool/2.1.1/picotool:${env:HOME}/.pico-sdk/cmake/v3.31.5/bin:${env:HOME}/.pico-sdk/ninja/v1.12.1:${env:PATH}"
+        "PATH": "${env:HOME}/.pico-sdk/toolchain/14_2_Rel1/bin:${env:HOME}/.pico-sdk/picotool/2.1.1/picotool:${env:HOME}/.pico-sdk/cmake/v3.31.5/bin:${env:HOME}/.pico-sdk/ninja/v1.12.1:${env:PATH}",
+        "cmake.buildDirectory": "${env:HOME}/.pico-build/${workspaceFolderBasename}",
     },
     "terminal.integrated.env.linux": {
         "PICO_SDK_PATH": "${env:HOME}/.pico-sdk/sdk/2.1.1",
         "PICO_TOOLCHAIN_PATH": "${env:HOME}/.pico-sdk/toolchain/14_2_Rel1",
         "PATH": "${env:HOME}/.pico-sdk/toolchain/14_2_Rel1/bin:${env:HOME}/.pico-sdk/picotool/2.1.1/picotool:${env:HOME}/.pico-sdk/cmake/v3.31.5/bin:${env:HOME}/.pico-sdk/ninja/v1.12.1:${env:PATH}"
     },
+    "cmake.buildDirectory": "${env:HOME}/.pico-build/${workspaceFolderBasename}",
     "raspberry-pi-pico.cmakeAutoConfigure": true,
     "raspberry-pi-pico.useCmakeTools": false,
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
@@ -44,6 +46,7 @@
     "files.associations": {
         "*.json": "json",
         "*.h": "c",
+        "functional": "c"
     },
     "[c]": {
         "editor.tabSize": 4
