@@ -9,10 +9,9 @@
 
 #include <stdlib.h>
 
+/* Pico SDK */
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
-
-#include "lcd.h"
 
 typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 

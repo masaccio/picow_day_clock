@@ -6,16 +6,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-// #include <string.h>
-// #include <time.h>
-
-#include "ntp.h"
-
-#include "pico/cyw43_arch.h"
-
+/* Pico SDK */
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
+#include "pico/cyw43_arch.h"
+
+/* Local includes */
+#include "common.h"
+#include "ntp.h"
 
 // Make an NTP request
 void ntp_request(ntp_state_t *state) {
@@ -35,7 +34,7 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
     ntp_state_t *state = (ntp_state_t *)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        printf("NTP address: %s\r\n", ipaddr_ntoa(ipaddr));
+        CLOCK_DEBUG("NTP: got address %s\r\n", ipaddr_ntoa(ipaddr));
         ntp_request(state);
     } else {
         state->status = NTP_STATUS_DNS_ERROR;
@@ -44,6 +43,8 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 
 // NTP data received
 static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port) {
+    CLOCK_DEBUG("NTP: receiving packets\r\n");
+
     ntp_state_t *state = (ntp_state_t *)arg;
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
@@ -68,10 +69,11 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 
 // Perform initialisation
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler) {
+    CLOCK_DEBUG("NTP: starting init\r\n");
 
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
     if (!state) {
-        printf("Failed to allocate NTP state\r\n");
+        CLOCK_DEBUG("Failed to allocate NTP state\r\n");
         return NULL;
     }
 
@@ -91,20 +93,24 @@ ntp_status_t ntp_get_time(ntp_state_t *ntp_state) {
     absolute_time_t start_time = get_absolute_time();
 
     cyw43_arch_lwip_begin();
+    CLOCK_DEBUG("NTP: looking up %s\r\n", NTP_SERVER);
     int dns_status = dns_gethostbyname(NTP_SERVER, &ntp_state->ntp_server_address, ntp_dns_callback, ntp_state);
     cyw43_arch_lwip_end();
 
     ntp_state->status = NTP_STATUS_PENDING;
     if (dns_status == ERR_OK) {
+        CLOCK_DEBUG("NTP: DNS lookup successful\r\n");
         ntp_request(ntp_state);
     } else if (dns_status != ERR_INPROGRESS) {
+        CLOCK_DEBUG("NTP: DNS lookup failed #%d\r\n", dns_status);
         return NTP_STATUS_DNS_ERROR;
     }
 
     while (ntp_state->status != NTP_STATUS_SUCCESS) {
-        sleep_ms(50); /* wait for background lwIP */
+        sleep_ms(500); /* wait for background lwIP */
 
         if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
+            CLOCK_DEBUG("NTP: DNS timed out\r\n", dns_status);
             return NTP_STATUS_TIMEOUT;
         }
     }

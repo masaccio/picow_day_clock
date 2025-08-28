@@ -1,9 +1,10 @@
+/* Waveshare SDK */
 #include "DEV_Config.h"
 #include "Debug.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
 
-#include "fonts_extra.h"
+/* Local includes */
 #include "gui_paint_extra.h"
 
 int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Char, vFONT *Font, UWORD Color_Foreground,

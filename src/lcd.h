@@ -1,4 +1,3 @@
-/* Waveshare SDK includes */
 #ifndef _LCD_H
 #define _LCD_H
 
@@ -14,8 +13,6 @@
 
 typedef struct lcd_state_t {
     UWORD *frame_buffer;
-    bool ntp_updated;
-    time_t ntp_time;
     int y_offset;
 } lcd_state_t;
 

@@ -53,11 +53,13 @@ include_directories(
     ${CMAKE_CURRENT_LIST_DIR})
 
 file(GLOB SRC_FILES src/*.c)
+file(GLOB FONT_FILES waveshare/Fonts/*.c)
 add_executable(picow_day_clock 
     waveshare/Config/DEV_Config.c
     waveshare/LCD/LCD_1in47.c
     waveshare/GUI/GUI_Paint.c
     ${SRC_FILES}
+    ${FONT_FILES}
     ${GENERATED_FONTS}
     )
 
@@ -69,8 +71,9 @@ target_compile_definitions(picow_day_clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"uk.pool.ntp.org\"
-    PICO_CYW43_LOGGING_ENABLED=0
-    # DEBUG=1
+    PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
+    DEBUG=1                             # Waveshare debug
+    CLOCK_DEBUG_ENABLED=1               # Clock debug
 )
 
 pico_set_program_name(picow_day_clock "picow_day_clock")
