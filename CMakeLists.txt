@@ -72,7 +72,7 @@ target_compile_definitions(picow_day_clock PRIVATE
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"uk.pool.ntp.org\"
     PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
-    DEBUG=1                             # Waveshare debug
+    DEBUG=0                             # Waveshare debug
     CLOCK_DEBUG_ENABLED=1               # Clock debug
 )
 
