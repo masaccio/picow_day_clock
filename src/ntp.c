@@ -17,7 +17,8 @@
 #include "ntp.h"
 
 // Make an NTP request
-void ntp_request(ntp_state_t *state) {
+void ntp_request(ntp_state_t *state)
+{
     cyw43_arch_lwip_begin();
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     uint8_t *req = (uint8_t *)p->payload;
@@ -30,7 +31,8 @@ void ntp_request(ntp_state_t *state) {
 
 // Called by dns_gethostbyname() after a DNS request completes
 // having previously returned ERR_INPROGRESS to ntp_get_time()
-void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
+void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
+{
     ntp_state_t *state = (ntp_state_t *)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
@@ -42,7 +44,8 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 }
 
 // NTP data received
-static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port) {
+static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
     CLOCK_DEBUG("NTP: receiving packets\r\n");
 
     ntp_state_t *state = (ntp_state_t *)arg;
@@ -68,7 +71,8 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 }
 
 // Perform initialisation
-extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler) {
+extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler)
+{
     CLOCK_DEBUG("NTP: starting init\r\n");
 
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
@@ -89,7 +93,8 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
     return state;
 }
 
-ntp_status_t ntp_get_time(ntp_state_t *ntp_state) {
+ntp_status_t ntp_get_time(ntp_state_t *ntp_state)
+{
     absolute_time_t start_time = get_absolute_time();
 
     cyw43_arch_lwip_begin();

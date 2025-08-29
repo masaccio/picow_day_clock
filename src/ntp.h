@@ -15,7 +15,8 @@
 
 typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 
-typedef enum {
+typedef enum
+{
     NTP_STATUS_PENDING = 0,
     NTP_STATUS_SUCCESS = 1,
     NTP_STATUS_DNS_ERROR = -1,
@@ -23,7 +24,8 @@ typedef enum {
     NTP_STATUS_INVALID_RESPONSE = -3,
 } ntp_status_t;
 
-typedef struct ntp_state_t {
+typedef struct ntp_state_t
+{
     ip_addr_t ntp_server_address;
     bool dns_request_sent;
     struct udp_pcb *ntp_pcb;

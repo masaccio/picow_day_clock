@@ -8,7 +8,8 @@
 #include "gui_paint_extra.h"
 
 int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Char, vFONT *Font, UWORD Color_Foreground,
-                                UWORD Color_Background) {
+                                UWORD Color_Background)
+{
     UWORD Page, Column;
 
     const vFONTENTRY *entry = &Font->table[Acsii_Char - ' '];
@@ -32,7 +33,8 @@ int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Cha
                 }
             }
             // One pixel is 8 bits
-            if (Column % 8 == 7) ptr++;
+            if (Column % 8 == 7)
+                ptr++;
         } // Write a line
         ptr += Font->Width - font_width / 8; // Move to next line
     } // Write all
@@ -41,7 +43,8 @@ int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Cha
 }
 
 void Paint_DrawVariableWidthString(UWORD Xstart, UWORD Ystart, const char *pString, vFONT *Font, UWORD Color_Foreground,
-                                   UWORD Color_Background) {
+                                   UWORD Color_Background)
+{
     UWORD Xpoint = Xstart;
     UWORD Ypoint = Ystart;
 
