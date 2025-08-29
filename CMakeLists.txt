@@ -48,18 +48,19 @@ include_directories(
     waveshare/Config
     waveshare/GUI
     waveshare/LCD
+    waveshare/Infrared
+    waveshare/examples
     src
     ${CMAKE_BINARY_DIR}/generated
     ${CMAKE_CURRENT_LIST_DIR})
 
-file(GLOB SRC_FILES src/*.c)
-file(GLOB FONT_FILES waveshare/Fonts/*.c)
+
+file(GLOB CLOCK_SRC_FILES src/*.c)
+file(GLOB WAVESHARE_DRIVER_SRC_FILES waveshare/*/*.c)
+
 add_executable(picow_day_clock 
-    waveshare/Config/DEV_Config.c
-    waveshare/LCD/LCD_1in47.c
-    waveshare/GUI/GUI_Paint.c
-    ${SRC_FILES}
-    ${FONT_FILES}
+    ${CLOCK_SRC_FILES}
+    ${WAVESHARE_DRIVER_SRC_FILES}
     ${GENERATED_FONTS}
     )
 
@@ -84,8 +85,8 @@ target_link_libraries(picow_day_clock
         pico_cyw43_arch_lwip_threadsafe_background
         pico_stdlib
         hardware_pwm
-        hardware_i2c
         hardware_spi
+        hardware_i2c
         )
 
 pico_add_extra_outputs(picow_day_clock)
