@@ -57,9 +57,8 @@ const char *time_as_string(time_t ntp_time)
     time_t local_time_t = ntp_time + (bst ? 3600 : 0);
     struct tm *local = gmtime(&local_time_t);
 
-    snprintf(buffer, sizeof(buffer), "NTP: time is %02d/%02d/%04d %02d:%02d:%02d (%s)", local->tm_mday,
-             local->tm_mon + 1, local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec,
-             bst ? "BST" : "GMT");
+    snprintf(buffer, sizeof(buffer), "%02d/%02d/%04d %02d:%02d:%02d (%s)", local->tm_mday, local->tm_mon + 1,
+             local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec, bst ? "BST" : "GMT");
     return (const char *)buffer;
 }
 
@@ -68,21 +67,23 @@ void ntp_request(ntp_state_t *state)
 {
     cyw43_arch_lwip_begin();
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
-    // if (!p) {
-    //     state->status = NTP_STATUS_MEMORY_ERROR;
-    //     cyw43_arch_lwip_end();
-    //     return;
-    // }
+    if (!p) {
+        CLOCK_DEBUG("NTP: failed to allocate PBUF\r\n");
+        state->status = NTP_STATUS_MEMORY_ERROR;
+        cyw43_arch_lwip_end();
+        return;
+    }
     uint8_t *req = (uint8_t *)p->payload;
     memset(req, 0, NTP_MSG_LEN);
     req[0] = 0x1b;
-    udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, NTP_PORT);
-    // if (err != 0) {
-    //     state->status = NTP_STATUS_INVALID_RESPONSE;
-    //     pbuf_free(p);
-    //     cyw43_arch_lwip_end();
-    //     return;
-    // }
+    int err = udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, NTP_PORT);
+    if (err != 0) {
+        CLOCK_DEBUG("NTP: send error %d\r\n", err);
+        state->status = NTP_STATUS_INVALID_RESPONSE;
+        pbuf_free(p);
+        cyw43_arch_lwip_end();
+        return;
+    }
     pbuf_free(p);
     cyw43_arch_lwip_end();
 }
@@ -94,9 +95,9 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
     ntp_state_t *state = (ntp_state_t *)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        CLOCK_DEBUG("NTP: got address %s\r\n", ipaddr_ntoa(ipaddr));
         ntp_request(state);
     } else {
+        CLOCK_DEBUG("NTP: DNS error for %s\r\n", hostname);
         state->status = NTP_STATUS_DNS_ERROR;
     }
 }
@@ -104,15 +105,13 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 // NTP data received
 static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
-    CLOCK_DEBUG("NTP: receiving packets\r\n");
-
     ntp_state_t *state = (ntp_state_t *)arg;
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
 
-    // Check the result
-    if (ip_addr_cmp(addr, &state->ntp_server_address) && port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4 &&
-        stratum != 0) {
+    bool addrs_valid = ip_addr_cmp(addr, &state->ntp_server_address);
+    bool response_valid = port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4;
+    if (addrs_valid && response_valid && stratum != 0) {
         uint8_t seconds_buf[4] = {0};
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 =
@@ -122,7 +121,15 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 
         state->status = NTP_STATUS_SUCCESS;
         state->time_handler(state->parent_state, &epoch);
+    } else if (addrs_valid && response_valid && stratum == 0) {
+        /* We got a 'kiss of death' from the NTP server for too many requests. */
+        state->status = NTP_STATUS_KOD;
+        CLOCK_DEBUG("NTP: server responded with KoD\r\n");
     } else {
+        CLOCK_DEBUG("NTP: invalid response: addrs %s, port %s, len %s, mode %s, stratum %s\r\n",
+                    addrs_valid ? "valid" : "invalid", port == NTP_PORT ? "valid" : "invalid",
+                    p->tot_len == NTP_MSG_LEN ? "valid" : "invalid", mode == 0x4 ? "valid" : "invalid",
+                    stratum != 0 ? "valid" : "invalid");
         state->status = NTP_STATUS_INVALID_RESPONSE;
     }
     pbuf_free(p);
@@ -131,8 +138,6 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 // Perform initialisation
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler)
 {
-    CLOCK_DEBUG("NTP: starting init\r\n");
-
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
     if (!state) {
         CLOCK_DEBUG("Failed to allocate NTP state\r\n");
@@ -151,25 +156,28 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
     return state;
 }
 
-ntp_status_t ntp_get_time(ntp_state_t *ntp_state)
+ntp_status_t ntp_get_time(ntp_state_t *state)
 {
     absolute_time_t start_time = get_absolute_time();
 
+    if (state->ntp_server_address.addr != 0) {
+        ntp_request(state);
+        return state->status;
+    }
+
     cyw43_arch_lwip_begin();
-    CLOCK_DEBUG("NTP: looking up %s\r\n", NTP_SERVER);
-    int dns_status = dns_gethostbyname(NTP_SERVER, &ntp_state->ntp_server_address, ntp_dns_callback, ntp_state);
+    int dns_status = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 
-    ntp_state->status = NTP_STATUS_PENDING;
+    state->status = NTP_STATUS_PENDING;
     if (dns_status == ERR_OK) {
-        CLOCK_DEBUG("NTP: DNS lookup successful\r\n");
-        ntp_request(ntp_state);
+        ntp_request(state);
     } else if (dns_status != ERR_INPROGRESS) {
         CLOCK_DEBUG("NTP: DNS lookup failed with error %d\r\n", dns_status);
         return NTP_STATUS_DNS_ERROR;
     }
 
-    while (ntp_state->status != NTP_STATUS_SUCCESS) {
+    while (state->status != NTP_STATUS_SUCCESS) {
         sleep_ms(500); /* wait for background lwIP */
 
         if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
@@ -178,5 +186,5 @@ ntp_status_t ntp_get_time(ntp_state_t *ntp_state)
         }
     }
 
-    return NTP_STATUS_SUCCESS;
+    return state->status;
 }

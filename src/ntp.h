@@ -23,6 +23,7 @@ typedef enum
     NTP_STATUS_TIMEOUT = -2,
     NTP_STATUS_INVALID_RESPONSE = -3,
     NTP_STATUS_MEMORY_ERROR = -4,
+    NTP_STATUS_KOD = -5,
 } ntp_status_t;
 
 typedef struct ntp_state_t
