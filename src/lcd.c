@@ -4,7 +4,7 @@
 #include "gui_paint_extra.h"
 #include "lcd.h"
 
-static UWORD lcd_frame_buffer[LCD_HEIGHT * LCD_WIDTH];
+static UBYTE lcd_frame_buffer[(LCD_HEIGHT + 1) * LCD_WIDTH * 2];
 
 lcd_state_t *lcd_init(void)
 {
@@ -16,14 +16,14 @@ lcd_state_t *lcd_init(void)
         return NULL;
     }
 
-    lcd_state->frame_buffer = lcd_frame_buffer;
+    lcd_state->frame_buffer = (UWORD *)lcd_frame_buffer;
     lcd_state->y_offset = 0;
 
     LCD_1IN47_Init(VERTICAL);
     DEV_SET_PWM(0);
 
     Paint_NewImage((UBYTE *)lcd_state->frame_buffer, LCD_WIDTH, LCD_HEIGHT, 0, BGCOLOR);
-    Paint_SetScale(65); /* 16-bit color */
+    Paint_SetScale(65);
     Paint_Clear(BGCOLOR);
     Paint_SetRotate(ROTATE_90);
 
