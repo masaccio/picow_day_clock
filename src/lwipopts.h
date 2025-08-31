@@ -98,6 +98,8 @@
 #define MEM_STATS                   1
 #define MEMP_STATS                  1
 #define MEM_SANITY_CHECK            1
+#define MEM_OVERFLOW_CHECK          2
+#define MEMP_SANITY_CHECK           1
 #define MEMP_OVERFLOW_CHECK         2
 #endif // LWIP_MALLOC_DEBUG
 
