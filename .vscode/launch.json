@@ -29,7 +29,7 @@
                 "interface/cmsis-dap.cfg",
                 "target/${command:raspberry-pi-pico.getTarget}.cfg"
             ],
-            "svdFile": "${userHome}/.pico-sdk/sdk/2.1.1/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
+            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
             "runToEntryPoint": "main",
             "overrideLaunchCommands": [
                 "monitor reset init",
@@ -53,7 +53,7 @@
                 "interface/cmsis-dap.cfg",
                 "target/${command:raspberry-pi-pico.getTarget}.cfg"
             ],
-            "svdFile": "${userHome}/.pico-sdk/sdk/2.1.1/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
+            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
             "overrideLaunchCommands": [
                 "monitor reset init",
                 "load \"${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf\""

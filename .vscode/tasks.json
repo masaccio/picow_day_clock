@@ -23,7 +23,7 @@
         {
             "label": "Run Project",
             "type": "process",
-            "command": "${env:HOME}/.pico-sdk/picotool/2.1.1/picotool/picotool",
+            "command": "${env:HOME}/.pico-sdk/picotool/2.2.0/picotool/picotool",
             "args": [
                 "load",
                 "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
@@ -35,7 +35,7 @@
             },
             "problemMatcher": [],
             "windows": {
-                "command": "${env:USERPROFILE}/.pico-sdk/picotool/2.1.1/picotool/picotool.exe"
+                "command": "${env:USERPROFILE}/.pico-sdk/picotool/2.2.0/picotool/picotool.exe"
             }
         },
         {
