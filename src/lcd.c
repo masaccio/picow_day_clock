@@ -6,8 +6,11 @@
 
 static UWORD lcd_frame_buffer[LCD_HEIGHT * LCD_WIDTH];
 
-lcd_state_t *lcd_init(void) {
+lcd_state_t *lcd_init(void)
+{
     lcd_state_t *lcd_state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
+
+    DEV_Delay_ms(100); /* TODO: is this required? */
 
     if (DEV_Module_Init() != 0) {
         return NULL;
@@ -17,18 +20,20 @@ lcd_state_t *lcd_init(void) {
     lcd_state->y_offset = 0;
 
     LCD_1IN47_Init(VERTICAL);
-    LCD_1IN47_Clear(BGCOLOR);
     DEV_SET_PWM(0);
 
     Paint_NewImage((UBYTE *)lcd_state->frame_buffer, LCD_WIDTH, LCD_HEIGHT, 0, BGCOLOR);
-    Paint_SetScale(65);
+    Paint_SetScale(65); /* 16-bit color */
     Paint_Clear(BGCOLOR);
+    Paint_SetRotate(ROTATE_90);
 
     DEV_SET_PWM(100);
+
     return lcd_state;
 }
 
-void print_line(lcd_state_t *state, const char *format, ...) {
+void print_line(lcd_state_t *state, const char *format, ...)
+{
     char buffer[256];
     va_list args;
     va_start(args, format);
@@ -39,8 +44,14 @@ void print_line(lcd_state_t *state, const char *format, ...) {
     state->y_offset += TEXT_FONT_HEIGHT + 2;
 }
 
-void clear_screen(lcd_state_t *state) {
+void clear_screen(lcd_state_t *state)
+{
     Paint_Clear(BGCOLOR);
     state->y_offset = 0;
+    LCD_1IN47_Display(state->frame_buffer);
+}
+
+void update_screen(lcd_state_t *state)
+{
     LCD_1IN47_Display(state->frame_buffer);
 }
