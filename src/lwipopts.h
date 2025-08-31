@@ -1,6 +1,7 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
+// clang-format off
 
 // Common settings used in most of the pico_w examples
 // (see https://www.nongnu.org/lwip/2_1_x/group__lwip__opts.html for details)
@@ -89,4 +90,21 @@
 #define SLIP_DEBUG                  LWIP_DBG_OFF
 #define DHCP_DEBUG                  LWIP_DBG_OFF
 
+// Begin local settings, different from Pico Examples
+#define MEM_SIZE                    16*1024
+#if LWIP_VERBOSE_DEBUG
+#define LWIP_DEBUG                  1
+#define LWIP_STATS                  1
+#define LWIP_STATS_DISPLAY          1
+#define MEM_STATS                   1
+#define MEM_SANITY_CHECK            1
+#define MEMP_OVERFLOW_CHECK         2
+#define SYS_STATS                   0
+#define MEMP_STATS                  1
+#define LINK_STATS                  1
+#define PBUF_DEBUG                  LWIP_DBG_ON
+#define UDP_DEBUG                   LWIP_DBG_ON
+#endif // LWIP_VERBOSE_DEBUG
+
+// clang-format on
 #endif /* __LWIPOPTS_H__ */
