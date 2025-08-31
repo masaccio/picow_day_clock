@@ -22,6 +22,7 @@ typedef enum
     NTP_STATUS_DNS_ERROR = -1,
     NTP_STATUS_TIMEOUT = -2,
     NTP_STATUS_INVALID_RESPONSE = -3,
+    NTP_STATUS_MEMORY_ERROR = -4,
 } ntp_status_t;
 
 typedef struct ntp_state_t
@@ -29,7 +30,6 @@ typedef struct ntp_state_t
     ip_addr_t ntp_server_address;
     bool dns_request_sent;
     struct udp_pcb *ntp_pcb;
-    absolute_time_t ntp_test_time;
     void *parent_state;
     ntp_status_t status;
     ntp_time_handler_t time_handler;
@@ -43,6 +43,10 @@ typedef struct ntp_state_t
 #define NTP_PORT 123
 #define NTP_DELTA 2208988800 // seconds between 1 Jan 1900 and 1 Jan 1970
 #define NTP_TIMEOUT_MS (30 * 1000)
+
+extern bool time_is_bst(struct tm *utc);
+
+extern const char *time_as_string(time_t ntp_time);
 
 extern int64_t ntp_failed_handler(alarm_id_t id, void *user_data);
 

@@ -16,15 +16,73 @@
 #include "common.h"
 #include "ntp.h"
 
+// Determines if given UTC time is in British Summer Time (BST)
+bool time_is_bst(struct tm *utc)
+{
+    if (!utc)
+        return false;
+
+    int year = utc->tm_year + 1900;
+
+    // Find last Sunday in March
+    struct tm start = {
+        .tm_year = year - 1900, .tm_mon = 2, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 0};
+    mktime(&start);
+    while (start.tm_wday != 0) {
+        start.tm_mday--;
+        mktime(&start);
+    }
+
+    // Find last Sunday in October
+    struct tm end = {
+        .tm_year = year - 1900, .tm_mon = 9, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 1};
+    mktime(&end);
+    while (end.tm_wday != 0) {
+        end.tm_mday--;
+        mktime(&end);
+    }
+
+    time_t now = mktime(utc);
+    time_t start_time = mktime(&start);
+    time_t end_time = mktime(&end);
+
+    return now >= start_time && now < end_time;
+}
+
+const char *time_as_string(time_t ntp_time)
+{
+    static char buffer[32];
+
+    int bst = time_is_bst(gmtime(&ntp_time));
+    time_t local_time_t = ntp_time + (bst ? 3600 : 0);
+    struct tm *local = gmtime(&local_time_t);
+
+    snprintf(buffer, sizeof(buffer), "NTP: time is %02d/%02d/%04d %02d:%02d:%02d (%s)", local->tm_mday,
+             local->tm_mon + 1, local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec,
+             bst ? "BST" : "GMT");
+    return (const char *)buffer;
+}
+
 // Make an NTP request
 void ntp_request(ntp_state_t *state)
 {
     cyw43_arch_lwip_begin();
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
+    // if (!p) {
+    //     state->status = NTP_STATUS_MEMORY_ERROR;
+    //     cyw43_arch_lwip_end();
+    //     return;
+    // }
     uint8_t *req = (uint8_t *)p->payload;
     memset(req, 0, NTP_MSG_LEN);
     req[0] = 0x1b;
     udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, NTP_PORT);
+    // if (err != 0) {
+    //     state->status = NTP_STATUS_INVALID_RESPONSE;
+    //     pbuf_free(p);
+    //     cyw43_arch_lwip_end();
+    //     return;
+    // }
     pbuf_free(p);
     cyw43_arch_lwip_end();
 }
@@ -107,7 +165,7 @@ ntp_status_t ntp_get_time(ntp_state_t *ntp_state)
         CLOCK_DEBUG("NTP: DNS lookup successful\r\n");
         ntp_request(ntp_state);
     } else if (dns_status != ERR_INPROGRESS) {
-        CLOCK_DEBUG("NTP: DNS lookup failed #%d\r\n", dns_status);
+        CLOCK_DEBUG("NTP: DNS lookup failed with error %d\r\n", dns_status);
         return NTP_STATUS_DNS_ERROR;
     }
 
