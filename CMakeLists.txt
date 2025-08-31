@@ -75,6 +75,7 @@ target_compile_definitions(picow_day_clock PRIVATE
     PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
     DEBUG=0                             # Waveshare debug
     CLOCK_DEBUG_ENABLED=1               # Clock debug
+    LWIP_VERBOSE_DEBUG=0                # Enable debug of UDP and NTP
 )
 
 pico_set_program_name(picow_day_clock "picow_day_clock")
