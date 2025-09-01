@@ -1,5 +1,5 @@
-#ifndef _FONTS_EXTRA_H
-#define _FONTS_EXTRA_H
+#ifndef _FONTS_H
+#define _FONTS_H
 
 #include <stdint.h>
 
@@ -19,4 +19,4 @@ typedef struct
 extern var_width_font_t Roboto_Medium24;
 extern var_width_font_t Roboto_Medium200;
 
-#endif /* _FONTS_EXTRA_H */
+#endif /* _FONTS_H */
