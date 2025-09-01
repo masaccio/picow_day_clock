@@ -133,12 +133,12 @@ def generate_variable_width_font(font_filename: str, char_height: int, target: T
         glyph_width = bbox[2] - bbox[0]
         glyph_entries.append((glyph_width, glyph_array_name))
 
-    target.write(f"static const vFONTENTRY {table_name}[] = {{\n")
+    target.write(f"static const var_width_font_entry_t {table_name}[] = {{\n")
     for width, glyph_array_name in glyph_entries:
         target.write(f"  {{ {width}, {glyph_array_name} }},\n")
     target.write("};\n\n")
 
-    target.write(f"vFONT {font_struct_name} = {{\n")
+    target.write(f"var_width_font_t {font_struct_name} = {{\n")
     target.write(f"  {table_name},\n")
     target.write(f"  {bytes_per_row},\n")
     target.write(f"  {char_height}\n")

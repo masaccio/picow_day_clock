@@ -2,17 +2,16 @@
 #include "DEV_Config.h"
 #include "Debug.h"
 #include "GUI_Paint.h"
-#include "fonts.h"
 
 /* Local includes */
 #include "gui_paint_extra.h"
 
-int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Char, vFONT *Font, UWORD Color_Foreground,
-                                UWORD Color_Background)
+int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Char, var_width_font_t *Font,
+                                UWORD Color_Foreground, UWORD Color_Background)
 {
     UWORD Page, Column;
 
-    const vFONTENTRY *entry = &Font->table[Acsii_Char - ' '];
+    const var_width_font_entry_t *entry = &Font->table[Acsii_Char - ' '];
     const uint8_t *ptr = entry->table;
     int font_height = Font->Height;
     int font_width = entry->Width;
@@ -42,8 +41,8 @@ int Paint_DrawVariableWidthChar(UWORD Xpoint, UWORD Ypoint, const char Acsii_Cha
     return font_width;
 }
 
-void Paint_DrawVariableWidthString(UWORD Xstart, UWORD Ystart, const char *pString, vFONT *Font, UWORD Color_Foreground,
-                                   UWORD Color_Background)
+void Paint_DrawVariableWidthString(UWORD Xstart, UWORD Ystart, const char *pString, var_width_font_t *Font,
+                                   UWORD Color_Foreground, UWORD Color_Background)
 {
     UWORD Xpoint = Xstart;
     UWORD Ypoint = Ystart;

@@ -1,21 +1,22 @@
 #ifndef _FONTS_EXTRA_H
 #define _FONTS_EXTRA_H
 
-#include "fonts.h"
 #include <stdint.h>
 
-typedef struct _vFontEntry {
+typedef struct
+{
     const uint8_t Width;
     const uint8_t *table;
-} vFONTENTRY;
+} var_width_font_entry_t;
 
-typedef struct _vFont {
-    const vFONTENTRY *table;
+typedef struct
+{
+    const var_width_font_entry_t *table;
     uint16_t Width;
     uint16_t Height;
-} vFONT;
+} var_width_font_t;
 
-extern vFONT Roboto_Medium24;
-extern vFONT Roboto_Medium200;
+extern var_width_font_t Roboto_Medium24;
+extern var_width_font_t Roboto_Medium200;
 
 #endif /* _FONTS_EXTRA_H */
