@@ -6,20 +6,21 @@
 
 static UBYTE lcd_frame_buffer[(LCD_HEIGHT + 1) * LCD_WIDTH * 2];
 
-lcd_state_t *lcd_init(void)
+lcd_state_t *lcd_init(LCD_GPIO_Config pins)
 {
     lcd_state_t *lcd_state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
 
-    DEV_Delay_ms(100); /* TODO: is this required? */
+    sleep_ms(100); /* TODO: is this required? */
 
-    if (DEV_Module_Init() != 0) {
+    if (DEV_Module_Init(pins) != 0) {
         return NULL;
     }
 
     lcd_state->frame_buffer = (UWORD *)lcd_frame_buffer;
     lcd_state->y_offset = 0;
+    lcd_state->pins = pins;
 
-    LCD_1IN47_Init(VERTICAL);
+    LCD_1IN47_Init(pins, VERTICAL);
     DEV_SET_PWM(0);
 
     Paint_NewImage((UBYTE *)lcd_state->frame_buffer, LCD_WIDTH, LCD_HEIGHT, 0, BGCOLOR);
@@ -48,10 +49,10 @@ void clear_screen(lcd_state_t *state)
 {
     Paint_Clear(BGCOLOR);
     state->y_offset = 0;
-    LCD_1IN47_Display(state->frame_buffer);
+    LCD_1IN47_Display(state->pins, state->frame_buffer);
 }
 
 void update_screen(lcd_state_t *state)
 {
-    LCD_1IN47_Display(state->frame_buffer);
+    LCD_1IN47_Display(state->pins, state->frame_buffer);
 }

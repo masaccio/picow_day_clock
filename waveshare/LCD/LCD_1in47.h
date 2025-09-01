@@ -45,10 +45,10 @@ extern LCD_1IN47_ATTRIBUTES LCD_1IN47;
 function:	
 			Macro definition variable name
 ********************************************************************************/
-void LCD_1IN47_Init(UBYTE Scan_dir);
-void LCD_1IN47_Clear(UWORD Color);
-void LCD_1IN47_Display(UWORD *Image);
-void LCD_1IN47_DisplayWindows(UWORD Xstart, UWORD Ystart, UWORD Xend, UWORD Yend, UWORD *Image);
-void LCD_1IN47_DisplayPoint(UWORD X, UWORD Y, UWORD Color);
+void LCD_1IN47_Init(LCD_GPIO_Config pins, UBYTE Scan_dir);
+void LCD_1IN47_Clear(LCD_GPIO_Config pins, UWORD Color);
+void LCD_1IN47_Display(LCD_GPIO_Config pins, UWORD *Image);
+void LCD_1IN47_DisplayWindows(LCD_GPIO_Config pins, UWORD Xstart, UWORD Ystart, UWORD Xend, UWORD Yend, UWORD *Image);
+void LCD_1IN47_DisplayPoint(LCD_GPIO_Config pins, UWORD X, UWORD Y, UWORD Color);
 void Handler_1IN47_LCD(int signo);
 #endif

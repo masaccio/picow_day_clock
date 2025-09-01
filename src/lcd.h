@@ -23,9 +23,10 @@ typedef struct lcd_state_t
 {
     UWORD *frame_buffer;
     int y_offset;
+    LCD_GPIO_Config pins;
 } lcd_state_t;
 
-extern lcd_state_t *lcd_init(void);
+extern lcd_state_t *lcd_init(LCD_GPIO_Config pins);
 
 extern void print_line(lcd_state_t *state, const char *format, ...);
 

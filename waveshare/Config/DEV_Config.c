@@ -29,9 +29,9 @@
 # THE SOFTWARE.
 ******************************************************************************/
 #include "DEV_Config.h"
+#include "Debug.h"
 
 #define SPI_PORT spi1
-#define I2C_PORT spi1
 
 uint slice_num;
 /**
@@ -61,30 +61,6 @@ void DEV_SPI_Write_nByte(uint8_t pData[], uint32_t Len)
 }
 
 
-
-/**
- * I2C
-**/
-
-void DEV_I2C_Write(uint8_t addr, uint8_t reg, uint8_t Value)
-{
-    uint8_t data[2] = {reg, Value};
-    i2c_write_blocking(i2c1, addr, data, 2, false);
-}
-
-void DEV_I2C_Write_nByte(uint8_t addr, uint8_t *pData, uint32_t Len)
-{
-    i2c_write_blocking(i2c1, addr, pData, Len, false);
-}
-
-uint8_t DEV_I2C_ReadByte(uint8_t addr, uint8_t reg)
-{
-    uint8_t buf;
-    i2c_write_blocking(i2c1,addr,&reg,1,true);
-    i2c_read_blocking(i2c1,addr,&buf,1,false);
-    return buf;
-}
-
 /**
  * GPIO Mode
 **/
@@ -98,15 +74,6 @@ void DEV_GPIO_Mode(UWORD Pin, UWORD Mode)
     }
 }
 
-/**
- * KEY Config
-**/
-void DEV_KEY_Config(UWORD Pin)
-{
-    gpio_init(Pin);
-	gpio_pull_up(Pin);
-    gpio_set_dir(Pin, GPIO_IN);
-}
 
 /**
  * delay x ms
@@ -123,21 +90,21 @@ void DEV_Delay_us(UDOUBLE xus)
 
 
 
-void DEV_GPIO_Init(void)
+void DEV_GPIO_Init(LCD_GPIO_Config pins)
 {
-    DEV_GPIO_Mode(LCD_RST_PIN, 1);
-    DEV_GPIO_Mode(LCD_DC_PIN, 1);
-    DEV_GPIO_Mode(LCD_CS_PIN, 1);
-    DEV_GPIO_Mode(LCD_BL_PIN, 1);
+    DEV_GPIO_Mode(pins.RST, 1);
+    DEV_GPIO_Mode(pins.DC, 1);
+    DEV_GPIO_Mode(pins.CS, 1);
+    DEV_GPIO_Mode(pins.BL, 1);
     DEV_GPIO_Mode(25, 1);
-    
-    
-    DEV_GPIO_Mode(LCD_CS_PIN, 1);
-    DEV_GPIO_Mode(LCD_BL_PIN, 1);
 
-    DEV_Digital_Write(LCD_CS_PIN, 1);
-    DEV_Digital_Write(LCD_DC_PIN, 0);
-    DEV_Digital_Write(LCD_BL_PIN, 1);
+
+    DEV_GPIO_Mode(pins.CS, 1);
+    DEV_GPIO_Mode(pins.BL, 1);
+
+    DEV_Digital_Write(pins.CS, 1);
+    DEV_Digital_Write(pins.DC, 0);
+    DEV_Digital_Write(pins.BL, 1);
     DEV_Digital_Write(25, 0);
 }
 /******************************************************************************
@@ -145,35 +112,26 @@ function:	Module Initialize, the library and initialize the pins, SPI protocol
 parameter:
 Info:
 ******************************************************************************/
-UBYTE DEV_Module_Init(void)
+UBYTE DEV_Module_Init(LCD_GPIO_Config pins)
 {
     stdio_init_all();   
     // SPI Config
     spi_init(SPI_PORT, 10000 * 1000);
-    gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(LCD_MOSI_PIN, GPIO_FUNC_SPI);
-    
+    gpio_set_function(pins.CLK, GPIO_FUNC_SPI);
+    gpio_set_function(pins.MOSI, GPIO_FUNC_SPI);
+
     // GPIO Config
-    DEV_GPIO_Init();
-    
+    DEV_GPIO_Init(pins);
     
     // PWM Config
-    gpio_set_function(LCD_BL_PIN, GPIO_FUNC_PWM);
-    slice_num = pwm_gpio_to_slice_num(LCD_BL_PIN);
+    gpio_set_function(pins.BL, GPIO_FUNC_PWM);
+    slice_num = pwm_gpio_to_slice_num(pins.BL);
     pwm_set_wrap(slice_num, 100);
     pwm_set_chan_level(slice_num, PWM_CHAN_B, 1);
     pwm_set_clkdiv(slice_num,50);
     pwm_set_enabled(slice_num, true);
-    
-    
-    //I2C Config
-    i2c_init(i2c1,300*1000);
-    gpio_set_function(LCD_SDA_PIN,GPIO_FUNC_I2C);
-    gpio_set_function(LCD_SCL_PIN,GPIO_FUNC_I2C);
-    gpio_pull_up(LCD_SDA_PIN);
-    gpio_pull_up(LCD_SCL_PIN);
-    
-    printf("DEV_Module_Init OK \r\n");
+
+    Debug("DEV_Module_Init OK\r\n");
     return 0;
 }
 
