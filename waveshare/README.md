@@ -2,7 +2,10 @@
 
 The files here are copied from the [Waveshare Wiki](https://www.waveshare.com/wiki/1.47inch_LCD_Module) for the 1.47 inch LCD Module which is based off the ST7789V3 chipset.
 
-These files are unmodified from the originals and are provided for convenience.
+The driver has been modified as follows:
+
+* I2C and Infrared has been removed since the LCD used in this project only uses SPI.
+* The pin configuration in `Dev_Config.h` has been replaced by config passed to `DEV_Module_Init()` to enable multiple displays from the single driver.
 
 ## Pico pinout
 
