@@ -33,9 +33,28 @@ typedef struct clock_state_t
 {
     bool ntp_updated;
     time_t ntp_time;
-    lcd_state_t *lcd_state;
+    lcd_state_t *lcd1;
+    lcd_state_t *lcd2;
     ntp_state_t *ntp_state;
 } clock_state_t;
+
+LCD_GPIO_Config lcd1_pins = {
+    .RST = 12, // GPIO12 (shared)
+    .DC = 6,   // GPIO8
+    .BL = 13,  // GPIO13 (shared)
+    .CS = 7,   // GPIO9
+    .CLK = 10, // GPIO10 (shared)
+    .MOSI = 11 // GPIO11 (shared)
+};
+
+LCD_GPIO_Config lcd2_pins = {
+    .RST = 12, // GPIO12 (shared)
+    .DC = 8,   // GPIO8
+    .BL = 13,  // GPIO13 (shared)
+    .CS = 9,   // GPIO9
+    .CLK = 10, // GPIO10 (shared)
+    .MOSI = 11 // GPIO11 (shared)
+};
 
 void ntp_timer_callback(void *state, time_t *ntp_time)
 {
@@ -68,15 +87,14 @@ int main()
         CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
     }
 
-    clock_state->lcd_state = lcd_init();
-    if (clock_state->lcd_state == NULL) {
-        CLOCK_DEBUG("LCD: failed to initialise\r\n");
+    clock_state->lcd1 = lcd_init(lcd1_pins);
+    if (clock_state->lcd1 == NULL) {
+        CLOCK_DEBUG("LCD 1: failed to initialise\r\n");
         return 1;
     }
-
-    clear_screen(clock_state->lcd_state);
-    print_line(clock_state->lcd_state, "SUCCESS!");
-    update_screen(clock_state->lcd_state);
+    clear_screen(clock_state->lcd1);
+    print_line(clock_state->lcd1, "SUCCESS LCD 1!");
+    update_screen(clock_state->lcd1);
 
     int delay_ms = 2000;
     for (int ii = 0; ii < 100; ii++) {
@@ -90,8 +108,8 @@ int main()
         } else {
             const char *time_str = time_as_string(clock_state->ntp_time);
             CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
-            print_line(clock_state->lcd_state, time_str);
-            update_screen(clock_state->lcd_state);
+            print_line(clock_state->lcd1, time_str);
+            update_screen(clock_state->lcd1);
         }
         sleep_ms(delay_ms);
     }
