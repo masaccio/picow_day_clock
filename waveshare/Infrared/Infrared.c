@@ -1,3 +1,5 @@
+// clang-format off
+
 #include "Infrared.h"
 
 int Infrared_PIN;

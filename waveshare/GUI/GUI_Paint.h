@@ -1,3 +1,5 @@
+// clang-format off
+
 #ifndef __GUI_PAINT_H
 #define __GUI_PAINT_H
 

@@ -1,3 +1,5 @@
+// clang-format off
+
 #include "GUI_Paint.h"
 #include "DEV_Config.h"
 #include "Debug.h"

@@ -1,3 +1,5 @@
+// clang-format off
+
 #ifndef __INFRARED_H
 #define __INFRARED_H
 

@@ -1,3 +1,5 @@
+// clang-format off
+
 /*****************************************************************************
 * | File      	:   LCD_1in47_test.c
 * | Author      :   Waveshare team
