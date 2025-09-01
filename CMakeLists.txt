@@ -48,7 +48,6 @@ include_directories(
     waveshare/Config
     waveshare/GUI
     waveshare/LCD
-    waveshare/Infrared
     waveshare/examples
     src
     ${CMAKE_BINARY_DIR}/generated
@@ -88,7 +87,6 @@ target_link_libraries(picow_day_clock
         pico_stdlib
         hardware_pwm
         hardware_spi
-        hardware_i2c
         )
 
 pico_add_extra_outputs(picow_day_clock)
