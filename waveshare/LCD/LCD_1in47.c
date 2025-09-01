@@ -17,6 +17,7 @@
 #include "DEV_Config.h"
 
 #include <stdlib.h> //itoa()
+#include <string.h> // memcpy() and memset()
 #include <stdio.h>
 
 LCD_1IN47_ATTRIBUTES LCD_1IN47;
@@ -300,6 +301,75 @@ void LCD_1IN47_Display(LCD_GPIO_Config pins, UWORD *Image)
     for (j = 0; j < LCD_1IN47.HEIGHT; j++)
     {
         DEV_SPI_Write_nByte((uint8_t *)&Image[j * LCD_1IN47.WIDTH], LCD_1IN47.WIDTH * 2);
+    }
+    DEV_Digital_Write(pins.CS, 1);
+    LCD_1IN47_SendCommand(pins, 0x29);
+}
+
+/******************************************************************************
+function : Sends the image buffer in RAM to display, expanding each pixel according to Paint.Scale
+parameter:
+    Paint.Scale: 2=1bpp, 4=2bpp, 16=4bpp, 65=16bpp
+    Image: pointer to source buffer
+******************************************************************************/
+void LCD_1IN47_Display_Scaled(LCD_GPIO_Config pins, void *Image, int scale)
+{
+    UWORD j, x;
+    LCD_1IN47_SetWindows(pins, 0, 0, LCD_1IN47.WIDTH, LCD_1IN47.HEIGHT);
+    DEV_Digital_Write(pins.DC, 1);
+    DEV_Digital_Write(pins.CS, 0);
+    
+    // Temporary buffer for one line, always 16bpp output
+    uint8_t linebuf[LCD_1IN47.WIDTH * 2];
+    
+    for (j = 0; j < LCD_1IN47.HEIGHT; j++) {
+        if (scale == 65) {
+            // 16bpp, just copy
+            memcpy(linebuf, (uint8_t *)Image + (j * LCD_1IN47.WIDTH * 2), LCD_1IN47.WIDTH * 2);
+        } else if (scale == 2) {
+            // 1bpp, each bit is a pixel
+            uint8_t *src = (uint8_t *)Image + (j * ((LCD_1IN47.WIDTH + 7) / 8));
+            for (x = 0; x < LCD_1IN47.WIDTH; x++) {
+                int byte = x / 8;
+                int bit = 7 - (x % 8);
+                uint16_t color = (src[byte] & (1 << bit)) ? 0xFFFF : 0x0000;
+                linebuf[x * 2] = (color >> 8) & 0xFF;
+                linebuf[x * 2 + 1] = color & 0xFF;
+            }
+        } else if (scale == 4) {
+            // 2bpp, each 2 bits is a pixel
+            uint8_t *src = (uint8_t *)Image + (j * ((LCD_1IN47.WIDTH + 3) / 4));
+            for (x = 0; x < LCD_1IN47.WIDTH; x++) {
+                int byte = x / 4;
+                int shift = 6 - 2 * (x % 4);
+                uint8_t val = (src[byte] >> shift) & 0x3;
+                uint16_t color;
+                switch (val) {
+                    case 0: color = 0x0000; break;
+                    case 1: color = 0x5555; break;
+                    case 2: color = 0xAAAA; break;
+                    case 3: color = 0xFFFF; break;
+                }
+                linebuf[x * 2] = (color >> 8) & 0xFF;
+                linebuf[x * 2 + 1] = color & 0xFF;
+            }
+        } else if (scale == 16) {
+            // 4bpp, each 4 bits is a pixel
+            uint8_t *src = (uint8_t *)Image + (j * ((LCD_1IN47.WIDTH + 1) / 2));
+            for (x = 0; x < LCD_1IN47.WIDTH; x++) {
+                int byte = x / 2;
+                int shift = 4 * (1 - (x % 2));
+                uint8_t val = (src[byte] >> shift) & 0xF;
+                // Map 16 levels to 16 colors (simple grayscale)
+                uint16_t color = (val << 12) | (val << 8) | (val << 4) | val;
+                linebuf[x * 2] = (color >> 8) & 0xFF;
+                linebuf[x * 2 + 1] = color & 0xFF;
+            }
+        } else {
+            // Unknown scale, fill black
+            memset(linebuf, 0, LCD_1IN47.WIDTH * 2);
+        }
+        DEV_SPI_Write_nByte(linebuf, LCD_1IN47.WIDTH * 2);
     }
     DEV_Digital_Write(pins.CS, 1);
     LCD_1IN47_SendCommand(pins, 0x29);
