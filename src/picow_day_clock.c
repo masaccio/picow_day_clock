@@ -38,24 +38,6 @@ typedef struct clock_state_t
     ntp_state_t *ntp_state;
 } clock_state_t;
 
-lcd_config_t lcd1_config = {
-    .RST_gpio = 12, // GPIO12 (shared)
-    .DC_gpio = 6,   // GPIO8
-    .BL_gpio = 13,  // GPIO13 (shared)
-    .CS_gpio = 7,   // GPIO9
-    .CLK_gpio = 10, // GPIO10 (shared)
-    .MOSI_gpio = 11 // GPIO11 (shared)
-};
-
-lcd_config_t lcd2_config = {
-    .RST_gpio = 12, // GPIO12 (shared)
-    .DC_gpio = 8,   // GPIO8
-    .BL_gpio = 13,  // GPIO13 (shared)
-    .CS_gpio = 9,   // GPIO9
-    .CLK_gpio = 10, // GPIO10 (shared)
-    .MOSI_gpio = 11 // GPIO11 (shared)
-};
-
 void ntp_timer_callback(void *state, time_t *ntp_time)
 {
     clock_state_t *clock_state = (clock_state_t *)state;
@@ -89,31 +71,48 @@ int main()
     //     CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
     // }
 
-    clock_state->lcd1 = lcd_init(&lcd1_config, 1);
+    clock_state->lcd1 = lcd_init(/* RST */ 12,
+                                 /* DC */ 6,
+                                 /* BL */ 13,
+                                 /* CS */ 7,
+                                 /* CLK */ 10,
+                                 /* MOSI */ 11, /* reset */ true);
+
     if (clock_state->lcd1 == NULL) {
         CLOCK_DEBUG("LCD 1: failed to initialise\r\n");
         return 1;
     }
     CLOCK_DEBUG("Display LCD1 4-bit\r\n");
-    fb_clear(clock_state->lcd1->frame_buffer, 0x00);
-    fb_write_string(clock_state->lcd1->frame_buffer, 0, 0, "SUCCESS LCD 1!", &TEXT_FONT, 0xff, 0x00);
-    fb_draw_rectangle(clock_state->lcd1->frame_buffer, 0, 50, 172, 75, 0xaa);
-    fb_draw_rectangle(clock_state->lcd1->frame_buffer, 0, 75, 172, 100, 0x55);
-    LCD_1IN47_Display_2Bit(&lcd1_config, clock_state->lcd1->frame_buffer_data);
+    int x1 = get_rand_32() % 50;
+    int x2 = get_rand_32() % 50;
+    int y1 = get_rand_32() % 50;
+    int y2 = get_rand_32() % 50;
+    fb_clear(clock_state->lcd1->fb, 0x00);
+    fb_write_string(clock_state->lcd1->fb, 0, 0, "SUCCESS LCD 1!", &TEXT_FONT, 0xff, 0x00);
+    fb_draw_rectangle(clock_state->lcd1->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0xaa);
+    fb_draw_rectangle(clock_state->lcd1->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0x55);
+    lcd_update_screen(clock_state->lcd1);
 
-    // sleep_ms(2000);
-
-    clock_state->lcd2 = lcd_init(&lcd2_config, 2);
+    clock_state->lcd2 = lcd_init(/* RST */ 12,
+                                 /* DC */ 8,
+                                 /* BL */ 13,
+                                 /* CS */ 9,
+                                 /* CLK */ 10,
+                                 /* MOSI */ 11, /* reset */ false);
     if (clock_state->lcd2 == NULL) {
         CLOCK_DEBUG("LCD 2: failed to initialise\r\n");
         return 1;
     }
     CLOCK_DEBUG("Display LCD2 4-bit\r\n");
-    fb_clear(clock_state->lcd2->frame_buffer, 0x00);
-    fb_write_string(clock_state->lcd2->frame_buffer, 0, 0, "SUCCESS LCD 2!", &TEXT_FONT, 0xff, 0x00);
-    fb_draw_rectangle(clock_state->lcd2->frame_buffer, 0, 100, 172, 125, 0x55);
-    fb_draw_rectangle(clock_state->lcd2->frame_buffer, 0, 125, 172, 150, 0xaa);
-    LCD_1IN47_Display_2Bit(&lcd2_config, clock_state->lcd2->frame_buffer_data);
+    x1 = get_rand_32() % 50;
+    x2 = get_rand_32() % 50;
+    y1 = get_rand_32() % 50;
+    y2 = get_rand_32() % 50;
+    fb_clear(clock_state->lcd2->fb, 0x00);
+    fb_write_string(clock_state->lcd2->fb, 0, 0, "SUCCESS LCD 2!", &TEXT_FONT, 0xff, 0x00);
+    fb_draw_rectangle(clock_state->lcd2->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0x55);
+    fb_draw_rectangle(clock_state->lcd2->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0xaa);
+    lcd_update_screen(clock_state->lcd2);
 
     // int delay_ms = 2000;
     // for (int ii = 0; ii < 100; ii++) {
@@ -127,7 +126,7 @@ int main()
     //     } else {
     //         const char *time_str = time_as_string(clock_state->ntp_time);
     //         CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
-    //         print_line(clock_state->lcd1, time_str);
+    //         lcd_print_line(clock_state->lcd1, time_str);
     //         update_screen(clock_state->lcd1);
     //     }
     //     sleep_ms(delay_ms);
