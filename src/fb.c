@@ -127,12 +127,12 @@ parameter:
     Yend   : y end point
     color  : Painted colors
 ******************************************************************************/
-void Paint_ClearWindows(frame_buffer_t *state, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
-                        uint16_t color)
+void paint_clear_windows(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
+                         uint16_t color)
 {
     uint16_t x, y;
-    for (y = Ystart; y < Yend; y++) {
-        for (x = Xstart; x < Xend; x++) { // 8 pixel =  1 byte
+    for (y = y_start; y < y_end; y++) {
+        for (x = x_start; x < x_end; x++) { // 8 pixel =  1 byte
             fb_set_pixel(state, x, y, color);
         }
     }
@@ -145,18 +145,18 @@ parameter:
     y_point		: The y_point coordinate of the point
     color		: Painted color
 ******************************************************************************/
-void Paint_DrawPoint(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uint16_t color)
+void paint_draw_point(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uint16_t color)
 {
     if (x_point > state->width || y_point > state->height) {
         return;
     }
 
-    int16_t XDir_Num, YDir_Num;
-    for (XDir_Num = 0; XDir_Num < 2 * 1 - 1; XDir_Num++) {
-        for (YDir_Num = 0; YDir_Num < 2 * 1 - 1; YDir_Num++) {
-            if (x_point + XDir_Num - 1 < 0 || y_point + YDir_Num - 1 < 0)
+    int16_t x_dir_num, y_dir_num;
+    for (x_dir_num = 0; x_dir_num < 2 * 1 - 1; x_dir_num++) {
+        for (y_dir_num = 0; y_dir_num < 2 * 1 - 1; y_dir_num++) {
+            if (x_point + x_dir_num - 1 < 0 || y_point + y_dir_num - 1 < 0)
                 break;
-            fb_set_pixel(state, x_point + XDir_Num - 1, y_point + YDir_Num - 1, color);
+            fb_set_pixel(state, x_point + x_dir_num - 1, y_point + y_dir_num - 1, color);
         }
     }
 }
@@ -170,41 +170,41 @@ parameter:
     Yend   ：End point y_point coordinate
     color  ：The color of the line segment
 ******************************************************************************/
-void Paint_DrawLine(frame_buffer_t *state, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
-                    uint16_t color)
+void paint_draw_line(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
+                     uint16_t color)
 {
-    if (Xstart > state->width || Ystart > state->height || Xend > state->width || Yend > state->height) {
+    if (x_start > state->width || y_start > state->height || x_end > state->width || y_end > state->height) {
         return;
     }
 
-    uint16_t x_point = Xstart;
-    uint16_t y_point = Ystart;
-    int dx = (int)Xend - (int)Xstart >= 0 ? Xend - Xstart : Xstart - Xend;
-    int dy = (int)Yend - (int)Ystart <= 0 ? Yend - Ystart : Ystart - Yend;
+    uint16_t x_point = x_start;
+    uint16_t y_point = y_start;
+    int dx = (int)x_end - (int)x_start >= 0 ? x_end - x_start : x_start - x_end;
+    int dy = (int)y_end - (int)y_start <= 0 ? y_end - y_start : y_start - y_end;
 
     // Increment direction, 1 is positive, -1 is counter;
-    int XAddway = Xstart < Xend ? 1 : -1;
-    int YAddway = Ystart < Yend ? 1 : -1;
+    int x_addway = x_start < x_end ? 1 : -1;
+    int y_addway = y_start < y_end ? 1 : -1;
 
     // Cumulative error
-    int Esp = dx + dy;
-    char Dotted_Len = 0;
+    int esp = dx + dy;
+    char dotted_len = 0;
 
     for (;;) {
-        Dotted_Len++;
+        dotted_len++;
         // Painted dotted line, 2 point is really virtual
-        Paint_DrawPoint(state, x_point, y_point, color);
-        if (2 * Esp >= dy) {
-            if (x_point == Xend)
+        paint_draw_point(state, x_point, y_point, color);
+        if (2 * esp >= dy) {
+            if (x_point == x_end)
                 break;
-            Esp += dy;
-            x_point += XAddway;
+            esp += dy;
+            x_point += x_addway;
         }
-        if (2 * Esp <= dx) {
-            if (y_point == Yend)
+        if (2 * esp <= dx) {
+            if (y_point == y_end)
                 break;
-            Esp += dx;
-            y_point += YAddway;
+            esp += dx;
+            y_point += y_addway;
         }
     }
 }
@@ -218,74 +218,74 @@ parameter:
     Yend   ：Rectangular  End point y_point coordinate
     color  ：The color of the Rectangular segment
 ******************************************************************************/
-void fb_draw_rectangle(frame_buffer_t *state, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
+void fb_draw_rectangle(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
                        uint16_t color)
 {
-    if (Xstart > state->width || Ystart > state->height || Xend > state->width || Yend > state->height) {
+    if (x_start > state->width || y_start > state->height || x_end > state->width || y_end > state->height) {
         return;
     }
 
     uint16_t y_point;
-    for (y_point = Ystart; y_point < Yend; y_point++) {
-        Paint_DrawLine(state, Xstart, y_point, Xend, y_point, color);
+    for (y_point = y_start; y_point < y_end; y_point++) {
+        paint_draw_line(state, x_start, y_point, x_end, y_point, color);
     }
 }
 
-int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, const char Acsii_Char,
-                  var_width_font_t *Font, color_t fgcolor, color_t bgcolor)
+int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char,
+                  var_width_font_t *font, color_t fgcolor, color_t bgcolor)
 {
-    uint16_t Page, Column;
+    uint16_t page, column;
 
-    const var_width_font_entry_t *entry = &Font->table[Acsii_Char - ' '];
+    const var_width_font_entry_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
-    int font_height = Font->Height;
+    int font_height = font->Height;
     int font_width = entry->Width;
 
-    for (Page = 0; Page < Font->Height; Page++) {
-        for (Column = 0; Column < font_width; Column++) {
-            if (*ptr & (0x80 >> (Column % 8))) {
-                fb_set_pixel(state, x_point + Column, y_point + Page, fgcolor);
+    for (page = 0; page < font->Height; page++) {
+        for (column = 0; column < font_width; column++) {
+            if (*ptr & (0x80 >> (column % 8))) {
+                fb_set_pixel(state, x_point + column, y_point + page, fgcolor);
             } else {
-                fb_set_pixel(state, x_point + Column, y_point + Page, bgcolor);
+                fb_set_pixel(state, x_point + column, y_point + page, bgcolor);
             }
             // One pixel is 8 bits
-            if (Column % 8 == 7)
+            if (column % 8 == 7)
                 ptr++;
         } // Write a line
-        ptr += Font->Width - font_width / 8; // Move to next line
+        ptr += font->Width - font_width / 8; // Move to next line
     } // Write all
 
     return font_width;
 }
 
-void fb_write_string(frame_buffer_t *state, uint16_t Xstart, uint16_t Ystart, const char *pString,
-                     var_width_font_t *Font, color_t fgcolor, color_t bgcolor)
+void fb_write_string(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, const char *p_string,
+                     var_width_font_t *font, color_t fgcolor, color_t bgcolor)
 {
-    uint16_t x_point = Xstart;
-    uint16_t y_point = Ystart;
+    uint16_t x_point = x_start;
+    uint16_t y_point = y_start;
 
-    if (Xstart > state->width || Ystart > state->height) {
+    if (x_start > state->width || y_start > state->height) {
         return;
     }
 
     int width = 0;
-    while (*pString != '\0') {
-        // if x direction filled , reposition to(Xstart,y_point),y_point is y
+    while (*p_string != '\0') {
+        // if x direction filled , reposition to(x_start,y_point),y_point is y
         // direction plus the Height of the character
         if ((x_point + width) > state->width) {
-            x_point = Xstart;
-            y_point += Font->Height;
+            x_point = x_start;
+            y_point += font->Height;
         }
 
-        // If the y direction is full, reposition to(Xstart, Ystart)
-        if ((y_point + Font->Height) > state->height) {
-            x_point = Xstart;
-            y_point = Ystart;
+        // If the y direction is full, reposition to(x_start, y_start)
+        if ((y_point + font->Height) > state->height) {
+            x_point = x_start;
+            y_point = y_start;
         }
-        width = fb_write_char(state, x_point, y_point, *pString, Font, fgcolor, bgcolor);
+        width = fb_write_char(state, x_point, y_point, *p_string, font, fgcolor, bgcolor);
 
         // The next character of the address
-        pString++;
+        p_string++;
 
         x_point += width;
     }

@@ -37,29 +37,29 @@ typedef enum
 #define ROTATE_180 180
 #define ROTATE_270 270
 
-frame_buffer_t *fb_create(uint16_t Width, uint16_t Height, uint16_t Rotate);
+frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate);
 
-void fb_rotate(frame_buffer_t *frame_buffer, uint16_t Rotate);
+void fb_rotate(frame_buffer_t *frame_buffer, uint16_t rotate);
 
 void fb_clear(frame_buffer_t *frame_buffer, color_t color);
 
-void fb_set_pixel(frame_buffer_t *frame_buffer, uint16_t Xpoint, uint16_t Ypoint, uint16_t Color);
+void fb_set_pixel(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, uint16_t color);
 
-void Paint_ClearWindows(frame_buffer_t *frame_buffer, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
-                        uint16_t Color);
+void paint_clear_windows(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, uint16_t x_end,
+                         uint16_t y_end, uint16_t color);
 
-void Paint_DrawPoint(frame_buffer_t *frame_buffer, uint16_t Xpoint, uint16_t Ypoint, uint16_t Color);
+void paint_draw_point(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, uint16_t color);
 
-void Paint_DrawLine(frame_buffer_t *frame_buffer, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
-                    uint16_t Color);
+void paint_draw_line(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
+                     uint16_t color);
 
-void fb_draw_rectangle(frame_buffer_t *frame_buffer, uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,
-                       uint16_t Color);
+void fb_draw_rectangle(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
+                       uint16_t color);
 
-int fb_write_char(frame_buffer_t *frame_buffer, uint16_t Xpoint, uint16_t Ypoint, const char Acsii_Char,
-                  var_width_font_t *Font, color_t fgcolor, color_t bgcolor);
+int fb_write_char(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, const char ascii_char,
+                  var_width_font_t *font, color_t fgcolor, color_t bgcolor);
 
-void fb_write_string(frame_buffer_t *frame_buffer, uint16_t Xstart, uint16_t Ystart, const char *pString,
-                     var_width_font_t *Font, color_t fgcolor, color_t bgcolor);
+void fb_write_string(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, const char *p_string,
+                     var_width_font_t *font, color_t fgcolor, color_t bgcolor);
 
 #endif /* __FB_H */
