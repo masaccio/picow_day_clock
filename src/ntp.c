@@ -57,8 +57,8 @@ const char *time_as_string(time_t ntp_time)
     time_t local_time_t = ntp_time + (bst ? 3600 : 0);
     struct tm *local = gmtime(&local_time_t);
 
-    snprintf(buffer, sizeof(buffer), "%02d/%02d/%04d %02d:%02d:%02d (%s)", local->tm_mday, local->tm_mon + 1,
-             local->tm_year + 1900, local->tm_hour, local->tm_min, local->tm_sec, bst ? "BST" : "GMT");
+    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d (%s)", local->tm_hour, local->tm_min, local->tm_sec,
+             bst ? "BST" : "GMT");
     return (const char *)buffer;
 }
 
