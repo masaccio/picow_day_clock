@@ -66,10 +66,11 @@ int main()
     int x2 = get_rand_32() % 50;
     int y1 = get_rand_32() % 50;
     int y2 = get_rand_32() % 50;
-    fb_clear(clock_state->lcd1->fb, 0x00);
-    fb_write_string(clock_state->lcd1->fb, 0, 0, "SUCCESS LCD 1!", &TEXT_FONT, 0xff, 0x00);
-    fb_draw_rectangle(clock_state->lcd1->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0xaa);
-    fb_draw_rectangle(clock_state->lcd1->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0x55);
+    lcd_clear_screen(clock_state->lcd1, BLACK);
+    lcd_print_line(clock_state->lcd1, WHITE, "SUCCESS LCD 1!");
+    lcd_print_line(clock_state->lcd1, RED, "Magic number: %d", get_rand_32() % 50);
+    // fb_draw_rectangle(clock_state->lcd1->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0xaa);
+    // fb_draw_rectangle(clock_state->lcd1->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0x55);
     lcd_update_screen(clock_state->lcd1);
 
     clock_state->lcd2 = lcd_init(/* RST */ 12,
@@ -87,10 +88,11 @@ int main()
     x2 = get_rand_32() % 50;
     y1 = get_rand_32() % 50;
     y2 = get_rand_32() % 50;
-    fb_clear(clock_state->lcd2->fb, 0x00);
-    fb_write_string(clock_state->lcd2->fb, 0, 0, "SUCCESS LCD 2!", &TEXT_FONT, 0xff, 0x00);
-    fb_draw_rectangle(clock_state->lcd2->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0x55);
-    fb_draw_rectangle(clock_state->lcd2->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0xaa);
+    lcd_clear_screen(clock_state->lcd2, BLACK);
+    lcd_print_line(clock_state->lcd2, WHITE, "SUCCESS LCD 2!");
+    lcd_print_line(clock_state->lcd2, RED, "Magic number: %d", get_rand_32() % 50);
+    // fb_draw_rectangle(clock_state->lcd2->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0x55);
+    // fb_draw_rectangle(clock_state->lcd2->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0xaa);
     lcd_update_screen(clock_state->lcd2);
 
     if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
@@ -113,7 +115,7 @@ int main()
     }
 
     int delay_ms = 2000;
-    for (int ii = 0; ii < 100; ii++) {
+    for (int ii = 0; ii < 10; ii++) {
         ntp_status = ntp_get_time(clock_state->ntp_state);
         if (ntp_status == NTP_STATUS_KOD) {
             delay_ms *= 2;
@@ -124,7 +126,7 @@ int main()
         } else {
             const char *time_str = time_as_string(clock_state->ntp_time);
             CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
-            lcd_print_line(clock_state->lcd1, time_str);
+            lcd_print_line(clock_state->lcd1, GREEN, time_str);
             lcd_update_screen(clock_state->lcd1);
         }
         sleep_ms(delay_ms);

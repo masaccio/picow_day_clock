@@ -25,8 +25,7 @@
 
 #define LCD_HEIGHT 172
 #define LCD_WIDTH 320
-#define BGCOLOR 0x00
-#define FGCOLOR 0xff
+
 #define TEXT_FONT Roboto_Medium24
 #define TEXT_FONT_HEIGHT 24
 #define DIGIT_FONT Roboto_Medium200
@@ -59,9 +58,9 @@ void lcd_set_backlight(uint8_t level);
 
 void lcd_init_peripherals(lcd_state_t *state, bool reset);
 
-extern void lcd_print_line(lcd_state_t *state, const char *format, ...);
+extern void lcd_print_line(lcd_state_t *state, color_t color, const char *format, ...);
 
-extern void lcd_clear_screen(lcd_state_t *state);
+extern void lcd_clear_screen(lcd_state_t *state, color_t color);
 
 void lcd_update_screen(lcd_state_t *state);
 
