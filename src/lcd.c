@@ -300,11 +300,9 @@ void st7789_set_command_windows(lcd_state_t *state)
     st7789_command(state, 0x2C);
 }
 
-/******************************************************************************
-function :	Clear screen
-parameter:
-******************************************************************************/
-void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
+/* Clear the screen with a temporary frame buffer.
+   TODO: this is a future frame-buffer-free way of driving the LCD */
+static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
 {
     uint16_t j, i;
     uint16_t Image[state->width * state->height];

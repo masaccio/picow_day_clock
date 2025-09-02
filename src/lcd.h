@@ -56,8 +56,8 @@ extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gp
                              uint16_t MOSI_gpio, bool reset);
 
 void lcd_set_backlight(uint8_t level);
+
 void lcd_init_peripherals(lcd_state_t *state, bool reset);
-void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color);
 
 extern void lcd_print_line(lcd_state_t *state, const char *format, ...);
 
