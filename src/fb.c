@@ -14,13 +14,18 @@ parameter:
     Height  :   The height of the picture
     Color   :   Whether the picture is inverted
 ******************************************************************************/
-frame_buffer_t *fb_create(uint8_t *image, uint16_t width, uint16_t height, uint16_t rotate, uint16_t color)
+frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate, uint16_t color)
 {
-    frame_buffer_t *frame_buffer = (frame_buffer_t *)malloc(sizeof(frame_buffer_t));
+    frame_buffer_t *frame_buffer = (frame_buffer_t *)calloc(1, sizeof(frame_buffer_t));
     if (frame_buffer == NULL) {
         return NULL;
     }
-    frame_buffer->data = image;
+
+    frame_buffer->data = (uint8_t *)malloc((height + 1) * (width / 4));
+    if (frame_buffer->data == NULL) {
+        free(frame_buffer);
+        return NULL;
+    }
 
     frame_buffer->width_memory = width;
     frame_buffer->height_memory = height;

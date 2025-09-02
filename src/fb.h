@@ -28,7 +28,7 @@ typedef struct
 #define ROTATE_270 270
 
 // init and Clear
-frame_buffer_t *fb_create(uint8_t *image, uint16_t Width, uint16_t Height, uint16_t Rotate, uint16_t Color);
+frame_buffer_t *fb_create(uint16_t Width, uint16_t Height, uint16_t Rotate, uint16_t Color);
 void Paint_SelectImage(frame_buffer_t *frame_buffer);
 void fb_rotate(frame_buffer_t *frame_buffer, uint16_t Rotate);
 void Paint_SetPixel(frame_buffer_t *frame_buffer, uint16_t Xpoint, uint16_t Ypoint, uint16_t Color);
