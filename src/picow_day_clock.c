@@ -44,32 +44,11 @@ void ntp_timer_callback(void *state, time_t *ntp_time)
     clock_state->ntp_time = *ntp_time;
 }
 
-static uint8_t lcd2_frame_buffer[(LCD_HEIGHT + 1) * (LCD_WIDTH / 4)];
-
 int main()
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
 
     stdio_init_all();
-
-    // if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
-    //     return 1;
-    // }
-
-    // clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
-    // if (clock_state->ntp_state == NULL) {
-    //     CLOCK_DEBUG("NTP: failed to initialise\r\n");
-    //     return 1;
-    // }
-
-    // ntp_status_t ntp_status = ntp_get_time(clock_state->ntp_state);
-    // if (ntp_status != NTP_STATUS_SUCCESS) {
-    //     CLOCK_DEBUG("NTP: get time failed\r\n");
-    //     return 1;
-    // } else {
-    //     const char *time_str = time_as_string(clock_state->ntp_time);
-    //     CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
-    // }
 
     clock_state->lcd1 = lcd_init(/* RST */ 12,
                                  /* DC */ 6,
@@ -114,24 +93,43 @@ int main()
     fb_draw_rectangle(clock_state->lcd2->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0xaa);
     lcd_update_screen(clock_state->lcd2);
 
-    // int delay_ms = 2000;
-    // for (int ii = 0; ii < 100; ii++) {
-    //     ntp_status = ntp_get_time(clock_state->ntp_state);
-    //     if (ntp_status == NTP_STATUS_KOD) {
-    //         delay_ms *= 2;
-    //         CLOCK_DEBUG("NTP: backing off: new delay is %d ms\r\n", delay_ms);
-    //     } else if (ntp_status != NTP_STATUS_SUCCESS) {
-    //         CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
-    //         return 1;
-    //     } else {
-    //         const char *time_str = time_as_string(clock_state->ntp_time);
-    //         CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
-    //         lcd_print_line(clock_state->lcd1, time_str);
-    //         update_screen(clock_state->lcd1);
-    //     }
-    //     sleep_ms(delay_ms);
-    // }
+    if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
+        return 1;
+    }
 
-    // disconnect_from_wifi();
+    clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
+    if (clock_state->ntp_state == NULL) {
+        CLOCK_DEBUG("NTP: failed to initialise\r\n");
+        return 1;
+    }
+
+    ntp_status_t ntp_status = ntp_get_time(clock_state->ntp_state);
+    if (ntp_status != NTP_STATUS_SUCCESS) {
+        CLOCK_DEBUG("NTP: get time failed\r\n");
+        return 1;
+    } else {
+        const char *time_str = time_as_string(clock_state->ntp_time);
+        CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
+    }
+
+    int delay_ms = 2000;
+    for (int ii = 0; ii < 100; ii++) {
+        ntp_status = ntp_get_time(clock_state->ntp_state);
+        if (ntp_status == NTP_STATUS_KOD) {
+            delay_ms *= 2;
+            CLOCK_DEBUG("NTP: backing off: new delay is %d ms\r\n", delay_ms);
+        } else if (ntp_status != NTP_STATUS_SUCCESS) {
+            CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
+            return 1;
+        } else {
+            const char *time_str = time_as_string(clock_state->ntp_time);
+            CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
+            lcd_print_line(clock_state->lcd1, time_str);
+            lcd_update_screen(clock_state->lcd1);
+        }
+        sleep_ms(delay_ms);
+    }
+
+    disconnect_from_wifi();
     return 0;
 }
