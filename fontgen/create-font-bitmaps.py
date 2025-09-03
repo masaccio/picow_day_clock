@@ -79,9 +79,9 @@ def generate_variable_width_font(font_filename: str, char_height: int, target: T
     font = ImageFont.truetype(font_filename, font_size)
 
     glyph_entries = []
-    font_name = basename(splitext(font_filename)[0]).replace("-", "_").replace(" ", "_")
-    table_name = f"{font_name}{char_height}_Table"
-    font_struct_name = f"{font_name}{char_height}"
+    font_name = basename(splitext(font_filename)[0]).replace("-", "_").replace(" ", "_").lower()
+    table_name = f"{font_name}_{char_height}_table"
+    font_struct_name = f"{font_name}_{char_height}"
 
     target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
     target.write('#include "fonts.h"\n\n')
@@ -112,7 +112,7 @@ def generate_variable_width_font(font_filename: str, char_height: int, target: T
         draw.text((x_offset, 0), char, font=font, fill=1)
         pixels = image.load()
 
-        glyph_array_name = f"{font_name}{char_height}_" + ascii_c_name(char)
+        glyph_array_name = f"{font_name}_{char_height}_" + ascii_c_name(char)
         target.write(f"static const uint8_t {glyph_array_name}[] = {{\n")
         for y in range(char_height):
             line_bytes = []
