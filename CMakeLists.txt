@@ -42,6 +42,7 @@ endif()
 pico_sdk_init()
 
 add_subdirectory(fontgen)
+set_source_files_properties(${GENERATED_FONTS} PROPERTIES GENERATED TRUE)
 
 include_directories(
     waveshare/Fonts
