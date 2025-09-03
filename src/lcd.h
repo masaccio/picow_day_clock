@@ -26,9 +26,9 @@
 #define LCD_HEIGHT 172
 #define LCD_WIDTH 320
 
-#define TEXT_FONT Roboto_Medium24
+#define TEXT_FONT roboto_medium_24
 #define TEXT_FONT_HEIGHT 24
-#define DIGIT_FONT Roboto_Medium200
+#define DIGIT_FONT roboto_medium_200
 
 #define HORIZONTAL 0
 #define VERTICAL 1

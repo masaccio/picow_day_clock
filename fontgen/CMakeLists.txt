@@ -26,7 +26,7 @@ add_custom_command(
 # Step 3: Generate font C files for each size
 set(GENERATED_FONT_FILES "")
 foreach(SIZE ${FONT_SIZES})
-    set(OUT_FILE ${FONT_OUTPUT_DIR}/RobotoMedium${SIZE}.c)
+    set(OUT_FILE ${FONT_OUTPUT_DIR}/roboto_medium_${SIZE}.c)
     list(APPEND GENERATED_FONT_FILES ${OUT_FILE})
 
     add_custom_command(
@@ -37,7 +37,7 @@ foreach(SIZE ${FONT_SIZES})
     )
 endforeach()
 
-set(CLOCK_FONT_FILE ${FONT_OUTPUT_DIR}/RobotoMedium${CLOCK_FONT_SIZE}.c)
+set(CLOCK_FONT_FILE ${FONT_OUTPUT_DIR}/roboto_medium_${CLOCK_FONT_SIZE}.c)
 list(APPEND GENERATED_FONT_FILES ${CLOCK_FONT_FILE})
 add_custom_command(
     OUTPUT ${CLOCK_FONT_FILE}
