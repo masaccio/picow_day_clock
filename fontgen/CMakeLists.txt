@@ -1,11 +1,17 @@
 # Set variables
 set(FONTGEN_DIR ${CMAKE_SOURCE_DIR}/fontgen)
 set(FONT_SCRIPT ${FONTGEN_DIR}/create-font-bitmaps.py)
-set(FONT_FILE ${FONTGEN_DIR}/Roboto-Medium.ttf)
-set(FONT_SIZES 24)
-set(CLOCK_FONT_SIZE 200)
 set(FONT_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/generated)
 set(VENV_DIR ${CMAKE_BINARY_DIR}/fontgen_venv)
+
+set(TEXT_TTF ${FONTGEN_DIR}/Roboto-Medium.ttf)
+set(TEXT_SIZE 20)
+set(TEXT_SRC ${FONT_OUTPUT_DIR}/roboto_medium_${TEXT_SIZE}.c)
+
+set(CLOCK_TTF ${FONTGEN_DIR}/BebasNeue-Regular.ttf)
+set(CLOCK_SIZE 220)
+set(CLOCK_SRC ${FONT_OUTPUT_DIR}/bebasneue_regular_${CLOCK_SIZE}.c)
+
 
 # Step 1: Create Python virtual environment
 add_custom_command(
@@ -25,25 +31,21 @@ add_custom_command(
 
 # Step 3: Generate font C files for each size
 set(GENERATED_FONT_FILES "")
-foreach(SIZE ${FONT_SIZES})
-    set(OUT_FILE ${FONT_OUTPUT_DIR}/roboto_medium_${SIZE}.c)
-    list(APPEND GENERATED_FONT_FILES ${OUT_FILE})
 
-    add_custom_command(
-        OUTPUT ${OUT_FILE}
-        DEPENDS ${FONT_SCRIPT} ${FONT_FILE} ${VENV_DIR}/.pip_installed
-        COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --height=${SIZE} ${FONT_FILE} ${OUT_FILE}
-        COMMENT "Generating font file ${OUT_FILE}"
-    )
-endforeach()
-
-set(CLOCK_FONT_FILE ${FONT_OUTPUT_DIR}/roboto_medium_${CLOCK_FONT_SIZE}.c)
-list(APPEND GENERATED_FONT_FILES ${CLOCK_FONT_FILE})
+list(APPEND GENERATED_FONT_FILES ${TEXT_SRC})
 add_custom_command(
-    OUTPUT ${CLOCK_FONT_FILE}
-    DEPENDS ${FONT_SCRIPT} ${FONT_FILE} ${VENV_DIR}/.pip_installed
-    COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --clock --height=${CLOCK_FONT_SIZE} ${FONT_FILE} ${CLOCK_FONT_FILE}
-    COMMENT "Generating font file ${CLOCK_FONT_FILE}"
+    OUTPUT ${TEXT_SRC}
+    DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${VENV_DIR}/.pip_installed
+    COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --height=${TEXT_SIZE} ${TEXT_TTF} ${TEXT_SRC}
+    COMMENT "Generating font file ${TEXT_SRC}"
+)
+
+list(APPEND GENERATED_FONT_FILES ${CLOCK_SRC})
+add_custom_command(
+    OUTPUT ${CLOCK_SRC}
+    DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${VENV_DIR}/.pip_installed
+    COMMAND ${VENV_DIR}/bin/python3 ${FONT_SCRIPT} --clock --height=${CLOCK_SIZE} ${CLOCK_TTF} ${CLOCK_SRC}
+    COMMENT "Generating font file ${CLOCK_SRC}"
 )
 
 # Step 4: Create a custom target to group all font generation

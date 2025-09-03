@@ -16,7 +16,7 @@ typedef struct
     uint16_t height;
 } var_width_font_t;
 
-extern var_width_font_t roboto_medium_24;
-extern var_width_font_t roboto_medium_200;
+extern var_width_font_t roboto_medium_20;
+extern var_width_font_t bebasneue_regular_220;
 
 #endif /* _FONTS_H */

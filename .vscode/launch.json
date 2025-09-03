@@ -11,7 +11,7 @@
                 "--height",
                 "24",
                 "${workspaceFolder}/fontgen/Roboto-Medium.ttf",
-                "${workspaceFolder}/generated/roboto_medium_24.c"
+                "${workspaceFolder}/generated/roboto_medium_20.c"
             ],
             "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
         },
