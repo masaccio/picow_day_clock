@@ -38,10 +38,30 @@ typedef struct clock_state_t
     ntp_state_t *ntp_state;
 } clock_state_t;
 
-void ntp_timer_callback(void *state, time_t *ntp_time)
+static void ntp_timer_callback(void *state, time_t *ntp_time)
 {
     clock_state_t *clock_state = (clock_state_t *)state;
     clock_state->ntp_time = *ntp_time;
+}
+
+static void display_seconds(clock_state_t *clock_state)
+{
+    struct tm *now = gmtime(&clock_state->ntp_time);
+    char buffer[2] = {0, 0};
+
+    buffer[0] = 0x30 + (now->tm_sec % 10);
+    fb_write_string(clock_state->lcd1->fb, 0, 60, buffer, &DIGIT_FONT, /* fgcolor */ GREEN, /* bgcolor */ BLACK);
+    lcd_update_screen(clock_state->lcd1);
+
+    buffer[0] = 0x30 + (now->tm_sec / 10);
+    fb_write_string(clock_state->lcd2->fb, 0, 60, buffer, &DIGIT_FONT, /* fgcolor */ GREEN, /* bgcolor */ BLACK);
+    lcd_update_screen(clock_state->lcd2);
+
+    // fb_write_char(clock_state->lcd1->fb, 0, 0, digit_1, &TEXT_FONT, WHITE, BLACK);
+    // fb_write_char(clock_state->lcd2->fb, 0, 0, digit_2, &TEXT_FONT, WHITE, BLACK);
+
+    const char *time_str = time_as_string(clock_state->ntp_time);
+    CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
 }
 
 int main()
@@ -62,15 +82,11 @@ int main()
         return 1;
     }
     CLOCK_DEBUG("Display LCD1 4-bit\r\n");
-    int x1 = get_rand_32() % 50;
-    int x2 = get_rand_32() % 50;
-    int y1 = get_rand_32() % 50;
-    int y2 = get_rand_32() % 50;
     lcd_clear_screen(clock_state->lcd1, BLACK);
+    fb_draw_rectangle(clock_state->lcd1->fb, 0, 0, 172, 320, GREEN);
+    sleep_ms(1000);
     lcd_print_line(clock_state->lcd1, WHITE, "SUCCESS LCD 1!");
     lcd_print_line(clock_state->lcd1, RED, "Magic number: %d", get_rand_32() % 50);
-    // fb_draw_rectangle(clock_state->lcd1->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0xaa);
-    // fb_draw_rectangle(clock_state->lcd1->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0x55);
     lcd_update_screen(clock_state->lcd1);
 
     clock_state->lcd2 = lcd_init(/* RST */ 12,
@@ -84,15 +100,9 @@ int main()
         return 1;
     }
     CLOCK_DEBUG("Display LCD2 4-bit\r\n");
-    x1 = get_rand_32() % 50;
-    x2 = get_rand_32() % 50;
-    y1 = get_rand_32() % 50;
-    y2 = get_rand_32() % 50;
     lcd_clear_screen(clock_state->lcd2, BLACK);
     lcd_print_line(clock_state->lcd2, WHITE, "SUCCESS LCD 2!");
     lcd_print_line(clock_state->lcd2, RED, "Magic number: %d", get_rand_32() % 50);
-    // fb_draw_rectangle(clock_state->lcd2->fb, x1 + 20, y1 + 40, x1 + 60, y1 + 80, 0x55);
-    // fb_draw_rectangle(clock_state->lcd2->fb, x2 + 80, y2 + 100, x2 + 120, y2 + 140, 0xaa);
     lcd_update_screen(clock_state->lcd2);
 
     if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
@@ -105,14 +115,19 @@ int main()
         return 1;
     }
 
+    sleep_ms(1000);
+    lcd_clear_screen(clock_state->lcd1, BLACK);
+    lcd_clear_screen(clock_state->lcd2, BLACK);
+
     ntp_status_t ntp_status = ntp_get_time(clock_state->ntp_state);
     if (ntp_status != NTP_STATUS_SUCCESS) {
         CLOCK_DEBUG("NTP: get time failed\r\n");
         return 1;
     } else {
-        const char *time_str = time_as_string(clock_state->ntp_time);
-        CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
+        display_seconds(clock_state);
     }
+
+    sleep_ms(1000);
 
     int delay_ms = 2000;
     for (int ii = 0; ii < 10; ii++) {
@@ -124,10 +139,7 @@ int main()
             CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
             return 1;
         } else {
-            const char *time_str = time_as_string(clock_state->ntp_time);
-            CLOCK_DEBUG("NTP: [iter %02d] time is %s\r\n", ii + 1, time_str);
-            lcd_print_line(clock_state->lcd1, GREEN, time_str);
-            lcd_update_screen(clock_state->lcd1);
+            display_seconds(clock_state);
         }
         sleep_ms(delay_ms);
     }
