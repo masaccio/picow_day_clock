@@ -238,10 +238,10 @@ int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, con
 
     const var_width_font_entry_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
-    int font_height = font->Height;
-    int font_width = entry->Width;
+    int font_height = font->height;
+    int font_width = entry->width;
 
-    for (page = 0; page < font->Height; page++) {
+    for (page = 0; page < font->height; page++) {
         for (column = 0; column < font_width; column++) {
             if (*ptr & (0x80 >> (column % 8))) {
                 fb_set_pixel(state, x_point + column, y_point + page, fgcolor);
@@ -252,7 +252,7 @@ int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, con
             if (column % 8 == 7)
                 ptr++;
         } // Write a line
-        ptr += font->Width - font_width / 8; // Move to next line
+        ptr += font->width - font_width / 8; // Move to next line
     } // Write all
 
     return font_width;
@@ -274,11 +274,11 @@ void fb_write_string(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, 
         // direction plus the Height of the character
         if ((x_point + width) > state->width) {
             x_point = x_start;
-            y_point += font->Height;
+            y_point += font->height;
         }
 
         // If the y direction is full, reposition to(x_start, y_start)
-        if ((y_point + font->Height) > state->height) {
+        if ((y_point + font->height) > state->height) {
             x_point = x_start;
             y_point = y_start;
         }
