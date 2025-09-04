@@ -7,16 +7,16 @@ typedef struct
 {
     const uint8_t width;
     const uint8_t *table;
-} var_width_font_entry_t;
+} font_glyph_t;
 
 typedef struct
 {
-    const var_width_font_entry_t *table;
-    uint16_t width;
+    const font_glyph_t *table;
+    uint16_t byte_width;
     uint16_t height;
-} var_width_font_t;
+} font_t;
 
-extern var_width_font_t text_font;
-extern var_width_font_t clock_digit_font;
+extern font_t text_font;
+extern font_t clock_digit_font;
 
 #endif /* _FONT_H */

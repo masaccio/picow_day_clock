@@ -57,9 +57,9 @@ void fb_draw_rectangle(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t 
                        uint16_t color);
 
 int fb_write_char(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, const char ascii_char,
-                  var_width_font_t *font, color_t fgcolor, color_t bgcolor);
+                  font_t *font, color_t fgcolor, color_t bgcolor);
 
 void fb_write_string(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, const char *p_string,
-                     var_width_font_t *font, color_t fgcolor, color_t bgcolor);
+                     font_t *font, color_t fgcolor, color_t bgcolor);
 
 #endif /* __FB_H */
