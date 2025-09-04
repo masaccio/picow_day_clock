@@ -24,7 +24,7 @@
 /* Local includes */
 #include "common.h"
 #include "fb.h"
-#include "fonts.h"
+#include "font.h"
 #include "lcd.h"
 #include "ntp.h"
 #include "wifi.h"
@@ -44,26 +44,6 @@ static void ntp_timer_callback(void *state, time_t *ntp_time)
     clock_state->ntp_time = *ntp_time;
 }
 
-static void display_seconds(clock_state_t *clock_state)
-{
-    struct tm *now = gmtime(&clock_state->ntp_time);
-    char buffer[2] = {0, 0};
-
-    buffer[0] = 0x30 + (now->tm_sec % 10);
-    fb_write_string(clock_state->lcd1->fb, 0, 60, buffer, &DIGIT_FONT, /* fgcolor */ GREEN, /* bgcolor */ BLACK);
-    lcd_update_screen(clock_state->lcd1);
-
-    buffer[0] = 0x30 + (now->tm_sec / 10);
-    fb_write_string(clock_state->lcd2->fb, 0, 60, buffer, &DIGIT_FONT, /* fgcolor */ GREEN, /* bgcolor */ BLACK);
-    lcd_update_screen(clock_state->lcd2);
-
-    // fb_write_char(clock_state->lcd1->fb, 0, 0, digit_1, &TEXT_FONT, WHITE, BLACK);
-    // fb_write_char(clock_state->lcd2->fb, 0, 0, digit_2, &TEXT_FONT, WHITE, BLACK);
-
-    const char *time_str = time_as_string(clock_state->ntp_time);
-    CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
-}
-
 int main()
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
@@ -81,12 +61,13 @@ int main()
         CLOCK_DEBUG("LCD 1: failed to initialise\r\n");
         return 1;
     }
-    CLOCK_DEBUG("Display LCD1 4-bit\r\n");
+
     lcd_clear_screen(clock_state->lcd1, BLACK);
-    fb_draw_rectangle(clock_state->lcd1->fb, 0, 0, 172, 320, GREEN);
-    sleep_ms(1000);
     lcd_print_line(clock_state->lcd1, WHITE, "SUCCESS LCD 1!");
     lcd_print_line(clock_state->lcd1, RED, "Magic number: %d", get_rand_32() % 50);
+    fb_draw_rectangle(clock_state->lcd1->fb, 0, 100, 172, 320, GREEN);
+    sleep_ms(1000);
+
     lcd_update_screen(clock_state->lcd1);
 
     clock_state->lcd2 = lcd_init(/* RST */ 12,
@@ -99,11 +80,16 @@ int main()
         CLOCK_DEBUG("LCD 2: failed to initialise\r\n");
         return 1;
     }
-    CLOCK_DEBUG("Display LCD2 4-bit\r\n");
+
+    static char clock_chars[] = {'A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U',
+                                 'W', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0};
+
+    for (char *p = clock_chars; *p != 0; p++) {
+        (void)fb_write_char(clock_state->lcd2->fb, 45, 0, *p, &clock_digit_font, GREEN, BLACK);
+        lcd_update_screen(clock_state->lcd2);
+        sleep_ms(500);
+    }
     lcd_clear_screen(clock_state->lcd2, BLACK);
-    lcd_print_line(clock_state->lcd2, WHITE, "SUCCESS LCD 2!");
-    lcd_print_line(clock_state->lcd2, RED, "Magic number: %d", get_rand_32() % 50);
-    lcd_update_screen(clock_state->lcd2);
 
     if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
         return 1;
@@ -119,19 +105,9 @@ int main()
     lcd_clear_screen(clock_state->lcd1, BLACK);
     lcd_clear_screen(clock_state->lcd2, BLACK);
 
-    ntp_status_t ntp_status = ntp_get_time(clock_state->ntp_state);
-    if (ntp_status != NTP_STATUS_SUCCESS) {
-        CLOCK_DEBUG("NTP: get time failed\r\n");
-        return 1;
-    } else {
-        display_seconds(clock_state);
-    }
-
-    sleep_ms(1000);
-
     int delay_ms = 2000;
     for (int ii = 0; ii < 10; ii++) {
-        ntp_status = ntp_get_time(clock_state->ntp_state);
+        ntp_status_t ntp_status = ntp_get_time(clock_state->ntp_state);
         if (ntp_status == NTP_STATUS_KOD) {
             delay_ms *= 2;
             CLOCK_DEBUG("NTP: backing off: new delay is %d ms\r\n", delay_ms);
@@ -139,7 +115,13 @@ int main()
             CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
             return 1;
         } else {
-            display_seconds(clock_state);
+            /* Time string is of the form "23:59:59 (BST)" */
+            const char *time_str = time_as_string(clock_state->ntp_time);
+            CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
+            lcd_print_line(clock_state->lcd1, WHITE, time_str);
+            (void)fb_write_char(clock_state->lcd2->fb, 45, 0, time_str[7], &clock_digit_font, GREEN, BLACK);
+            lcd_update_screen(clock_state->lcd1);
+            lcd_update_screen(clock_state->lcd2);
         }
         sleep_ms(delay_ms);
     }
