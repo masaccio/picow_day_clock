@@ -37,6 +37,7 @@ typedef struct clock_state_t
     /* LCD state */
     lcd_state_t *lcd1;
     lcd_state_t *lcd2;
+    char clock_buffer[8];
     /* Timer state */
     uint64_t epoch_ms;
     uint32_t tick_count;
@@ -54,6 +55,7 @@ typedef struct simple_time_t
 
 static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
+/* Callback from NTP called when an NTP request is successful */
 static void ntp_timer_callback(void *state, time_t *ntp_time)
 {
     clock_state_t *clock_state = (clock_state_t *)state;
@@ -116,7 +118,8 @@ int main()
     stdio_init_all();
     powman_timer_start();
 
-    state->lcd1 = lcd_init(/* RST */ 12,
+    state->lcd1 = lcd_init(pico_hal,
+                           /* RST */ 12,
                            /* DC */ 6,
                            /* BL */ 13,
                            /* CS */ 7,
@@ -132,7 +135,8 @@ int main()
     lcd_print_text(state->lcd1, GREEN, "LCD init OK");
     lcd_update_screen(state->lcd1);
 
-    state->lcd2 = lcd_init(/* RST */ 12,
+    state->lcd2 = lcd_init(pico_hal,
+                           /* RST */ 12,
                            /* DC */ 8,
                            /* BL */ 13,
                            /* CS */ 9,
@@ -144,7 +148,7 @@ int main()
     }
     lcd_clear_screen(state->lcd2, BLACK);
 
-    if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
+    if (!connect_to_wifi(pico_hal, WIFI_SSID, WIFI_PASSWORD)) {
         return 1;
     }
     lcd_print_text(state->lcd1, GREEN, "Wi-Fi connect OK");
@@ -179,6 +183,6 @@ int main()
         sleep_ms(1000);
     }
 
-    disconnect_from_wifi();
+    disconnect_from_wifi(pico_hal);
     return 0;
 }
