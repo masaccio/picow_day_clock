@@ -41,6 +41,8 @@ endif()
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+set(CMAKE_BUILD_TYPE Debug)
+
 add_subdirectory(fontgen)
 set_source_files_properties(${GENERATED_FONTS} PROPERTIES GENERATED TRUE)
 
