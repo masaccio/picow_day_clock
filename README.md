@@ -55,5 +55,7 @@ The default GPIO configuration is assumed, as defined in `lib/Config/DEV_Config.
 1. Only update the display time when the clock digits change
 2. Look at whether the scan across the display can be eliminated
 3. Move the LCD code away from a frame-buffer to direct SPI calls
-4. Implement a HAL for all calls (function table?)
+4. Complete HAL for all calls
+    * NTP still needs to be done
+    * A version for testing needs to be created that logs SDK calls
 5. Create a host build with mocked HAL for testing
