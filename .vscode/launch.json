@@ -2,16 +2,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Font Generator",
+            "name": "Python Fontgen (Text)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/fontgen/create-font-bitmaps.py",
             "console": "integratedTerminal",
             "args": [
                 "--height",
-                "24",
+                "20",
                 "${workspaceFolder}/fontgen/Roboto-Medium.ttf",
-                "${workspaceFolder}/generated/roboto_medium_20.c"
+                "/tmp/roboto_medium_20.c"
+            ],
+            "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
+        },
+        {
+            "name": "Python Fontgen (Clock)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/fontgen/create-font-bitmaps.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--height=40",
+                "--width=20",
+                "--clock",
+                "${workspaceFolder}/fontgen/BebasNeue-Regular.ttf",
+                "/tmp/bebas_neue_40.c"
             ],
             "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
         },
