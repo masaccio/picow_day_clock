@@ -69,7 +69,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     return state;
 }
 
-void lcd_print_line(lcd_state_t *state, color_t color, const char *format, ...)
+void lcd_print_text(lcd_state_t *state, color_t color, const char *format, ...)
 {
     char buffer[256];
     va_list args;
@@ -79,6 +79,13 @@ void lcd_print_line(lcd_state_t *state, color_t color, const char *format, ...)
 
     fb_write_string(state->fb, 0, state->y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
     state->y_offset += text_font.height + 2;
+}
+
+void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
+{
+    const font_glyph_t entry = clock_digit_font.table[ascii_char - ' '];
+    uint16_t x_point = (state->fb->width - entry.width) / 2;
+    (void)fb_write_char(state->fb, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
 }
 
 void lcd_clear_screen(lcd_state_t *state, color_t color)

@@ -227,15 +227,15 @@ void fb_draw_rectangle(frame_buffer_t *state, uint16_t x_start, uint16_t y_start
     }
 }
 
-int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char,
-                  var_width_font_t *font, color_t fgcolor, color_t bgcolor)
+int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
+                  color_t fgcolor, color_t bgcolor)
 {
     uint16_t page, column;
 
-    const var_width_font_entry_t *entry = &font->table[ascii_char - ' '];
+    const font_glyph_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
-    int font_height = font->height;
-    int font_width = entry->width;
+    uint16_t font_height = font->height;
+    uint16_t font_width = entry->width;
 
     for (page = 0; page < font->height; page++) {
         for (column = 0; column < font_width; column++) {
@@ -248,14 +248,14 @@ int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, con
             if (column % 8 == 7)
                 ptr++;
         } // Write a line
-        ptr += font->width - font_width / 8; // Move to next line
+        ptr += font->byte_width - font_width / 8; // Move to next line
     } // Write all
 
     return font_width;
 }
 
-void fb_write_string(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, const char *p_string,
-                     var_width_font_t *font, color_t fgcolor, color_t bgcolor)
+void fb_write_string(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, const char *p_string, font_t *font,
+                     color_t fgcolor, color_t bgcolor)
 {
     uint16_t x_point = x_start;
     uint16_t y_point = y_start;

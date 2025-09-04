@@ -63,11 +63,8 @@ int main()
     }
 
     lcd_clear_screen(clock_state->lcd1, BLACK);
-    lcd_print_line(clock_state->lcd1, WHITE, "SUCCESS LCD 1!");
-    lcd_print_line(clock_state->lcd1, RED, "Magic number: %d", get_rand_32() % 50);
-    fb_draw_rectangle(clock_state->lcd1->fb, 0, 100, 172, 320, GREEN);
-    sleep_ms(1000);
-
+    lcd_print_text(clock_state->lcd1, WHITE, "");
+    lcd_print_text(clock_state->lcd1, GREEN, "LCD OK");
     lcd_update_screen(clock_state->lcd1);
 
     clock_state->lcd2 = lcd_init(/* RST */ 12,
@@ -83,9 +80,10 @@ int main()
 
     static char clock_chars[] = {'A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U',
                                  'W', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0};
-
+    lcd_clear_screen(clock_state->lcd2, BLACK);
     for (char *p = clock_chars; *p != 0; p++) {
-        (void)fb_write_char(clock_state->lcd2->fb, 45, 0, *p, &clock_digit_font, GREEN, BLACK);
+        lcd_clear_screen(clock_state->lcd2, BLACK);
+        lcd_print_clock_digit(clock_state->lcd2, GREEN, *p);
         lcd_update_screen(clock_state->lcd2);
         sleep_ms(500);
     }
@@ -100,10 +98,8 @@ int main()
         CLOCK_DEBUG("NTP: failed to initialise\r\n");
         return 1;
     }
-
-    sleep_ms(1000);
-    lcd_clear_screen(clock_state->lcd1, BLACK);
-    lcd_clear_screen(clock_state->lcd2, BLACK);
+    lcd_print_text(clock_state->lcd1, GREEN, "NTP OK");
+    lcd_update_screen(clock_state->lcd1);
 
     int delay_ms = 2000;
     for (int ii = 0; ii < 10; ii++) {
@@ -118,9 +114,11 @@ int main()
             /* Time string is of the form "23:59:59 (BST)" */
             const char *time_str = time_as_string(clock_state->ntp_time);
             CLOCK_DEBUG("NTP: time is %s\r\n", time_str);
-            lcd_print_line(clock_state->lcd1, WHITE, time_str);
-            (void)fb_write_char(clock_state->lcd2->fb, 45, 0, time_str[7], &clock_digit_font, GREEN, BLACK);
+            lcd_print_text(clock_state->lcd1, WHITE, time_str);
             lcd_update_screen(clock_state->lcd1);
+
+            lcd_clear_screen(clock_state->lcd2, BLACK);
+            lcd_print_clock_digit(clock_state->lcd2, GREEN, time_str[7]);
             lcd_update_screen(clock_state->lcd2);
         }
         sleep_ms(delay_ms);
