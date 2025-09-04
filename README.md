@@ -49,3 +49,11 @@ The default GPIO configuration is assumed, as defined in `lib/Config/DEV_Config.
 | GP8     |       | DC    |
 | GP12    | RST   | RST   |
 | GP13    | BL    | BL    |
+
+## TODO List
+
+1. Only update the display time when the clock digits change
+2. Look at whether the scan across the display can be eliminated
+3. Move the LCD code away from a frame-buffer to direct SPI calls
+4. Implement a HAL for all calls (function table?)
+5. Create a host build with mocked HAL for testing
