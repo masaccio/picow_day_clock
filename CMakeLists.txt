@@ -88,6 +88,7 @@ pico_set_program_version(picow_day_clock "0.1")
 target_link_libraries(picow_day_clock 
         pico_cyw43_arch_lwip_threadsafe_background
         pico_stdlib
+        hardware_powman
         hardware_pwm
         hardware_spi
         )
