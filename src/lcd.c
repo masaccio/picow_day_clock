@@ -19,7 +19,6 @@
 
 /* PICO SDK */
 #include "hardware/pwm.h"
-#include "hardware/spi.h"
 #include "pico/stdlib.h"
 
 /* Local includes */
@@ -35,8 +34,8 @@ static uint slice_num;
 static void lcd_reset(lcd_state_t *state);
 static void st7789_init(lcd_state_t *state);
 
-lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                      uint16_t MOSI_gpio, bool reset)
+lcd_state_t *lcd_init(hal_t *hal, uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
+                      uint16_t CLK_gpio, uint16_t MOSI_gpio, bool reset)
 
 {
     lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
@@ -49,22 +48,23 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     state->MOSI_gpio = MOSI_gpio;
     state->y_offset = 0;
     state->scan_dir = VERTICAL;
+    state->hal = hal;
 
     lcd_init_peripherals(state, reset);
-    lcd_set_backlight(90);
+    lcd_set_backlight(state, 90);
     if (reset) {
         /* All displays share the same reset line */
         lcd_reset(state);
     }
 
     st7789_init(state);
-    lcd_set_backlight(0);
+    lcd_set_backlight(state, 0);
 
     state->fb = fb_create(LCD_WIDTH, LCD_HEIGHT, 0);
     fb_clear(state->fb, BGCOLOR);
     fb_rotate(state->fb, ROTATE_90);
 
-    lcd_set_backlight(100);
+    lcd_set_backlight(state, 100);
 
     return state;
 }
@@ -98,78 +98,78 @@ void lcd_clear_screen(lcd_state_t *state, color_t color)
 /* Initialise the Pico peripeherals we will use (SPI, GPIO, PWM) */
 void lcd_init_peripherals(lcd_state_t *state, bool reset)
 {
-    spi_init(spi1, 10000 * 1000);
-    gpio_set_function(state->CLK_gpio, GPIO_FUNC_SPI);
-    gpio_set_function(state->MOSI_gpio, GPIO_FUNC_SPI);
+    state->hal->spi_init(10000 * 1000);
+    state->hal->gpio_set_function(state->CLK_gpio, GPIO_FUNC_SPI);
+    state->hal->gpio_set_function(state->MOSI_gpio, GPIO_FUNC_SPI);
 
     if (reset) {
-        gpio_init(state->RST_gpio);
-        gpio_set_dir(state->RST_gpio, GPIO_OUT);
+        state->hal->gpio_init(state->RST_gpio);
+        state->hal->gpio_set_dir(state->RST_gpio, GPIO_OUT);
     }
-    gpio_init(state->DC_gpio);
-    gpio_set_dir(state->DC_gpio, GPIO_OUT);
-    gpio_init(state->CS_gpio);
-    gpio_set_dir(state->CS_gpio, GPIO_OUT);
-    gpio_init(state->BL_gpio);
-    gpio_set_dir(state->BL_gpio, GPIO_OUT);
+    state->hal->gpio_init(state->DC_gpio);
+    state->hal->gpio_set_dir(state->DC_gpio, GPIO_OUT);
+    state->hal->gpio_init(state->CS_gpio);
+    state->hal->gpio_set_dir(state->CS_gpio, GPIO_OUT);
+    state->hal->gpio_init(state->BL_gpio);
+    state->hal->gpio_set_dir(state->BL_gpio, GPIO_OUT);
 
-    gpio_put(state->CS_gpio, 1);
-    gpio_put(state->DC_gpio, 0);
-    gpio_put(state->BL_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->DC_gpio, 0);
+    state->hal->gpio_put(state->BL_gpio, 1);
 
-    gpio_set_function(state->BL_gpio, GPIO_FUNC_PWM);
-    slice_num = pwm_gpio_to_slice_num(state->BL_gpio);
-    pwm_set_wrap(slice_num, 100);
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 1);
-    pwm_set_clkdiv(slice_num, 50);
-    pwm_set_enabled(slice_num, true);
+    state->hal->gpio_set_function(state->BL_gpio, GPIO_FUNC_PWM);
+    slice_num = state->hal->pwm_gpio_to_slice_num(state->BL_gpio);
+    state->hal->pwm_set_wrap(slice_num, 100);
+    state->hal->pwm_set_chan_level(slice_num, PWM_CHAN_B, 1);
+    state->hal->pwm_set_clkdiv(slice_num, 50);
+    state->hal->pwm_set_enabled(slice_num, true);
 }
 
 /* Use the PWM to set the backlight level for all displays */
-void lcd_set_backlight(uint8_t level)
+void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 {
     if (level > 100) {
         level = 100;
     }
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, level);
+    state->hal->pwm_set_chan_level(slice_num, PWM_CHAN_B, level);
 }
 
 /* Cycle reset for all displays */
-void lcd_reset(lcd_state_t *state)
+static void lcd_reset(lcd_state_t *state)
 {
-    gpio_put(state->RST_gpio, 1);
-    sleep_ms(100);
-    gpio_put(state->RST_gpio, 0);
-    sleep_ms(100);
-    gpio_put(state->RST_gpio, 1);
-    sleep_ms(100);
+    state->hal->gpio_put(state->RST_gpio, 1);
+    state->hal->sleep_ms(100);
+    state->hal->gpio_put(state->RST_gpio, 0);
+    state->hal->sleep_ms(100);
+    state->hal->gpio_put(state->RST_gpio, 1);
+    state->hal->sleep_ms(100);
 }
 
 /* Select an LCD and send a command byte */
 static void st7789_command(lcd_state_t *state, uint8_t reg)
 {
-    gpio_put(state->DC_gpio, 0);
-    gpio_put(state->CS_gpio, 0);
-    spi_write_blocking(spi1, &reg, 1);
-    gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->DC_gpio, 0);
+    state->hal->gpio_put(state->CS_gpio, 0);
+    state->hal->spi_write_blocking(&reg, 1);
+    state->hal->gpio_put(state->CS_gpio, 1);
 }
 
 /* Select an LCD and send a data byte */
 static void st7789_data_byte(lcd_state_t *state, uint8_t data)
 {
-    gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
-    spi_write_blocking(spi1, &data, 1);
-    gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->DC_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 0);
+    state->hal->spi_write_blocking(&data, 1);
+    state->hal->gpio_put(state->CS_gpio, 1);
 }
 
 /* Select an LCD and send a data word (2 bytes) */
 static void st7789_data_word(lcd_state_t *state, uint16_t data)
 {
-    gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
-    spi_write_blocking(spi1, (uint8_t *)&data, 2);
-    gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->DC_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 0);
+    state->hal->spi_write_blocking((uint8_t *)&data, 2);
+    state->hal->gpio_put(state->CS_gpio, 1);
 }
 
 static void st7789_init(lcd_state_t *state)
@@ -188,7 +188,7 @@ static void st7789_init(lcd_state_t *state)
     st7789_command(state, 0x36);              // MX, MY, RGB mode
     st7789_data_byte(state, MemoryAccessReg); // 0x08 set RGB
     st7789_command(state, 0x11);
-    sleep_ms(120);
+    state->hal->sleep_ms(120);
     st7789_command(state, 0x36);
     if (state->scan_dir == HORIZONTAL)
         st7789_data_byte(state, 0x00);
@@ -268,7 +268,7 @@ static void st7789_init(lcd_state_t *state)
     st7789_command(state, 0x21);
 
     st7789_command(state, 0x11);
-    sleep_ms(120);
+    state->hal->sleep_ms(120);
     st7789_command(state, 0x29);
 }
 
@@ -321,12 +321,12 @@ static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
     }
 
     st7789_set_command_windows(state);
-    gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    state->hal->gpio_put(state->DC_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 0);
     for (j = 0; j < state->height; j++) {
-        spi_write_blocking(spi1, (uint8_t *)&Image[j * state->width], state->width * 2);
+        state->hal->spi_write_blocking((uint8_t *)&Image[j * state->width], state->width * 2);
     }
-    gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 1);
 }
 
 /* Copy the frame buffer to the LCD a line at a time converting the 2-bit
@@ -335,8 +335,8 @@ void lcd_update_screen(lcd_state_t *state)
 {
     uint16_t j, x;
     st7789_set_command_windows(state);
-    gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    state->hal->gpio_put(state->DC_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 0);
 
     uint8_t linebuf[state->width * 2];
 
@@ -351,8 +351,8 @@ void lcd_update_screen(lcd_state_t *state)
             linebuf[x * 2] = (color >> 8) & 0xFF;
             linebuf[x * 2 + 1] = color & 0xFF;
         }
-        spi_write_blocking(spi1, (uint8_t *)linebuf, state->width * 2);
+        state->hal->spi_write_blocking((uint8_t *)linebuf, state->width * 2);
     }
-    gpio_put(state->CS_gpio, 1);
+    state->hal->gpio_put(state->CS_gpio, 1);
     st7789_command(state, 0x29);
 }

@@ -29,6 +29,8 @@
 #define HORIZONTAL 0
 #define VERTICAL 1
 
+#include "hal.h"
+
 typedef struct lcd_state_t
 {
     /* GPIO config */
@@ -45,12 +47,14 @@ typedef struct lcd_state_t
     /* Frame buffer */
     int y_offset;
     frame_buffer_t *fb;
+    /* Hardware abstraction layer */
+    hal_t *hal;
 } lcd_state_t;
 
-extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                             uint16_t MOSI_gpio, bool reset);
+extern lcd_state_t *lcd_init(hal_t *hal, uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
+                             uint16_t CLK_gpio, uint16_t MOSI_gpio, bool reset);
 
-void lcd_set_backlight(uint8_t level);
+void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 void lcd_init_peripherals(lcd_state_t *state, bool reset);
 
