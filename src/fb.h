@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "fonts.h"
+#include "font.h"
 
 typedef struct
 {
