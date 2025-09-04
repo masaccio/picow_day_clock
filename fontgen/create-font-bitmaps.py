@@ -74,14 +74,20 @@ def max_font_size(font_filename: str, target_height: int) -> int:
     return max_font_size
 
 
-def generate_variable_width_font(font_filename: str, char_height: int, target: TextIO, clock: bool) -> None:
+def generate_variable_width_font(
+    font_filename: str, char_height: int, char_width: int, c_name: str, target: TextIO, clock: bool
+) -> None:
     font_size = max_font_size(font_filename, char_height)
     font = ImageFont.truetype(font_filename, font_size)
 
     glyph_entries = []
-    font_name = basename(splitext(font_filename)[0]).replace("-", "_").replace(" ", "_").lower()
-    table_name = f"{font_name}_{char_height}_table"
-    font_struct_name = f"{font_name}_{char_height}"
+    if c_name is not None:
+        table_name = f"{c_name}_table"
+        font_struct_name = f"{c_name}"
+    else:
+        c_name = basename(splitext(font_filename)[0]).replace("-", "_").replace(" ", "_").lower()
+        table_name = f"{c_name}_{char_height}_table"
+        font_struct_name = f"{c_name}_{char_height}"
 
     target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
     target.write('#include "fonts.h"\n\n')
@@ -152,15 +158,21 @@ def main() -> None:
 
     parser.add_argument("output", type=argparse.FileType("w"), help="Path to the output C file.")
 
-    parser.add_argument("--height", type=int, required=True, help="Height of the font in points.")
+    parser.add_argument("--height", type=int, required=True, help="Max height of the font in pixels.")
+
+    parser.add_argument("--width", type=int, required=False, help="Max width of the font in pixels.")
+
+    parser.add_argument("--c-name", required=False, help="C name of the font; default is derived from filename.")
 
     parser.add_argument("--clock", action="store_true", help="Only generate clock characters.")
 
     args = parser.parse_args()
 
-    generate_variable_width_font(args.font, args.height, args.output, args.clock)
-
-
-if __name__ == "__main__":
-    main()
-    main()
+    generate_variable_width_font(
+        font_filename=args.font,
+        char_height=args.height,
+        char_width=args.width,
+        target=args.output,
+        c_name=args.c_name,
+        clock=args.clock,
+    )
