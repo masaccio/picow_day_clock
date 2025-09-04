@@ -6,14 +6,7 @@
 #include "fb.h"
 #include "lcd.h"
 
-/******************************************************************************
-function: Create Image
-parameter:
-    image   :   Pointer to the image cache
-    width   :   The width of the picture
-    Height  :   The height of the picture
-    color   :   Whether the picture is inverted
-******************************************************************************/
+/* Create a new frame buffer, allocating memory and initialising */
 frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
 {
     frame_buffer_t *state = (frame_buffer_t *)calloc(1, sizeof(frame_buffer_t));
@@ -46,15 +39,18 @@ frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
     return state;
 }
 
-/******************************************************************************
-function: Select Image Rotate
-parameter:
-    Rotate : 0,90,180,270
-******************************************************************************/
+/* Set the new rotation of the display */
 void fb_rotate(frame_buffer_t *state, uint16_t rotate)
 {
     if (!(rotate == ROTATE_0 || rotate == ROTATE_90 || rotate == ROTATE_180 || rotate == ROTATE_270)) {
         rotate = ROTATE_0;
+    }
+    bool current_is_rotated = (state->rotate == ROTATE_90 || state->rotate == ROTATE_270);
+    bool new_is_rotated = (rotate == ROTATE_90 || rotate == ROTATE_270);
+    if (current_is_rotated != new_is_rotated) {
+        uint16_t temp = state->width;
+        state->width = state->height;
+        state->height = temp;
     }
     state->rotate = rotate;
 }
@@ -98,12 +94,12 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
         return;
     }
 
-    uint32_t Addr = x / 4 + y * state->width_byte;
+    uint32_t addr = x / 4 + y * state->width_byte;
     color = color % 4; // Guaranteed color scale is 4  --- 0~3
-    uint8_t Rdata = state->data[Addr];
+    uint8_t data_byte = state->data[addr];
 
-    Rdata = Rdata & (~(0xC0 >> ((x % 4) * 2)));
-    state->data[Addr] = Rdata | ((color << 6) >> ((x % 4) * 2));
+    data_byte = data_byte & (~(0xC0 >> ((x % 4) * 2)));
+    state->data[addr] = data_byte | ((color << 6) >> ((x % 4) * 2));
 }
 
 /* Clear the entire frame buffer and set to a specific color */
