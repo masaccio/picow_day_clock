@@ -21,15 +21,10 @@
 
 /* Local includes */
 #include "fb.h"
-#include "fonts.h"
+#include "font.h"
 
 #define LCD_HEIGHT 172
 #define LCD_WIDTH 320
-
-#define TEXT_FONT roboto_medium_20
-#define TEXT_FONT_HEIGHT 20
-#define DIGIT_FONT bebasneue_regular_220
-#define DIGIT_FONT_HEIGHT 220
 
 #define HORIZONTAL 0
 #define VERTICAL 1

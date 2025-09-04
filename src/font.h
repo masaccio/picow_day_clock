@@ -1,5 +1,5 @@
-#ifndef _FONTS_H
-#define _FONTS_H
+#ifndef _FONT_H
+#define _FONT_H
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@ typedef struct
     uint16_t height;
 } var_width_font_t;
 
-extern var_width_font_t roboto_medium_20;
-extern var_width_font_t bebasneue_regular_220;
+extern var_width_font_t text_font;
+extern var_width_font_t clock_digit_font;
 
-#endif /* _FONTS_H */
+#endif /* _FONT_H */

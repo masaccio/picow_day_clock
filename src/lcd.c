@@ -77,8 +77,8 @@ void lcd_print_line(lcd_state_t *state, color_t color, const char *format, ...)
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    fb_write_string(state->fb, 0, state->y_offset, buffer, &TEXT_FONT, /* fgcolor */ color, /* bgcolor */ BLACK);
-    state->y_offset += TEXT_FONT_HEIGHT + 2;
+    fb_write_string(state->fb, 0, state->y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
+    state->y_offset += text_font.height + 2;
 }
 
 void lcd_clear_screen(lcd_state_t *state, color_t color)
