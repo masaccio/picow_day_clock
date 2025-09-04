@@ -6,7 +6,7 @@ from typing import TextIO
 
 from PIL import Image, ImageDraw, ImageFont  # pyright: ignore[reportMissingImports]
 
-DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 CLOCK_CHAR_RANGE = sorted(set("".join(DAYS_OF_WEEK))) + [str(x) for x in range(0, 10)]
 ASCII_CHAR_RANGE = [chr(i) for i in range(32, 127)]
 
@@ -90,7 +90,7 @@ def generate_variable_width_font(
         font_struct_name = f"{c_name}_{char_height}"
 
     target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
-    target.write('#include "fonts.h"\n\n')
+    target.write('#include "font.h"\n\n')
 
     min_x = min(font.getbbox(char)[0] for char in ASCII_CHAR_RANGE)
     max_x = max(font.getbbox(char)[2] for char in ASCII_CHAR_RANGE)
@@ -118,7 +118,7 @@ def generate_variable_width_font(
         draw.text((x_offset, 0), char, font=font, fill=1)
         pixels = image.load()
 
-        glyph_array_name = f"{font_name}_{char_height}_" + ascii_c_name(char)
+        glyph_array_name = f"{c_name}_{char_height}_" + ascii_c_name(char)
         target.write(f"static const uint8_t {glyph_array_name}[] = {{\n")
         for y in range(char_height):
             line_bytes = []
@@ -139,12 +139,12 @@ def generate_variable_width_font(
         glyph_width = bbox[2] - bbox[0]
         glyph_entries.append((glyph_width, glyph_array_name))
 
-    target.write(f"static const var_width_font_entry_t {table_name}[] = {{\n")
+    target.write(f"static const font_glyph_t {table_name}[] = {{\n")
     for width, glyph_array_name in glyph_entries:
         target.write(f"  {{ {width}, {glyph_array_name} }},\n")
     target.write("};\n\n")
 
-    target.write(f"var_width_font_t {font_struct_name} = {{\n")
+    target.write(f"font_t {font_struct_name} = {{\n")
     target.write(f"  {table_name},\n")
     target.write(f"  {bytes_per_row},\n")
     target.write(f"  {char_height}\n")
@@ -176,3 +176,8 @@ def main() -> None:
         c_name=args.c_name,
         clock=args.clock,
     )
+
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    main()
