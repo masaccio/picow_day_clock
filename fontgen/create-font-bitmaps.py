@@ -12,12 +12,26 @@ ASCII_CHAR_RANGE = [chr(i) for i in range(32, 127)]
 
 
 def get_commented_license(license_path: str) -> str:
+    """
+    Reads a license file and returns its contents as a C-style comment block.
+    Args:
+        license_path: Path to the license file.
+    Returns:
+        License text wrapped in C comment syntax.
+    """
     with open(license_path, "r") as lf:
         license_lines = lf.readlines()
     return "/*\n" + "".join([" * " + line.rstrip() + "\n" for line in license_lines]) + "*/\n\n"
 
 
 def ascii_c_name(char: str) -> str:
+    """
+    Maps a character to a valid C identifier name for use in arrays.
+    Args:
+        char: The character to map.
+    Returns:
+        A string suitable for use as a C identifier.
+    """
     special_map = {
         " ": "space",
         "!": "excl",
@@ -59,6 +73,14 @@ def ascii_c_name(char: str) -> str:
 
 
 def max_font_size(font_filename: str, target_height: int) -> int:
+    """
+    Determines the maximum font size that fits within the target height.
+    Args:
+        font_filename: Path to the TTF font file.
+        target_height: Desired maximum height in pixels.
+    Returns:
+        The largest font size that fits within the target height.
+    """
     """Hack: determine the font size needed to achieve a target height of 12 pixels."""
     max_font_size = int(target_height / 2)
     font_size = max_font_size
@@ -77,6 +99,18 @@ def max_font_size(font_filename: str, target_height: int) -> int:
 def generate_variable_width_font(
     font_filename: str, char_height: int, char_width: int, c_name: str, target: TextIO, clock: bool
 ) -> None:
+    """
+    Generates a variable-width bitmap font table from a TTF font and writes it to a C file.
+    Args:
+        font_filename: Path to the TTF font file.
+        char_height: Maximum height of each glyph in pixels.
+        char_width: Maximum width of each glyph in pixels (unused).
+        c_name: C identifier name for the font.
+        target: Output file object to write the C code.
+        clock: If True, only generate clock characters.
+    Returns:
+        None
+    """
     font_size = max_font_size(font_filename, char_height)
     font = ImageFont.truetype(font_filename, font_size)
 
@@ -152,6 +186,9 @@ def generate_variable_width_font(
 
 
 def main() -> None:
+    """
+    Parses command-line arguments and generates the font table.
+    """
     parser = argparse.ArgumentParser(description="Generate bitmap font tables from a TTF font.")
 
     parser.add_argument("font", help="Path to the TTF font file.")
