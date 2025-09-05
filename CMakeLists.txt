@@ -47,11 +47,6 @@ add_subdirectory(fontgen)
 set_source_files_properties(${GENERATED_FONTS} PROPERTIES GENERATED TRUE)
 
 include_directories(
-    waveshare/Fonts
-    waveshare/Config
-    waveshare/GUI
-    waveshare/LCD
-    waveshare/examples
     src
     ${CMAKE_BINARY_DIR}/generated
     ${CMAKE_CURRENT_LIST_DIR})
@@ -92,8 +87,9 @@ target_link_libraries(picow_day_clock
 
 pico_add_extra_outputs(picow_day_clock)
 
-# Native test target as a separate project (no toolchain pollution)
+# Build a native test target as a separate project
 include(ExternalProject)
+enable_testing()
 ExternalProject_Add(
     test_picow_day_clock
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/tests
@@ -102,3 +98,18 @@ ExternalProject_Add(
     BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
+
+
+set(TEST_EXE "${CMAKE_BINARY_DIR}/tests_build/test_picow_day_clock")
+
+# Custom target to run the tests and fail build if non-zero
+add_custom_target(run_tests ALL
+    DEPENDS test_picow_day_clock
+    COMMAND ${TEST_EXE}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests_build
+    COMMENT "Running native tests..."
+)
+
+# Register test with CTest
+add_test(NAME picow_day_clock_test
+         COMMAND ${TEST_EXE})
