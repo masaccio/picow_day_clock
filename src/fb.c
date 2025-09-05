@@ -184,10 +184,8 @@ void paint_draw_line(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, 
 
     // Cumulative error
     int esp = dx + dy;
-    char dotted_len = 0;
 
     for (;;) {
-        dotted_len++;
         // Painted dotted line, 2 point is really virtual
         paint_draw_point(state, x_point, y_point, color);
         if (2 * esp >= dy) {
@@ -234,7 +232,6 @@ int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, con
 
     const font_glyph_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
-    uint16_t font_height = font->height;
     uint16_t font_width = entry->width;
 
     for (page = 0; page < font->height; page++) {

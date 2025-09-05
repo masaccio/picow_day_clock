@@ -1,6 +1,8 @@
 #ifndef __WIFI_H
 #define __WIFI_H
 
+#include <stdbool.h>
+
 #define WIFI_CONNECT_TIMEOUT_MS (10 * 1000)
 #define WIFI_ABANDON_TIMEOUT_MS (60 * 1000)
 #define WIFI_BAD_AUTH_RETRY_COUNT 3
@@ -8,6 +10,6 @@
 
 extern bool connect_to_wifi(const char ssid[], const char password[]);
 
-extern void disconnect_from_wifi();
+extern void disconnect_from_wifi(void);
 
 #endif /* __WIFI_H */
