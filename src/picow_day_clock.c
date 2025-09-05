@@ -116,7 +116,11 @@ static bool minute_timer_callback(struct repeating_timer *t)
     return true;
 }
 
+#ifdef TEST_MODE
+int test_main(void)
+#else
 int main(void)
+#endif
 {
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
 
