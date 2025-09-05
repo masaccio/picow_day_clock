@@ -58,11 +58,9 @@ include_directories(
 
 
 file(GLOB CLOCK_SRC_FILES src/*.c)
-file(GLOB WAVESHARE_DRIVER_SRC_FILES waveshare/*/*.c)
 
 add_executable(picow_day_clock 
     ${CLOCK_SRC_FILES}
-    ${WAVESHARE_DRIVER_SRC_FILES}
     ${GENERATED_FONTS}
     )
 
@@ -75,7 +73,6 @@ target_compile_definitions(picow_day_clock PRIVATE
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"uk.pool.ntp.org\"
     PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
-    DEBUG=0                             # Waveshare debug
     CLOCK_DEBUG_ENABLED=1               # Clock debug
     LWIP_MALLOC_DEBUG=1                 # Enable debug of memory allocations
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
@@ -94,3 +91,14 @@ target_link_libraries(picow_day_clock
         )
 
 pico_add_extra_outputs(picow_day_clock)
+
+# Native test target as a separate project (no toolchain pollution)
+include(ExternalProject)
+ExternalProject_Add(
+    test_picow_day_clock
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
+    BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug
+    BUILD_ALWAYS 1
+    INSTALL_COMMAND ""
+)

@@ -10,8 +10,12 @@
 #include <stdlib.h>
 
 /* Pico SDK */
+#ifndef TEST_MODE
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
+#else
+#include "tests/mock.h"
+#endif
 
 typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 

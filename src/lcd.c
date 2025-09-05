@@ -18,9 +18,13 @@
 #include <string.h>
 
 /* PICO SDK */
+#ifndef TEST_MODE
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
 #include "pico/stdlib.h"
+#else
+#include "tests/mock.h"
+#endif
 
 /* Local includes */
 #include "fb.h"
@@ -128,6 +132,7 @@ void lcd_init_peripherals(lcd_state_t *state, bool reset)
 /* Use the PWM to set the backlight level for all displays */
 void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 {
+    (void)state;
     if (level > 100) {
         level = 100;
     }
@@ -163,6 +168,7 @@ static void st7789_data_byte(lcd_state_t *state, uint8_t data)
     gpio_put(state->CS_gpio, 1);
 }
 
+#if 0
 /* Select an LCD and send a data word (2 bytes) */
 static void st7789_data_word(lcd_state_t *state, uint16_t data)
 {
@@ -171,6 +177,7 @@ static void st7789_data_word(lcd_state_t *state, uint16_t data)
     spi_write_blocking(spi1, (uint8_t *)&data, 2);
     gpio_put(state->CS_gpio, 1);
 }
+#endif
 
 static void st7789_init(lcd_state_t *state)
 {
@@ -309,9 +316,10 @@ void st7789_set_command_windows(lcd_state_t *state)
 
 /* Clear the screen with a temporary frame buffer.
    TODO: this is a future frame-buffer-free way of driving the LCD */
+#if 0
 static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
 {
-    uint16_t j, i;
+    uint16_t j;
     uint16_t Image[state->width * state->height];
 
     Color = ((Color << 8) & 0xff00) | (Color >> 8);
@@ -328,6 +336,7 @@ static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
     }
     gpio_put(state->CS_gpio, 1);
 }
+#endif
 
 /* Copy the frame buffer to the LCD a line at a time converting the 2-bit
    frame buffer colour into the native 16-bit colour */

@@ -45,8 +45,6 @@ typedef struct lcd_state_t
     /* Frame buffer */
     int y_offset;
     frame_buffer_t *fb;
-    /* Hardware abstraction layer */
-    ;
 } lcd_state_t;
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
@@ -65,3 +63,4 @@ extern void lcd_clear_screen(lcd_state_t *state, color_t color);
 void lcd_update_screen(lcd_state_t *state);
 
 #endif /* _LCD_H */
+

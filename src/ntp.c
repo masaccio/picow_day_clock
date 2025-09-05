@@ -7,10 +7,14 @@
  */
 
 /* Pico SDK */
+#ifndef TEST_MODE
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 #include "pico/cyw43_arch.h"
+#else
+#include "tests/mock.h"
+#endif
 
 /* Local includes */
 #include "common.h"
@@ -93,6 +97,7 @@ void ntp_request(ntp_state_t *state)
 void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
+    (void)hostname;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
         ntp_request(state);
@@ -106,6 +111,7 @@ void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
+    (void)pcb;
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
 

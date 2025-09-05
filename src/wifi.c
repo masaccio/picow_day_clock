@@ -1,5 +1,10 @@
 /* Pico SDK */
+#ifndef TEST_MODE
 #include "pico/cyw43_arch.h"
+#include "pico/stdlib.h"
+#else
+#include "tests/mock.h"
+#endif
 
 /* Local includes */
 #include "common.h"
@@ -46,7 +51,7 @@ bool connect_to_wifi(const char ssid[], const char password[])
     }
 }
 
-void disconnect_from_wifi()
+void disconnect_from_wifi(void)
 {
     cyw43_arch_deinit();
 }

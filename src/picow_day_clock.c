@@ -12,14 +12,19 @@
 #error "WIFI_PASSWORD is not defined. Please define it in secrets.cmake or via a compile flag."
 #endif
 
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
 /* Pico SDK */
+#ifndef TEST_MODE
 #include "hardware/powman.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "pico/util/datetime.h"
+#else
+#include "tests/mock.h"
+#endif
 
 /* Local includes */
 #include "common.h"
@@ -83,8 +88,8 @@ static bool minute_timer_callback(struct repeating_timer *t)
 
     uint64_t time_ms = powman_timer_get_ms() + state->epoch_ms;
     simple_time_t time_now = current_time(time_ms);
-    printf("Current time is %s %02d:%02d:%02d\n", state->tick_count, time_now.day_of_week, time_now.hours,
-           time_now.minutes, time_now.seconds);
+    printf("Current time is %s %02d:%02d:%02d\n", time_now.day_of_week, time_now.hours, time_now.minutes,
+           time_now.seconds);
 
     lcd_clear_screen(state->lcd1, BLACK);
     lcd_print_clock_digit(state->lcd1, GREEN, time_now.seconds % 10 + '0');
@@ -107,11 +112,11 @@ static bool minute_timer_callback(struct repeating_timer *t)
             powman_timer_set_ms(state->ntp_time * 1000 - state->epoch_ms);
             state->tick_count = 0;
         }
-        return true;
     }
+    return true;
 }
 
-int main()
+int main(void)
 {
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
 
