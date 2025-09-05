@@ -14,7 +14,7 @@ bool connect_to_wifi(const char ssid[], const char password[])
 {
     if (cyw43_arch_init()) {
         CLOCK_DEBUG("Wi-Fi: failed to initialise CYW43\r\n");
-        return 1;
+        return false;
     }
 
     cyw43_arch_enable_sta_mode();
