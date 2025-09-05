@@ -9,12 +9,14 @@
 #include <string.h>
 #include <time.h>
 
-/* Mock data types */
+/* Define system data types */
 typedef unsigned int uint;
-typedef unsigned int pbuf_type;
 typedef char err_t;
 typedef unsigned short u16_t;
 typedef unsigned char u8_t;
+
+/* Mock SDK types */
+typedef unsigned int pbuf_type;
 struct udp_pcb;
 typedef struct
 {

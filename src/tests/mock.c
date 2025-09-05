@@ -1,4 +1,5 @@
-#include "tests/mock.h"
+#include "mock.h"
+#include "test.h"
 
 /* SPI functions */
 uint spi_init(spi_inst_t *spi, int baudrate)
@@ -75,7 +76,7 @@ void pwm_set_enabled(uint slice_num, bool enabled)
 /* Wi-Fi functions */
 int cyw43_arch_init(void)
 {
-    return 0;
+    return test_config.cyw43_arch_init_result;
 }
 
 void cyw43_arch_lwip_begin(void)
