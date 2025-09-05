@@ -15,14 +15,14 @@ else()
     message(FATAL_ERROR "Tests can only be built on macOS or UNIX-like systems.")
 endif()
 
-# Include main project source and generated fonts
-file(GLOB CLOCK_SRC_FILES ../src/*.c)
-file(GLOB TEST_SRC_FILES ../src/tests/*.c)
-file(GLOB GENERATED_FONTS ../generated/*.c)
+# Include main project source and generated fonts using absolute paths
+file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
+file(GLOB GENERATED_FONTS ${CMAKE_SOURCE_DIR}/../../generated/*.c)
+file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
 include_directories(
-    ../src
-    ../generated
+    ../../src
+    ../../generated
 )
 
 add_executable(test_picow_day_clock 

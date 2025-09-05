@@ -96,7 +96,7 @@ pico_add_extra_outputs(picow_day_clock)
 include(ExternalProject)
 ExternalProject_Add(
     test_picow_day_clock
-    SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/tests
     BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug
     BUILD_ALWAYS 1
