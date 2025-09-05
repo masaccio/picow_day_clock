@@ -118,8 +118,7 @@ int main()
     stdio_init_all();
     powman_timer_start();
 
-    state->lcd1 = lcd_init(pico_hal,
-                           /* RST */ 12,
+    state->lcd1 = lcd_init(/* RST */ 12,
                            /* DC */ 6,
                            /* BL */ 13,
                            /* CS */ 7,
@@ -135,8 +134,7 @@ int main()
     lcd_print_text(state->lcd1, GREEN, "LCD init OK");
     lcd_update_screen(state->lcd1);
 
-    state->lcd2 = lcd_init(pico_hal,
-                           /* RST */ 12,
+    state->lcd2 = lcd_init(/* RST */ 12,
                            /* DC */ 8,
                            /* BL */ 13,
                            /* CS */ 9,
@@ -148,7 +146,7 @@ int main()
     }
     lcd_clear_screen(state->lcd2, BLACK);
 
-    if (!connect_to_wifi(pico_hal, WIFI_SSID, WIFI_PASSWORD)) {
+    if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
         return 1;
     }
     lcd_print_text(state->lcd1, GREEN, "Wi-Fi connect OK");
@@ -183,6 +181,6 @@ int main()
         sleep_ms(1000);
     }
 
-    disconnect_from_wifi(pico_hal);
+    disconnect_from_wifi();
     return 0;
 }

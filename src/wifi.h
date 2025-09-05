@@ -6,8 +6,8 @@
 #define WIFI_BAD_AUTH_RETRY_COUNT 3
 #define WIFI_BAD_AUTH_RETRY_DELAY_MS 500
 
-extern bool connect_to_wifi(hal_t *hal, const char ssid[], const char password[]);
+extern bool connect_to_wifi(const char ssid[], const char password[]);
 
-extern void disconnect_from_wifi(hal_t *hal);
+extern void disconnect_from_wifi();
 
 #endif /* __WIFI_H */

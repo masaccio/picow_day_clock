@@ -3,23 +3,21 @@
 
 /* Local includes */
 #include "common.h"
-#include "hal.h"
 #include "wifi.h"
 
-bool connect_to_wifi(hal_t *hal, const char ssid[], const char password[])
+bool connect_to_wifi(const char ssid[], const char password[])
 {
-    if (hal->cyw43_arch_init()) {
+    if (cyw43_arch_init()) {
         CLOCK_DEBUG("Wi-Fi: failed to initialise CYW43\r\n");
         return 1;
     }
 
-    hal->cyw43_arch_enable_sta_mode();
+    cyw43_arch_enable_sta_mode();
 
     absolute_time_t start_time = get_absolute_time();
     int bad_auth_count = 0;
     while (true) {
-        int ret =
-            hal->cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, WIFI_CONNECT_TIMEOUT_MS);
+        int ret = cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, WIFI_CONNECT_TIMEOUT_MS);
 
         if (ret == 0) {
             CLOCK_DEBUG("Wi-Fi: connected to %s\r\n", ssid);
@@ -36,7 +34,7 @@ bool connect_to_wifi(hal_t *hal, const char ssid[], const char password[])
                 return false;
             } else {
                 CLOCK_DEBUG("Wi-Fi: invalid credentials; retrying...\r\n");
-                hal->sleep_ms(WIFI_BAD_AUTH_RETRY_DELAY_MS);
+                sleep_ms(WIFI_BAD_AUTH_RETRY_DELAY_MS);
             }
         } else if (ret == PICO_ERROR_CONNECT_FAILED) {
             CLOCK_DEBUG("Wi-Fi: connection failed for unknown reason; giving up\r\n");
@@ -48,7 +46,7 @@ bool connect_to_wifi(hal_t *hal, const char ssid[], const char password[])
     }
 }
 
-void disconnect_from_wifi(hal_t *hal)
+void disconnect_from_wifi()
 {
-    hal->cyw43_arch_deinit();
+    cyw43_arch_deinit();
 }
