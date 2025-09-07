@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-/* Pico SDK */
+// Pico SDK
 #ifndef TEST_MODE
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
@@ -16,55 +16,9 @@
 #include "tests/mock.h"
 #endif
 
-/* Local includes */
+// Local includes
 #include "common.h"
 #include "ntp.h"
-
-// Determines if given UTC time is in British Summer Time (BST)
-bool time_is_bst(struct tm *utc)
-{
-    if (!utc)
-        return false;
-
-    int year = utc->tm_year + 1900;
-
-    // Find last Sunday in March
-    struct tm start = {
-        .tm_year = year - 1900, .tm_mon = 2, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 0};
-    mktime(&start);
-    while (start.tm_wday != 0) {
-        start.tm_mday--;
-        mktime(&start);
-    }
-
-    // Find last Sunday in October
-    struct tm end = {
-        .tm_year = year - 1900, .tm_mon = 9, .tm_mday = 31, .tm_hour = 1, .tm_min = 0, .tm_sec = 0, .tm_isdst = 1};
-    mktime(&end);
-    while (end.tm_wday != 0) {
-        end.tm_mday--;
-        mktime(&end);
-    }
-
-    time_t now = mktime(utc);
-    time_t start_time = mktime(&start);
-    time_t end_time = mktime(&end);
-
-    return now >= start_time && now < end_time;
-}
-
-const char *time_as_string(time_t ntp_time)
-{
-    static char buffer[32];
-
-    int bst = time_is_bst(gmtime(&ntp_time));
-    time_t local_time_t = ntp_time + (bst ? 3600 : 0);
-    struct tm *local = gmtime(&local_time_t);
-
-    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d (%s)", local->tm_hour, local->tm_min, local->tm_sec,
-             bst ? "BST" : "GMT");
-    return (const char *)buffer;
-}
 
 // Make an NTP request
 void ntp_request(ntp_state_t *state)
@@ -128,7 +82,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         state->status = NTP_STATUS_SUCCESS;
         state->time_handler(state->parent_state, &epoch);
     } else if (addrs_valid && response_valid && stratum == 0) {
-        /* We got a 'kiss of death' from the NTP server for too many requests. */
+        // We got a 'kiss of death' from the NTP server for too many requests.
         state->status = NTP_STATUS_KOD;
         CLOCK_DEBUG("NTP: server responded with KoD\r\n");
     } else {
@@ -185,7 +139,7 @@ ntp_status_t ntp_get_time(ntp_state_t *state)
     }
 
     while (state->status != NTP_STATUS_SUCCESS) {
-        sleep_ms(500); /* wait for background lwIP */
+        sleep_ms(500); // wait for background lwIP
 
         if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
             CLOCK_DEBUG("NTP: DNS timed out after %d seconds\r\n", NTP_TIMEOUT_MS / 1000);
