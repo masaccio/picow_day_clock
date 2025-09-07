@@ -40,15 +40,30 @@ typedef struct clock_state_t
     time_t ntp_time;
     ntp_state_t *ntp_state;
     /* LCD state */
-    lcd_state_t *lcd1;
-    lcd_state_t *lcd2;
-    char clock_buffer[8];
+    lcd_state_t *lcd_states[NUM_LCDS];
+    char current_lcd_digits[NUM_LCDS];
     /* Timer state */
     uint64_t epoch_ms;
     uint32_t tick_count;
     uint32_t ntp_sync_interval_minutes;
     repeating_timer_t timer;
 } clock_state_t;
+
+typedef struct
+{
+    unsigned int DC;
+    unsigned int CS;
+} lcd_pin_config_t;
+
+static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
+    /* LCD 1 */ {.DC = 6, .CS = 7},
+    /* LCD 2 */ {.DC = 8, .CS = 9},
+    /* LCD 3 */ {.DC = 2, .CS = 3},
+    /* LCD 4 */ {.DC = 4, .CS = 5},
+    /* LCD 5 */ {.DC = 14, .CS = 15},
+    /* LCD 6 */ {.DC = 16, .CS = 17},
+    /* LCD 7 */ {.DC = 18, .CS = 19},
+};
 
 typedef struct simple_time_t
 {
@@ -91,12 +106,12 @@ static bool minute_timer_callback(struct repeating_timer *t)
     printf("Current time is %s %02d:%02d:%02d\n", time_now.day_of_week, time_now.hours, time_now.minutes,
            time_now.seconds);
 
-    lcd_clear_screen(state->lcd1, BLACK);
-    lcd_print_clock_digit(state->lcd1, GREEN, time_now.seconds % 10 + '0');
-    lcd_update_screen(state->lcd1);
-    lcd_clear_screen(state->lcd2, BLACK);
-    lcd_print_clock_digit(state->lcd2, GREEN, time_now.seconds / 10 + '0');
-    lcd_update_screen(state->lcd2);
+    lcd_clear_screen(state->lcd_states[0], BLACK);
+    lcd_print_clock_digit(state->lcd_states[0], GREEN, time_now.seconds % 10 + '0');
+    lcd_update_screen(state->lcd_states[0]);
+    lcd_clear_screen(state->lcd_states[1], BLACK);
+    lcd_print_clock_digit(state->lcd_states[1], GREEN, time_now.seconds / 10 + '0');
+    lcd_update_screen(state->lcd_states[1]);
 
     if (state->tick_count >= NTP_SYNC_INTERVAL_MINUTES) {
         ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
@@ -131,57 +146,85 @@ int main(void)
     stdio_init_all();
     powman_timer_start();
 
-    state->lcd1 = lcd_init(/* RST */ 12,
-                           /* DC */ 6,
-                           /* BL */ 13,
-                           /* CS */ 7,
-                           /* CLK */ 10,
-                           /* MOSI */ 11, /* reset */ true);
-
-    if (state->lcd1 == NULL) {
-        printf("LCD 1: failed to initialise\r\n");
-        return 1;
+    for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
+        bool reset = (ii == 0) ? true : false;
+        state->lcd_states[ii] = lcd_init(/* RST */ 12,
+                                         /* DC */ lcd_pin_config[ii].DC,
+                                         /* BL */ 13,
+                                         /* CS */ lcd_pin_config[ii].CS,
+                                         /* CLK */ 10,
+                                         /* MOSI */ 11, reset);
+        if (state->lcd_states[ii] == NULL) {
+            printf("LCD %d: failed to initialise\r\n", ii + 1);
+            return 1;
+        }
+        lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
-    lcd_clear_screen(state->lcd1, BLACK);
-    lcd_print_text(state->lcd1, WHITE, "");
-    lcd_print_text(state->lcd1, GREEN, "LCD init OK");
-    lcd_update_screen(state->lcd1);
 
-    state->lcd2 = lcd_init(/* RST */ 12,
-                           /* DC */ 8,
-                           /* BL */ 13,
-                           /* CS */ 9,
-                           /* CLK */ 10,
-                           /* MOSI */ 11, /* reset */ false);
-    if (state->lcd2 == NULL) {
-        printf("LCD 2: failed to initialise\r\n");
-        return 1;
-    }
-    lcd_clear_screen(state->lcd2, BLACK);
+    uint16_t line_num = 1;
+    lcd_print_line(state->lcd_states[0], line_num++, GREEN, "LCD init OK");
+    lcd_update_screen(state->lcd_states[0]);
 
-    if (connect_to_wifi(WIFI_SSID, WIFI_PASSWORD) != 0) {
-        return 1;
+    wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
+    switch (wifi_status) {
+        case WIFI_STATUS_SUCCESS:
+            lcd_print_line(state->lcd_states[0], line_num++, GREEN, "Wi-Fi connect OK");
+            lcd_update_screen(state->lcd_states[0]);
+            break;
+        case WIFI_STATUS_INIT_FAIL:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi init error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        case WIFI_STATUS_TIMEOUT:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi timeout error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        case WIFI_STATUS_BAD_AUTH:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi auth error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        case WIFI_STATUS_CONNECT_FAILED:
+            lcd_print_line(state->lcd_states[0], 2, RED, "Wi-Fi connect error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        default: /* whould be WIFI_STATUS_UNKNOWN_ERROR */
+            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi unknown error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
     }
-    lcd_print_text(state->lcd1, GREEN, "Wi-Fi connect OK");
-    lcd_update_screen(state->lcd1);
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
     if (state->ntp_state == NULL) {
-        CLOCK_DEBUG("NTP: failed to initialise\r\n");
+        lcd_print_line(state->lcd_states[0], line_num, RED, "NTP init error");
+        lcd_update_screen(state->lcd_states[0]);
         return 1;
     }
-    lcd_print_text(state->lcd1, GREEN, "NTP init OK");
-    lcd_update_screen(state->lcd1);
+    lcd_print_line(state->lcd_states[0], line_num++, GREEN, "NTP init OK");
+    lcd_update_screen(state->lcd_states[0]);
 
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
-    if (ntp_status != NTP_STATUS_SUCCESS) {
-        CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
-        lcd_print_text(state->lcd1, RED, "NTP error");
-        lcd_update_screen(state->lcd1);
-        return 1;
+    switch (ntp_status) {
+        case NTP_STATUS_SUCCESS:
+            lcd_print_line(state->lcd_states[0], line_num++, GREEN, "NTP time OK");
+            lcd_update_screen(state->lcd_states[0]);
+            break;
+        case NTP_STATUS_DNS_ERROR:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP DNS failed");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        case NTP_STATUS_TIMEOUT:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP timeout");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        case NTP_STATUS_MEMORY_ERROR:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP memory error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
+        default /* should be NTP_STATUS_INVALID_RESPONSE */:
+            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP unknown error");
+            lcd_update_screen(state->lcd_states[0]);
+            return 1;
     }
-    lcd_print_text(state->lcd1, GREEN, "NTP get time OK");
-    lcd_update_screen(state->lcd1);
 
     state->tick_count = 0;
     state->ntp_sync_interval_minutes = NTP_SYNC_INTERVAL_MINUTES;
