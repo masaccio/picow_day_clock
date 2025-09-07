@@ -123,6 +123,10 @@ int main(void)
 #endif
 {
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
+    if (state == NULL) {
+        printf("Failed to allocate clock state\r\n");
+        return 1;
+    }
 
     stdio_init_all();
     powman_timer_start();
@@ -135,7 +139,7 @@ int main(void)
                            /* MOSI */ 11, /* reset */ true);
 
     if (state->lcd1 == NULL) {
-        CLOCK_DEBUG("LCD 1: failed to initialise\r\n");
+        printf("LCD 1: failed to initialise\r\n");
         return 1;
     }
     lcd_clear_screen(state->lcd1, BLACK);
@@ -150,12 +154,12 @@ int main(void)
                            /* CLK */ 10,
                            /* MOSI */ 11, /* reset */ false);
     if (state->lcd2 == NULL) {
-        CLOCK_DEBUG("LCD 2: failed to initialise\r\n");
+        printf("LCD 2: failed to initialise\r\n");
         return 1;
     }
     lcd_clear_screen(state->lcd2, BLACK);
 
-    if (!connect_to_wifi(WIFI_SSID, WIFI_PASSWORD)) {
+    if (connect_to_wifi(WIFI_SSID, WIFI_PASSWORD) != 0) {
         return 1;
     }
     lcd_print_text(state->lcd1, GREEN, "Wi-Fi connect OK");
