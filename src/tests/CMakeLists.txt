@@ -37,6 +37,5 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     WIFI_SSID="my-test-ssid"
     WIFI_PASSWORD="my-test-password"
     NTP_SERVER="ntp.test.invalid"
-    CLOCK_DEBUG_ENABLED=1
     TEST_MODE=1
 )

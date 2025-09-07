@@ -155,6 +155,7 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
 
     state->ntp_pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->ntp_pcb) {
+        CLOCK_DEBUG("Failed to allocate UDP buffer\r\n");
         free(state);
         return NULL;
     }

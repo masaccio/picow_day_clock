@@ -27,6 +27,7 @@
 #endif
 
 /* Local includes */
+#include "common.h"
 #include "fb.h"
 #include "lcd.h"
 
@@ -44,6 +45,9 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
 
 {
     lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
+    if (!state) {
+        return NULL;
+    }
 
     state->RST_gpio = RST_gpio;
     state->DC_gpio = DC_gpio;
