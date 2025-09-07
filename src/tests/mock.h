@@ -9,6 +9,12 @@
 #include <string.h>
 #include <time.h>
 
+#define printf(...) mock_printf(__VA_ARGS__)
+extern int mock_printf(const char *format, ...);
+
+extern void *mock_calloc(size_t, size_t);
+#define calloc(num, size) mock_calloc(num, size)
+
 /* Define system data types */
 typedef unsigned int uint;
 typedef char err_t;
@@ -17,10 +23,13 @@ typedef unsigned char u8_t;
 
 /* Mock SDK types */
 typedef unsigned int pbuf_type;
-struct udp_pcb;
+struct udp_pcb
+{
+    unsigned int mock;
+};
 typedef struct
 {
-    int mock;
+    unsigned int mock;
 } mock_struct_t;
 typedef mock_struct_t spi_inst_t;
 typedef mock_struct_t udp_pcb;

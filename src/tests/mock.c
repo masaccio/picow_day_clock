@@ -1,5 +1,15 @@
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "mock.h"
 #include "test.h"
+
+#undef printf
+#undef calloc
+
+extern unsigned int log_buffer_size;
+extern char **log_buffer;
 
 /* SPI functions */
 uint spi_init(spi_inst_t *spi, int baudrate)
@@ -76,7 +86,7 @@ void pwm_set_enabled(uint slice_num, bool enabled)
 /* Wi-Fi functions */
 int cyw43_arch_init(void)
 {
-    return test_config.cyw43_arch_init_result;
+    return test_config.cyw43_arch_init_fail ? 1 : 0;
 }
 
 void cyw43_arch_lwip_begin(void)
@@ -177,7 +187,11 @@ void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg)
 struct udp_pcb *udp_new_ip_type(u8_t type)
 {
     (void)type;
-    return NULL;
+    if (test_config.udp_new_ip_type_fail) {
+        return NULL;
+    }
+    static struct udp_pcb buffer = {0xdeadbeef};
+    return &buffer;
 }
 
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2)
@@ -226,4 +240,37 @@ int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), v
     (void)user_data;
     (void)out_timer;
     return 0;
+}
+
+int mock_printf(const char *format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    int buffer_len = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    if (log_buffer_size >= LOG_BUFFER_SIZE) {
+        printf("*** MOCK BUFFER OVERFLOW!\n");
+        return 1;
+    } else {
+        log_buffer[log_buffer_size] = malloc(buffer_len + 1);
+        strcpy(log_buffer[log_buffer_size], buffer);
+        log_buffer_size += 1;
+        return 0;
+    }
+}
+
+extern unsigned int calloc_fail_at;
+
+void *mock_calloc(size_t num, size_t size)
+{
+    static unsigned int calloc_counter = 0;
+    if (calloc_fail_at != 0) {
+        calloc_counter++;
+        if (calloc_counter > calloc_fail_at) {
+            return NULL;
+        }
+    }
+    return calloc(num, size);
 }
