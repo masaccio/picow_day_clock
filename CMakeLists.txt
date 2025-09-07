@@ -113,3 +113,5 @@ add_custom_target(run_tests ALL
 # Register test with CTest
 add_test(NAME picow_day_clock_test
          COMMAND ${TEST_EXE})
+
+set_tests_properties(picow_day_clock_test PROPERTIES TIMEOUT 10)
