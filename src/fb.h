@@ -56,10 +56,10 @@ void paint_draw_line(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_
 void fb_draw_rectangle(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
                        uint16_t color);
 
-int fb_write_char(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, const char ascii_char,
-                  font_t *font, color_t fgcolor, color_t bgcolor);
+int fb_write_char(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
+                  color_t fgcolor, color_t bgcolor);
 
 void fb_write_string(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, const char *p_string,
                      font_t *font, color_t fgcolor, color_t bgcolor);
 
-#endif /* __FB_H */
+#endif // __FB_H

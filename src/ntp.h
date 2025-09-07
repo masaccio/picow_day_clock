@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-/* Pico SDK */
+// Pico SDK
 #ifndef TEST_MODE
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
@@ -66,4 +66,4 @@ extern void ntp_result(ntp_state_t *state, int status, time_t *result);
 
 extern ntp_status_t ntp_get_time(ntp_state_t *ntp_state);
 
-#endif /* _NTP_H */
+#endif // _NTP_H

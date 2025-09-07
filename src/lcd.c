@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* PICO SDK */
+// PICO SDK
 #ifndef TEST_MODE
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
@@ -26,15 +26,15 @@
 #include "tests/mock.h"
 #endif
 
-/* Local includes */
+// Local includes
 #include "common.h"
 #include "fb.h"
 #include "lcd.h"
 
-/* How the 2-bit colours map to 16-bit colour */
+// How the 2-bit colours map to 16-bit colour
 static uint16_t color_table[] = {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0xFFFF /* white */};
 
-/* PWM slice attached to the backlight */
+// PWM slice attached to the backlight
 static uint slice_num;
 
 static void lcd_reset(lcd_state_t *state);
@@ -60,7 +60,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     lcd_init_peripherals(state, reset);
     lcd_set_backlight(state, 90);
     if (reset) {
-        /* All displays share the same reset line */
+        // All displays share the same reset line
         lcd_reset(state);
     }
 
@@ -101,7 +101,7 @@ void lcd_clear_screen(lcd_state_t *state, color_t color)
     lcd_update_screen(state);
 }
 
-/* Initialise the Pico peripeherals we will use (SPI, GPIO, PWM) */
+// Initialise the Pico peripeherals we will use (SPI, GPIO, PWM)
 void lcd_init_peripherals(lcd_state_t *state, bool reset)
 {
     spi_init(spi1, 10000 * 1000);
@@ -131,7 +131,7 @@ void lcd_init_peripherals(lcd_state_t *state, bool reset)
     pwm_set_enabled(slice_num, true);
 }
 
-/* Use the PWM to set the backlight level for all displays */
+// Use the PWM to set the backlight level for all displays
 void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 {
     (void)state;
@@ -141,7 +141,7 @@ void lcd_set_backlight(lcd_state_t *state, uint8_t level)
     pwm_set_chan_level(slice_num, PWM_CHAN_B, level);
 }
 
-/* Cycle reset for all displays */
+// Cycle reset for all displays
 static void lcd_reset(lcd_state_t *state)
 {
     gpio_put(state->RST_gpio, 1);
@@ -152,7 +152,7 @@ static void lcd_reset(lcd_state_t *state)
     sleep_ms(100);
 }
 
-/* Select an LCD and send a command byte */
+// Select an LCD and send a command byte
 static void st7789_command(lcd_state_t *state, uint8_t reg)
 {
     gpio_put(state->DC_gpio, 0);
@@ -161,7 +161,7 @@ static void st7789_command(lcd_state_t *state, uint8_t reg)
     gpio_put(state->CS_gpio, 1);
 }
 
-/* Select an LCD and send a data byte */
+// Select an LCD and send a data byte
 static void st7789_data_byte(lcd_state_t *state, uint8_t data)
 {
     gpio_put(state->DC_gpio, 1);
@@ -171,7 +171,7 @@ static void st7789_data_byte(lcd_state_t *state, uint8_t data)
 }
 
 #if 0
-/* Select an LCD and send a data word (2 bytes) */
+// Select an LCD and send a data word (2 bytes)
 static void st7789_data_word(lcd_state_t *state, uint16_t data)
 {
     gpio_put(state->DC_gpio, 1);
@@ -281,7 +281,7 @@ static void st7789_init(lcd_state_t *state)
     st7789_command(state, 0x29);
 }
 
-/* Set the window address for the LCD update to be thw whole LCD */
+// Set the window address for the LCD update to be thw whole LCD
 void st7789_set_command_windows(lcd_state_t *state)
 {
     if (state->scan_dir == HORIZONTAL) { // set the X coordinates

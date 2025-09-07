@@ -8,4 +8,4 @@
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
 
-#endif /* _COMMON_H */
+#endif // _COMMON_H

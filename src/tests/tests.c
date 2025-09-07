@@ -14,11 +14,11 @@ char **log_buffer;
 
 static void run_test(test_func_t func, const char *test_name, bool expect_fail, const char **expected_log)
 {
-    /* Always init the test config */
+    // Always init the test config
     memset(&test_config, 0, sizeof(test_config_t));
     log_buffer_size = 0;
 
-    /* Run test */
+    // Run test
     int status = func();
 
     if (status == 1 && expect_fail) {

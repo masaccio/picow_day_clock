@@ -1,4 +1,4 @@
-/* Pico SDK */
+// Pico SDK
 #ifndef TEST_MODE
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
@@ -6,7 +6,7 @@
 #include "tests/mock.h"
 #endif
 
-/* Local includes */
+// Local includes
 #include "common.h"
 #include "wifi.h"
 

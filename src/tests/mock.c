@@ -11,7 +11,7 @@
 extern unsigned int log_buffer_size;
 extern char **log_buffer;
 
-/* SPI functions */
+// SPI functions
 uint spi_init(spi_inst_t *spi, int baudrate)
 {
     (void)spi;
@@ -27,7 +27,7 @@ int spi_write_blocking(spi_inst_t *spi, const uint8_t *src, size_t len)
     return 0;
 }
 
-/* GPIO functions */
+// GPIO functions
 void gpio_set_function(uint gpio, uint func)
 {
     (void)gpio;
@@ -51,7 +51,7 @@ void gpio_put(uint gpio, int value)
     (void)value;
 }
 
-/* PWM functions */
+// PWM functions
 int pwm_gpio_to_slice_num(uint gpio)
 {
     (void)gpio;
@@ -83,7 +83,7 @@ void pwm_set_enabled(uint slice_num, bool enabled)
     (void)enabled;
 }
 
-/* Wi-Fi functions */
+// Wi-Fi functions
 int cyw43_arch_init(void)
 {
     return test_config.cyw43_arch_init_fail ? 1 : 0;
@@ -117,7 +117,7 @@ void cyw43_arch_deinit(void)
 {
 }
 
-/* Utility functions */
+// Utility functions
 void sleep_ms(uint32_t ms)
 {
     (void)ms;
@@ -127,7 +127,7 @@ void stdio_init_all(void)
 {
 }
 
-/* lwIP functions */
+// lwIP functions
 struct pbuf *pbuf_alloc(pbuf_layer l, u16_t length, pbuf_type type)
 {
     (void)l;
@@ -201,7 +201,7 @@ int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2)
     return 0;
 }
 
-/* Timer functions */
+// Timer functions
 void powman_timer_start(void)
 {
 }

@@ -15,13 +15,13 @@ extern int mock_printf(const char *format, ...);
 extern void *mock_calloc(size_t, size_t);
 #define calloc(num, size) mock_calloc(num, size)
 
-/* Define system data types */
+// Define system data types
 typedef unsigned int uint;
 typedef char err_t;
 typedef unsigned short u16_t;
 typedef unsigned char u8_t;
 
-/* Mock SDK types */
+// Mock SDK types
 typedef unsigned int pbuf_type;
 struct udp_pcb
 {
@@ -57,7 +57,7 @@ typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
                             short unsigned int port);
 
-/* Mock definitions for SDK constants */
+// Mock definitions for SDK constants
 enum
 {
     ERR_OK,
@@ -75,24 +75,24 @@ enum
 };
 #define spi1 ((spi_inst_t *)0xdeadbeef)
 
-/* SPI functions */
+// SPI functions
 uint spi_init(spi_inst_t *spi, int baudrate);
 int spi_write_blocking(spi_inst_t *spi, const uint8_t *src, size_t len);
 
-/* GPIO functions */
+// GPIO functions
 void gpio_set_function(uint gpio, uint func);
 void gpio_init(uint gpio);
 void gpio_set_dir(uint gpio, bool out);
 void gpio_put(uint gpio, int value);
 
-/* PWM functions */
+// PWM functions
 int pwm_gpio_to_slice_num(uint gpio);
 void pwm_set_wrap(uint slice_num, uint32_t wrap);
 void pwm_set_chan_level(uint slice_num, uint chan, uint32_t level);
 void pwm_set_clkdiv(uint slice_num, float divider);
 void pwm_set_enabled(uint slice_num, bool enabled);
 
-/* Wi-Fi functions */
+// Wi-Fi functions
 int cyw43_arch_init(void);
 void cyw43_arch_lwip_begin(void);
 void cyw43_arch_lwip_end(void);
@@ -100,11 +100,11 @@ void cyw43_arch_enable_sta_mode(void);
 int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, uint auth, uint timeout_ms);
 void cyw43_arch_deinit(void);
 
-/* Utility functions */
+// Utility functions
 void sleep_ms(uint32_t ms);
 void stdio_init_all(void);
 
-/* lwIP functions */
+// lwIP functions
 struct pbuf *pbuf_alloc(pbuf_layer l, u16_t length, pbuf_type type);
 err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port);
 u8_t pbuf_free(struct pbuf *p);
@@ -116,7 +116,7 @@ void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg);
 struct udp_pcb *udp_new_ip_type(u8_t type);
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);
 
-/* Timer functions */
+// Timer functions
 void powman_timer_start(void);
 void powman_timer_stop(void);
 void powman_timer_set_ms(uint32_t ms);

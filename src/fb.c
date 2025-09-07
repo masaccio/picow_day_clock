@@ -6,7 +6,7 @@
 #include "fb.h"
 #include "lcd.h"
 
-/* Create a new frame buffer, allocating memory and initialising */
+// Create a new frame buffer, allocating memory and initialising
 frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
 {
     frame_buffer_t *state = (frame_buffer_t *)calloc(1, sizeof(frame_buffer_t));
@@ -23,7 +23,7 @@ frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
     state->width_memory = width;
     state->height_memory = height;
 
-    /* Hard-wired 2 bits per pixel */
+    // Hard-wired 2 bits per pixel
     state->width_byte = (state->width_memory % 4 == 0) ? (state->width_memory / 4) : (state->width_memory / 4 + 1);
     state->height_byte = height;
 
@@ -39,7 +39,7 @@ frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
     return state;
 }
 
-/* Set the new rotation of the display */
+// Set the new rotation of the display
 void fb_rotate(frame_buffer_t *state, uint16_t rotate)
 {
     if (!(rotate == ROTATE_0 || rotate == ROTATE_90 || rotate == ROTATE_180 || rotate == ROTATE_270)) {
@@ -70,24 +70,24 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
     uint16_t x, y;
 
     switch (state->rotate) {
-    case 0:
-        x = x_point;
-        y = y_point;
-        break;
-    case 90:
-        x = state->width_memory - y_point - 1;
-        y = x_point;
-        break;
-    case 180:
-        x = state->width_memory - x_point - 1;
-        y = state->height_memory - y_point - 1;
-        break;
-    case 270:
-        x = y_point;
-        y = state->height_memory - x_point - 1;
-        break;
-    default:
-        return;
+        case 0:
+            x = x_point;
+            y = y_point;
+            break;
+        case 90:
+            x = state->width_memory - y_point - 1;
+            y = x_point;
+            break;
+        case 180:
+            x = state->width_memory - x_point - 1;
+            y = state->height_memory - y_point - 1;
+            break;
+        case 270:
+            x = y_point;
+            y = state->height_memory - x_point - 1;
+            break;
+        default:
+            return;
     }
 
     if (x > state->width_memory || y > state->height_memory) {
@@ -102,13 +102,13 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
     state->data[addr] = data_byte | ((color << 6) >> ((x % 4) * 2));
 }
 
-/* Clear the entire frame buffer and set to a specific color */
+// Clear the entire frame buffer and set to a specific color
 void fb_clear(frame_buffer_t *state, color_t color)
 {
     for (uint16_t y = 0; y < state->height_byte; y++) {
         for (uint16_t x = 0; x < state->width_byte; x++) {
             uint32_t addr = x + y * state->width_byte;
-            /* 2 bits per pixel */
+            // 2 bits per pixel
             state->data[addr] = color | (color << 2) | (color << 4) | (color << 6);
         }
     }

@@ -19,4 +19,4 @@ typedef struct
 extern font_t text_font;
 extern font_t clock_digit_font;
 
-#endif /* _FONT_H */
+#endif // _FONT_H

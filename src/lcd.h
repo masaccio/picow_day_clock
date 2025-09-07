@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <time.h>
 
-/* Local includes */
+// Local includes
 #include "fb.h"
 #include "font.h"
 
@@ -32,18 +32,18 @@
 
 typedef struct lcd_state_t
 {
-    /* GPIO config */
+    // GPIO config
     uint16_t RST_gpio;
     uint16_t DC_gpio;
     uint16_t BL_gpio;
     uint16_t CS_gpio;
     uint16_t CLK_gpio;
     uint16_t MOSI_gpio;
-    /* Additional config */
+    // Additional config
     uint16_t width;
     uint16_t height;
     uint8_t scan_dir;
-    /* Frame buffer */
+    // Frame buffer
     frame_buffer_t *fb;
 } lcd_state_t;
 
@@ -62,4 +62,4 @@ extern void lcd_clear_screen(lcd_state_t *state, color_t color);
 
 void lcd_update_screen(lcd_state_t *state);
 
-#endif /* _LCD_H */
+#endif // _LCD_H

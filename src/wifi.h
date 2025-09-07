@@ -3,10 +3,10 @@
 
 #include <stdbool.h>
 
-#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) /* Time to allow Wi-Fi driver to connect */
-#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) /* How long to keep retrying connection */
-#define WIFI_BAD_AUTH_RETRY_COUNT 3         /* How many bad auth errors to tolerate */
-#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    /* Time to wait before retrying after auth error */
+#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) // Time to allow Wi-Fi driver to connect
+#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) // How long to keep retrying connection
+#define WIFI_BAD_AUTH_RETRY_COUNT 3         // How many bad auth errors to tolerate
+#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    // Time to wait before retrying after auth error
 
 typedef enum
 {
@@ -22,4 +22,4 @@ extern wifi_status_t connect_to_wifi(const char ssid[], const char password[]);
 
 extern void disconnect_from_wifi(void);
 
-#endif /* __WIFI_H */
+#endif // __WIFI_H

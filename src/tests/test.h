@@ -14,4 +14,4 @@ typedef struct
 extern int test_main(void);
 extern test_config_t test_config;
 
-#endif /* _TEST_H */
+#endif // _TEST_H

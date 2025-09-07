@@ -110,4 +110,4 @@
 #endif // LWIP_PROTOCOL_DEBUG
 
 // clang-format on
-#endif /* __LWIPOPTS_H__ */
+#endif // __LWIPOPTS_H__
