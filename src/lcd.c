@@ -55,7 +55,6 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     state->CS_gpio = CS_gpio;
     state->CLK_gpio = CLK_gpio;
     state->MOSI_gpio = MOSI_gpio;
-    state->y_offset = 0;
     state->scan_dir = VERTICAL;
 
     lcd_init_peripherals(state, reset);
@@ -77,7 +76,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     return state;
 }
 
-void lcd_print_text(lcd_state_t *state, color_t color, const char *format, ...)
+void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *format, ...)
 {
     char buffer[256];
     va_list args;
@@ -85,8 +84,8 @@ void lcd_print_text(lcd_state_t *state, color_t color, const char *format, ...)
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    fb_write_string(state->fb, 0, state->y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
-    state->y_offset += text_font.height + 2;
+    uint16_t y_offset = (line_num * text_font.height) + 2;
+    fb_write_string(state->fb, 0, y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
 }
 
 void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
@@ -99,7 +98,6 @@ void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_c
 void lcd_clear_screen(lcd_state_t *state, color_t color)
 {
     fb_clear(state->fb, color);
-    state->y_offset = 0;
     lcd_update_screen(state);
 }
 
