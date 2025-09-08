@@ -48,9 +48,9 @@ typedef struct ntp_state_t
 #define NTP_PORT 123
 #define NTP_DELTA 2208988800 // seconds between 1 Jan 1900 and 1 Jan 1970
 #define NTP_TIMEOUT_MS (30 * 1000)
-#define NTP_SYNC_INTERVAL_MINUTES 10
+#define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24)
 
-extern bool time_is_bst(struct tm *utc);
+extern bool time_is_dst(struct tm *utc);
 
 extern const char *time_as_string(time_t ntp_time);
 
