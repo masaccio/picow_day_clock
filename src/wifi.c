@@ -7,7 +7,7 @@
 #endif
 
 // Local includes
-#include "common.h"
+#include "clock.h"
 #include "wifi.h"
 
 wifi_status_t connect_to_wifi(const char ssid[], const char password[])

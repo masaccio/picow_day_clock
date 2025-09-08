@@ -17,7 +17,7 @@
 #endif
 
 // Local includes
-#include "common.h"
+#include "clock.h"
 #include "ntp.h"
 
 // Make an NTP request
