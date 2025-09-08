@@ -9,6 +9,7 @@ typedef struct
 {
     bool cyw43_arch_init_fail;
     bool udp_new_ip_type_fail;
+    bool dns_lookup_fail;
 } test_config_t;
 
 extern int test_main(void);

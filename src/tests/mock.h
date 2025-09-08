@@ -7,13 +7,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
-
-#define printf(...) mock_printf(__VA_ARGS__)
-extern int mock_printf(const char *format, ...);
-
-extern void *mock_calloc(size_t, size_t);
-#define calloc(num, size) mock_calloc(num, size)
 
 // Define system data types
 typedef unsigned int uint;
@@ -40,9 +35,16 @@ typedef struct repeating_timer_t
 
 typedef unsigned int pbuf_layer;
 #define PBUF_TRANSPORT ((pbuf_layer)0)
+#ifndef NTP_MSG_LEN
+#define NTP_MSG_LEN 48
+#endif
+#ifndef NTP_PORT
+#define NTP_PORT 123
+#endif
+
 typedef struct pbuf
 {
-    unsigned long payload;
+    u8_t payload[NTP_MSG_LEN];
     u16_t tot_len;
 } pbuf;
 #define repeating_timer repeating_timer_t
@@ -56,6 +58,21 @@ typedef struct ip_addr_t
 typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
                             short unsigned int port);
+
+// Standard library functions
+#define printf(...) mock_printf(__VA_ARGS__)
+extern int mock_printf(const char *format, ...);
+
+extern void *mock_calloc(size_t, size_t);
+#define calloc(num, size) mock_calloc(num, size)
+
+extern unsigned long long mock_system_time_ms;
+
+#define time(tloc) mock_time(tloc)
+extern time_t mock_time(time_t *);
+
+#define settimeofday(tp, tzp) mock_settimeofday(tp, tzp)
+int mock_settimeofday(const struct timeval *, const struct timezone *);
 
 // Mock definitions for SDK constants
 enum
@@ -117,10 +134,6 @@ struct udp_pcb *udp_new_ip_type(u8_t type);
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);
 
 // Timer functions
-void powman_timer_start(void);
-void powman_timer_stop(void);
-void powman_timer_set_ms(uint32_t ms);
-uint32_t powman_timer_get_ms(void);
 absolute_time_t get_absolute_time(void);
 int64_t absolute_time_diff_us(absolute_time_t t1, absolute_time_t t2);
 int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
