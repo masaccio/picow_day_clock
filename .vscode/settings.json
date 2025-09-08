@@ -46,7 +46,12 @@
     "files.associations": {
         "*.json": "json",
         "*.h": "c",
-        "functional": "c"
+        "functional": "c",
+        "array": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c"
     },
     "[c]": {
         "editor.tabSize": 4
