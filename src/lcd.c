@@ -27,7 +27,7 @@
 #endif
 
 // Local includes
-#include "common.h"
+#include "clock.h"
 #include "fb.h"
 #include "lcd.h"
 
