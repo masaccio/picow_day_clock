@@ -14,7 +14,7 @@
             "MIMode": "lldb",
             "preLaunchTask": "CMake: build",
             "logging": {
-                "engineLogging": true
+                "engineLogging": false
             }
         },
         {
