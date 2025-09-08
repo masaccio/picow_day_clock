@@ -27,26 +27,12 @@
 #endif
 
 // Local includes
-#include "common.h"
+#include "clock.h"
 #include "fb.h"
 #include "font.h"
 #include "lcd.h"
 #include "ntp.h"
 #include "wifi.h"
-
-typedef struct clock_state_t
-{
-    // NTP state
-    time_t ntp_time;
-    ntp_state_t *ntp_state;
-    // LCD state
-    lcd_state_t *lcd_states[NUM_LCDS];
-    char current_lcd_digits[NUM_LCDS];
-    // Timer state
-    uint32_t tick_count;
-    uint32_t ntp_sync_interval_minutes;
-    repeating_timer_t timer;
-} clock_state_t;
 
 typedef struct
 {
@@ -67,7 +53,7 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
 static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
 // Callback from NTP called when an NTP request is successful
-static void ntp_timer_callback(void *state, time_t *ntp_time)
+void ntp_timer_callback(void *state, time_t *ntp_time)
 {
     clock_state_t *clock_state = (clock_state_t *)state;
     clock_state->ntp_time = *ntp_time;
@@ -81,10 +67,13 @@ static int last_day_of_month(int day, int month, int year)
         month += 12;
         year -= 1;
     }
-    int c = year / 100;
-    year = year % 100;
-    int h = (c / 4 - 2 * c + year + year / 4 + 13 * (month + 1) / 5 + day - 1) % 7;
-    return (h + 7) % 7;
+    int K = year % 100;
+    int J = year / 100;
+    int h = (day + (13 * (month + 1)) / 5 + K + K / 4 + J / 4 + 5 * J) % 7;
+
+    // Zeller: 0=Saturday so convert to Unix-offset where 0=Sunday
+    int d = (h + 6) % 7;
+    return d;
 }
 
 // Returns a static struct tm* with the DST start time (last Sunday in March at 01:00 UTC)
@@ -100,7 +89,7 @@ struct tm *dst_start(int tm_year)
     tm_start.tm_sec = 0;
     tm_start.tm_isdst = 0;
 
-    int wday = last_day_of_month(tm_year + 1900, 3, 31);
+    int wday = last_day_of_month(31, 3, tm_year + 1900);
     tm_start.tm_mday = 31 - wday;
     tm_start.tm_wday = 0;
 
@@ -119,19 +108,32 @@ struct tm *dst_end(int tm_year)
     tm_end.tm_sec = 0;
     tm_end.tm_isdst = 0;
 
-    int wday = last_day_of_month(tm_year + 1900, 10, 31);
+    int wday = last_day_of_month(31, 10, tm_year + 1900);
     tm_end.tm_mday = 31 - wday;
     tm_end.tm_wday = 0;
 
     return &tm_end;
 }
 
-// Determines if given UTC time is in British Summer Time (BST)
-bool time_is_bst(struct tm *utc)
+// The Pico SDK doesn't have timegm() for UTC calculations since it doesn't
+// manage timezones, but for testing we need to ensure we stick to UTC
+time_t tm_to_epoch(struct tm *tm)
 {
-    time_t now = mktime(utc);
-    time_t start_time = mktime(dst_start(utc->tm_year));
-    time_t end_time = mktime(dst_end(utc->tm_year));
+#if defined(__APPLE__) || defined(__linux__)
+    return timegm(tm); // UTC on host
+#else
+    return mktime(tm); // Pico: local = UTC
+#endif
+}
+
+// Determines if given UTC time is in daylight savings time. We assume
+// the European convention of time changing at 0100 on the last Sundays
+// in March and October
+bool time_is_dst(struct tm *utc)
+{
+    time_t now = tm_to_epoch(utc);
+    time_t start_time = tm_to_epoch(dst_start(utc->tm_year));
+    time_t end_time = tm_to_epoch(dst_end(utc->tm_year));
 
     return now >= start_time && now < end_time;
 }
@@ -140,38 +142,45 @@ const char *time_as_string(time_t ntp_time)
 {
     static char buffer[32];
 
-    int bst = time_is_bst(gmtime(&ntp_time));
-    time_t local_time_t = ntp_time + (bst ? 3600 : 0);
+    int dst = time_is_dst(gmtime(&ntp_time));
+    time_t local_time_t = ntp_time + (dst ? 3600 : 0);
     struct tm *local = gmtime(&local_time_t);
 
-    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d (%s)", local->tm_hour, local->tm_min, local->tm_sec,
-             bst ? "BST" : "GMT");
+    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", local->tm_hour, local->tm_min, local->tm_sec,
+             dst ? " (DST)" : "");
     return (const char *)buffer;
 }
 
-static bool clock_timer_callback(struct repeating_timer *t)
+bool clock_timer_callback(struct repeating_timer *t)
 {
     clock_state_t *state = (clock_state_t *)t->user_data;
-    time_t now = time(NULL);
-    struct tm current_time;
-    localtime_r(&now, &current_time);
 
-    if (1 || current_time.tm_sec == 0) {
-        state->tick_count++;
-        if (time_is_bst(&current_time)) {
-            if (current_time.tm_hour == 23) {
-                current_time.tm_hour = 0;
-                current_time.tm_wday = (current_time.tm_wday + 1) % 7;
+    /* Adjust the NTP drift a second at a time */
+    if (state->ntp_drift > 0) {
+        state->ntp_drift--;
+    } else if (state->ntp_drift < 0) {
+        state->ntp_drift++;
+    }
+    time_t now = time(NULL) + state->ntp_drift;
+    struct tm *current_time = gmtime(&now);
+
+    if (current_time->tm_sec == 0) {
+        if (time_is_dst(current_time)) {
+            /* Apply daylight savings */
+            if (current_time->tm_hour == 23) {
+                current_time->tm_hour = 0;
+                current_time->tm_wday = (current_time->tm_wday + 1) % 7;
             } else {
-                current_time.tm_hour++;
+                current_time->tm_hour++;
             }
         }
+
         static char lcd_digits[NUM_LCDS + 1];
-        strncpy(lcd_digits, day_of_week[current_time.tm_wday], 3);
-        lcd_digits[3] = '0' + (current_time.tm_hour / 10);
-        lcd_digits[4] = '0' + (current_time.tm_hour % 10);
-        lcd_digits[5] = '0' + (current_time.tm_min / 10);
-        lcd_digits[6] = '0' + (current_time.tm_min % 10);
+        strncpy(lcd_digits, day_of_week[current_time->tm_wday], 3);
+        lcd_digits[3] = '0' + (current_time->tm_hour / 10);
+        lcd_digits[4] = '0' + (current_time->tm_hour % 10);
+        lcd_digits[5] = '0' + (current_time->tm_min / 10);
+        lcd_digits[6] = '0' + (current_time->tm_min % 10);
         lcd_digits[7] = '\0';
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
@@ -183,20 +192,21 @@ static bool clock_timer_callback(struct repeating_timer *t)
             }
         }
 
-        if (state->tick_count >= NTP_SYNC_INTERVAL_MINUTES) {
+        if ((now - state->ntp_last_sync) >= NTP_SYNC_INTERVAL_SEC) {
             ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
             if (ntp_status == NTP_STATUS_KOD) {
-                state->ntp_sync_interval_minutes *= 2;
-                CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_sync_interval_minutes);
+                state->ntp_interval *= 2;
+                CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
             } else if (ntp_status != NTP_STATUS_SUCCESS) {
-                state->tick_count = 0;
+                state->ntp_last_sync = state->ntp_time;
                 CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
                 // TODO: Do something with the display to indicate a problem
             } else {
                 CLOCK_DEBUG("NTP sync at %s\r\n", time_as_string(state->ntp_time));
+                state->ntp_last_sync = state->ntp_time;
+                state->ntp_drift = state->ntp_time - now;
                 struct timeval tv = {.tv_sec = state->ntp_time, .tv_usec = 0};
                 settimeofday(&tv, NULL);
-                state->tick_count = 0;
             }
         }
     }
@@ -298,12 +308,16 @@ int main(void)
             return 1;
     }
 
-    state->tick_count = 0;
-    state->ntp_sync_interval_minutes = NTP_SYNC_INTERVAL_MINUTES;
+    state->ntp_drift = 0;
+    state->ntp_last_sync = state->ntp_time;
+    state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
+
+    // Set the system clock to the NTP time
     struct timeval tv = {.tv_sec = state->ntp_time, .tv_usec = 0};
     settimeofday(&tv, NULL);
 
-    // TODO: change this to a minute
+    // Call the timer every second to enable us to slowly change the clock if
+    // the system clock drifts from NTP time
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 
     while (true) {
