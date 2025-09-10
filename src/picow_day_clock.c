@@ -138,12 +138,12 @@ bool time_is_dst(struct tm *utc)
     return now >= start_time && now < end_time;
 }
 
-const char *time_as_string(time_t ntp_time)
+const char *time_as_string(time_t t)
 {
     static char buffer[32];
 
-    int dst = time_is_dst(gmtime(&ntp_time));
-    time_t local_time_t = ntp_time + (dst ? 3600 : 0);
+    int dst = time_is_dst(gmtime(&t));
+    time_t local_time_t = t + (dst ? 3600 : 0);
     struct tm *local = gmtime(&local_time_t);
 
     snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", local->tm_hour, local->tm_min, local->tm_sec,
@@ -164,7 +164,7 @@ bool clock_timer_callback(struct repeating_timer *t)
     time_t now = time(NULL) + state->ntp_drift;
     struct tm *current_time = gmtime(&now);
 
-    if (current_time->tm_sec == 0) {
+    if (state->init_done == false || current_time->tm_sec == 0) {
         if (time_is_dst(current_time)) {
             /* Apply daylight savings */
             if (current_time->tm_hour == 23) {
@@ -185,9 +185,11 @@ bool clock_timer_callback(struct repeating_timer *t)
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
+#if !TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
                 lcd_update_screen(state->lcd_states[ii]);
+#endif
                 state->current_lcd_digits[ii] = lcd_digits[ii];
             }
         }
@@ -202,13 +204,15 @@ bool clock_timer_callback(struct repeating_timer *t)
                 CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
                 // TODO: Do something with the display to indicate a problem
             } else {
-                CLOCK_DEBUG("NTP sync at %s\r\n", time_as_string(state->ntp_time));
+                int drift = state->ntp_time - now;
+                CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(state->ntp_time), drift);
                 state->ntp_last_sync = state->ntp_time;
-                state->ntp_drift = state->ntp_time - now;
+                state->ntp_drift = drift;
                 struct timeval tv = {.tv_sec = state->ntp_time, .tv_usec = 0};
                 settimeofday(&tv, NULL);
             }
         }
+        state->init_done = true;
     }
 
     return true; // Keep repeating
