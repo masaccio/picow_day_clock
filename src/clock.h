@@ -2,8 +2,13 @@
 #ifndef _CLOCK_H
 #define _CLOCK_H
 
-#ifdef CLOCK_DEBUG_ENABLED
+#if CLOCK_DEBUG_ENABLED
+#if TEST_MODE
+extern int test_printf(const char *format, ...);
+#define CLOCK_DEBUG(...) test_printf(__VA_ARGS__)
+#else
 #define CLOCK_DEBUG(...) printf(__VA_ARGS__)
+#endif // #if TEST_MODE
 #else
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
@@ -21,8 +26,9 @@ typedef struct clock_state_t
     int ntp_drift;
     // LCD state
     lcd_state_t *lcd_states[NUM_LCDS];
-    char current_lcd_digits[NUM_LCDS];
+    char current_lcd_digits[NUM_LCDS + 1];
     // Timer state
+    bool init_done;
     repeating_timer_t timer;
 } clock_state_t;
 

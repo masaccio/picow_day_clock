@@ -250,11 +250,22 @@ int mock_printf(const char *format, ...)
         printf("*** MOCK BUFFER OVERFLOW!\n");
         return 1;
     } else {
-        log_buffer[log_buffer_size] = malloc(buffer_len + 1);
-        strcpy(log_buffer[log_buffer_size], buffer);
+        log_buffer[log_buffer_size] = calloc(1, buffer_len + 1);
+        strncpy(log_buffer[log_buffer_size], buffer, buffer_len);
         log_buffer_size += 1;
         return 0;
     }
+}
+
+int test_printf(const char *format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    (void)vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    printf("DEBUG: %s", buffer);
+    return 0;
 }
 
 extern unsigned int calloc_fail_at;
