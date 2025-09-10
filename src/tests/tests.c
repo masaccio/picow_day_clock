@@ -117,15 +117,23 @@ static void set_localtime(int year, int mon, int mday, int hour, int min, int se
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
 extern unsigned mock_ntp_seconds;
 
-int test_ntp_drift(void)
+static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
 {
-    repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
-    timer->user_data = clock_state;
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
         clock_state->lcd_states[ii] = lcd_init(0, 0, 0, 0, 0, 0, false);
     }
     clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
+    clock_state->ntp_last_sync = mock_time(NULL);
+    clock_state->init_done = false;
+    timer->user_data = clock_state;
+    return clock_state;
+}
+
+int test_dst(void)
+{
+    repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
+    clock_state_t *clock_state = create_test_clock_state(timer);
 
     // Sun March 25, 2001 at 00:22 (just before clocks change)
     set_localtime(2001, 2, 25, 0, 22, 0);
@@ -140,14 +148,52 @@ int test_ntp_drift(void)
     if (strncmp(clock_state->current_lcd_digits, "SUN0222", 7) != 0) {
         return 1;
     }
-    // Mon March 26, 2001 at 03:00
-    set_localtime(2001, 2, 27, 3, 0, 0);
-    mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA + 5; // 5 second drift
-    (void)clock_timer_callback(timer);                               // NTP will sync
-    if (clock_state->ntp_drift != 5) {
-        return 1;
-    }
     return 0;
+}
+
+int lcd_digits_to_int(const char *digits)
+{
+    return ((*digits - '0') * 10) + (*(digits + 1) - '0');
+}
+
+int test_ntp_drift(void)
+{
+    repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
+    clock_state_t *clock_state = create_test_clock_state(timer);
+
+    // Tue January 9, 2001 at 09:28:32
+    set_localtime(2001, 0, 9, 9, 28, 32);
+    clock_state->ntp_last_sync = mock_time(NULL);
+    mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
+    // Run for 3 simulated days
+    int last_lcd_hour = -1;
+    int last_lcd_min = -1;
+    int drift = 50;
+    int status = 0;
+    for (unsigned int ii = 0; ii < (3 * 24 * 60 * 60); ii++) {
+        (void)clock_timer_callback(timer);
+        int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
+        int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
+        if (last_lcd_hour >= 0 && last_lcd_hour != lcd_hour && last_lcd_min != lcd_min) {
+            time_t now = mock_system_time_ms / 1000;
+            struct tm *current_time = gmtime(&now);
+            if (current_time->tm_hour != lcd_hour || current_time->tm_min != lcd_min) {
+                status = 1;
+                printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min, lcd_hour,
+                       lcd_min);
+            }
+        }
+        last_lcd_hour = lcd_hour;
+        last_lcd_min = lcd_min;
+        mock_system_time_ms += 1000;
+        if (ii > 0 && (ii % (24 * 60 * 60)) == 0) {
+            mock_ntp_seconds += drift;
+            drift = -drift;
+        } else {
+            mock_ntp_seconds++;
+        }
+    }
+    return status;
 }
 
 int main(void)
@@ -160,6 +206,8 @@ int main(void)
         NULL,
     };
     status |= run_test(test_bad_lcd1, "LCD1 init error", true, test_bad_ldc1_ref);
+
+    status |= run_test(test_dst, "Daylight savings", false, NULL);
 
     status |= run_test(test_ntp_drift, "NTP drift", false, NULL);
 
