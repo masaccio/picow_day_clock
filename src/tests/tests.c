@@ -23,7 +23,7 @@ unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
 char **log_buffer;
 
-static int run_test(test_func_t func, const char *test_name, bool expect_fail, const char **expected_log)
+static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
     // Always init the test config
     memset(&test_config, 0, sizeof(test_config_t));
@@ -32,12 +32,7 @@ static int run_test(test_func_t func, const char *test_name, bool expect_fail, c
     // Run test
     int status = func();
 
-    if (status == 1 && expect_fail) {
-        printf("TEST %s: OK\n", test_name);
-        status = 0;
-    } else if (status == 0 && expect_fail) {
-        printf("TEST %s: FAIL\n", test_name);
-    } else if (status == 1) {
+    if (status == 1) {
         printf("TEST %s: FAIL\n", test_name);
     } else {
         printf("TEST %s: OK\n", test_name);
@@ -83,13 +78,25 @@ int test_bad_lcd1(void)
     calloc_fail_at = 1;
     int status = test_main();
     calloc_fail_at = 0;
-    return status == 1;
+    return (status == 1) ? 0 : 1;
 }
 
-int test_cy43_init_fail(void)
+int test_cy43_init_errors(void)
 {
     test_config.cyw43_arch_init_fail = true;
-    return test_main() == 1;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.cyw43_arch_init_fail = false;
+    test_config.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.cyw43_arch_wifi_connect_status = -99;
+    if (test_main() != 1) {
+        return 1;
+    }
+    return 0;
 }
 
 int test_cy43_auth_errors(void)
@@ -220,18 +227,22 @@ int main(void)
         "LCD 1: failed to initialise",
         NULL,
     };
-    status |= run_test(test_bad_lcd1, "LCD1 init error", true, test_bad_ldc1_ref);
+    status |= run_test(test_bad_lcd1, "LCD1 init error", test_bad_ldc1_ref);
 
-    status |= run_test(test_dst, "Daylight savings", false, NULL);
+    status |= run_test(test_dst, "Daylight savings", NULL);
 
-    status |= run_test(test_ntp_drift, "NTP drift", false, NULL);
+    status |= run_test(test_ntp_drift, "NTP drift", NULL);
 
-    static const char *test_cy43_init_fail_ref[] = {
+    static const char *test_cy43_init_errors_ref[] = {
         "LCD: LCD init OK",
         "LCD: Wi-Fi init error",
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect error",
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi unknown error",
         NULL,
     };
-    status |= run_test(test_cy43_init_fail, "cyw43_arch_init error", true, test_cy43_init_fail_ref);
+    status |= run_test(test_cy43_init_errors, "cyw43_arch_init error", test_cy43_init_errors_ref);
 
     static const char *test_cy43_auth_errors_ref[] = {
         "LCD: LCD init OK",
@@ -242,7 +253,7 @@ int main(void)
         "LCD: Wi-Fi auth error",
         NULL,
     };
-    status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", false, test_cy43_auth_errors_ref);
+    status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", test_cy43_auth_errors_ref);
 
     // static const char *test_bad_udp_alloc_ref[] = {
     //     "Wi-Fi: connected to my-test-ssid",
