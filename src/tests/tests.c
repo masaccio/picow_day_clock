@@ -247,10 +247,13 @@ int main(void)
     status |= run_test(test_ntp_drift, "NTP drift", NULL);
 
     static const char *test_cy43_init_errors_ref[] = {
+        // CY43 init fails
         "LCD: LCD init OK",
         "LCD: Wi-Fi init error",
+        // CY43 connection failure
         "LCD: LCD init OK",
         "LCD: Wi-Fi connect error",
+        // CY43 unknown failure
         "LCD: LCD init OK",
         "LCD: Wi-Fi unknown error",
         // Timeout OK
@@ -266,10 +269,12 @@ int main(void)
     status |= run_test(test_cy43_init_errors, "cyw43_arch_init error", test_cy43_init_errors_ref);
 
     static const char *test_cy43_auth_errors_ref[] = {
+        // Bad auth within retry count
         "LCD: LCD init OK",
         "LCD: Wi-Fi connect OK",
         "LCD: NTP init OK",
         "LCD: NTP time OK",
+        // Bad auth exceeds retry count
         "LCD: LCD init OK",
         "LCD: Wi-Fi auth error",
         NULL,
