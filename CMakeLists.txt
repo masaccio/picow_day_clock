@@ -1,8 +1,6 @@
 # ====================================================================================
-# These may vary according to system configuration
+# This may vary according to system configuration
 # ====================================================================================
-set(PICO_SDK_VERSION 2.2.0)
-set(PICO_TOOLCHAIN_VERSION 14_2_Rel1)
 set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
 
 # ====================================================================================
@@ -19,9 +17,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion ${PICO_SDK_VERSION})
-set(toolchainVersion ${PICO_TOOLCHAIN_VERSION})
-set(picotoolVersion ${PICO_SDK_VERSION})
+set(sdkVersion 2.2.0)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
