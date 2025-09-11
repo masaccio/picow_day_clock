@@ -18,7 +18,7 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
 
     cyw43_arch_enable_sta_mode();
 
-    absolute_time_t start_time = get_absolute_time();
+    absolute_time_t start_time_us = get_absolute_time();
     int bad_auth_count = 0;
     while (true) {
         int ret = cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, WIFI_CONNECT_TIMEOUT_MS);
@@ -27,7 +27,7 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
             CLOCK_DEBUG("Wi-Fi: connected to %s\r\n", ssid);
             return WIFI_STATUS_SUCCESS;
         } else if (ret == PICO_ERROR_TIMEOUT) {
-            if (absolute_time_diff_us(start_time, get_absolute_time()) > (WIFI_ABANDON_TIMEOUT_MS * 1000)) {
+            if (absolute_time_diff_us(start_time_us, get_absolute_time()) >= (WIFI_ABANDON_TIMEOUT_MS * 1000)) {
                 CLOCK_DEBUG("Wi-Fi: exceeded maximum timeout; giving up\r\n");
                 return WIFI_STATUS_TIMEOUT;
             }
