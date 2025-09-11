@@ -76,14 +76,8 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     return state;
 }
 
-void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *format, ...)
+void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer)
 {
-    char buffer[256];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
     uint16_t y_offset = (line_num * text_font.height) + 2;
     fb_write_string(state->fb, 0, y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
 }

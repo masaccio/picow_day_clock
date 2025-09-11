@@ -54,7 +54,7 @@ void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 void lcd_init_peripherals(lcd_state_t *state, bool reset);
 
-extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *format, ...);
+extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 
 extern void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char);
 
