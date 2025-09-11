@@ -126,8 +126,13 @@ add_custom_target(coverage ALL
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov report 
             ${TEST_BINARY_DIR}/test_picow_day_clock
             --instr-profile=${TEST_BINARY_DIR}/default.profdata
-             --show-region-summary=false
+            --show-region-summary=false
             --ignore-filename-regex=".*\.h"
+    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov show
+            ${TEST_BINARY_DIR}/test_picow_day_clock
+            --instr-profile=${TEST_BINARY_DIR}/default.profdata
+            --ignore-filename-regex=".*\.h"
+            --format=html > ${TEST_BINARY_DIR}/coverage.html
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running coverage analysis..."
 )
