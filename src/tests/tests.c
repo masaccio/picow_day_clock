@@ -25,6 +25,8 @@ char **log_buffer;
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
+    log_buffer = calloc(sizeof(char *), LOG_BUFFER_SIZE);
+
     // Always init the test config
     memset(&test_config, 0, sizeof(test_config_t));
     log_buffer_size = 0;
@@ -65,6 +67,7 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     for (unsigned int ii = 0; ii <= log_buffer_size; ii++) {
         free(log_buffer[ii]);
     }
+    free(log_buffer);
     return status;
 }
 
@@ -96,6 +99,17 @@ int test_cy43_init_errors(void)
     if (test_main() != 1) {
         return 1;
     }
+    // Try two batches of timeouts: the first one should not quite timeout enough
+    test_config.cyw43_arch_wifi_connect_status = 0;
+    test_config.cyw43_auth_timeout_count = 4;
+    if (test_main() != 0) {
+        return 1;
+    }
+    test_config.cyw43_arch_wifi_connect_status = 0;
+    test_config.cyw43_auth_timeout_count = 6;
+    if (test_main() != 1) {
+        return 1;
+    }
     return 0;
 }
 
@@ -116,7 +130,7 @@ int test_cy43_auth_errors(void)
 int test_bad_udp_alloc(void)
 {
     test_config.udp_new_ip_type_fail = true;
-    return test_main() == 1;
+    return (test_main() == 1) ? 0 : 1;
 }
 
 extern bool clock_timer_callback(repeating_timer_t *);
@@ -220,7 +234,6 @@ int test_ntp_drift(void)
 
 int main(void)
 {
-    log_buffer = calloc(sizeof(char *), LOG_BUFFER_SIZE);
     int status = 0;
 
     static const char *test_bad_ldc1_ref[] = {
@@ -240,6 +253,14 @@ int main(void)
         "LCD: Wi-Fi connect error",
         "LCD: LCD init OK",
         "LCD: Wi-Fi unknown error",
+        // Timeout OK
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP time OK",
+        // Timeout
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi timeout error",
         NULL,
     };
     status |= run_test(test_cy43_init_errors, "cyw43_arch_init error", test_cy43_init_errors_ref);
@@ -255,13 +276,13 @@ int main(void)
     };
     status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", test_cy43_auth_errors_ref);
 
-    // static const char *test_bad_udp_alloc_ref[] = {
-    //     "Wi-Fi: connected to my-test-ssid",
-    //     "Failed to allocate UDP buffer",
-    //     "NTP: failed to initialise",
-    //     NULL,
-    // };
-    // run_test(test_bad_udp_alloc, "udp_new_ip_type error", true, test_bad_udp_alloc_ref);
+    static const char *test_bad_udp_alloc_ref[] = {
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init error",
+        NULL,
+    };
+    status |= run_test(test_bad_udp_alloc, "udp_new_ip_type error", test_bad_udp_alloc_ref);
 
     return status;
 }
