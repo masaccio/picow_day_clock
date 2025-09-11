@@ -21,13 +21,25 @@ file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
 file(GLOB GENERATED_FONTS ${CMAKE_SOURCE_DIR}/../../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
+set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
+set(NON_COVERED_CLOCK_SRC_FILES
+    ${CMAKE_SOURCE_DIR}/../../src/fb.c
+    ${CMAKE_SOURCE_DIR}/../../src/wifi.c
+)
+list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
+set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
+set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
+    PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS}"
+)
+
 include_directories(
     ../../src
     ../../generated
 )
 
 add_executable(test_picow_day_clock 
-    ${CLOCK_SRC_FILES}
+    ${COVERED_CLOCK_SRC_FILES}
+    ${NON_COVERED_CLOCK_SRC_FILES}
     ${GENERATED_FONTS}
     ${TEST_SRC_FILES}
 )
@@ -42,3 +54,5 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     CLOCK_DEBUG_ENABLED=0
     TEST_MODE=1
 )
+
+target_link_libraries(test_picow_day_clock PRIVATE -fprofile-instr-generate -fcoverage-mapping)
