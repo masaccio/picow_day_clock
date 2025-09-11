@@ -1,0 +1,70 @@
+name: Build and Test Project
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest]
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Checkout Pico SDK
+        uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          path: pico-sdk
+          ref: master
+
+      - name: Set environment vars
+        run: |
+          echo "PICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk" >> $GITHUB_ENV
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc g++ \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install cmake ninja llvm arm-none-eabi-gcc
+          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+          choco install ninja -y
+          choco install gcc-arm-embedded --version=10.3.1 -y
+        shell: powershell
+
+      # Build Pico target (cross compile)
+      - name: Configure Pico build
+        run: cmake -B build/pico -S . -G Ninja -DPICO_BOARD=pico
+      - name: Build Pico target
+        run: cmake --build build/pico --parallel
+
+      # Build native test target
+      - name: Configure native test build
+        run: cmake -B build/native -S . -DBUILD_TESTS=ON
+      - name: Build native tests
+        run: cmake --build build/native --parallel
+
+      # Run native tests (skip on Windows)
+      - name: Run tests
+        if: matrix.os != 'windows-latest'
+        run: ctest --test-dir build/native --output-on-failure
