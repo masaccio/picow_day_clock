@@ -24,7 +24,7 @@ file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
 set(NON_COVERED_CLOCK_SRC_FILES
     ${CMAKE_SOURCE_DIR}/../../src/fb.c
-    ${CMAKE_SOURCE_DIR}/../../src/wifi.c
+    ${CMAKE_SOURCE_DIR}/../../src/lcd.c
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
 set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
