@@ -1,27 +1,34 @@
-# Generated Cmake Pico project file
+# ====================================================================================
+# These may vary according to system configuration
+# ====================================================================================
+set(PICO_SDK_VERSION 2.2.0)
+set(PICO_TOOLCHAIN_VERSION 14_2_Rel1)
+set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
 
+# ====================================================================================
+# Generated options -- do not change
+# ====================================================================================
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Initialise pico_sdk from installed location
-# (note this can come from environment, CMake cache etc)
-
-# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.2.0)
-set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.2.0)
+set(sdkVersion ${PICO_SDK_VERSION})
+set(toolchainVersion ${PICO_TOOLCHAIN_VERSION})
+set(picotoolVersion ${PICO_SDK_VERSION})
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
+
+# ====================================================================================
+# Pico target build
 # ====================================================================================
 set(PICO_BOARD pico2_w CACHE STRING "Board type")
 
@@ -86,7 +93,9 @@ target_link_libraries(picow_day_clock
 
 pico_add_extra_outputs(picow_day_clock)
 
-# Build a native test target as a separate project
+# ====================================================================================
+# Host test build
+# ====================================================================================
 include(ExternalProject)
 enable_testing()
 ExternalProject_Add(
@@ -98,19 +107,27 @@ ExternalProject_Add(
     INSTALL_COMMAND ""
 )
 
+set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
-set(TEST_EXE "${CMAKE_BINARY_DIR}/tests_build/test_picow_day_clock")
-
-# Custom target to run the tests and fail build if non-zero
 add_custom_target(run_tests ALL
     DEPENDS test_picow_day_clock
-    COMMAND ${TEST_EXE}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests_build
+    COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock
+    WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running native tests..."
 )
-
-# Register test with CTest
 add_test(NAME picow_day_clock_test
-         COMMAND ${TEST_EXE})
+         COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
-set_tests_properties(picow_day_clock_test PROPERTIES TIMEOUT 10)
+add_custom_target(coverage ALL
+    DEPENDS test_picow_day_clock
+    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-profdata merge 
+            -sparse ${TEST_BINARY_DIR}/default.profraw
+            -o ${TEST_BINARY_DIR}/default.profdata
+    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov report 
+            ${TEST_BINARY_DIR}/test_picow_day_clock
+            --instr-profile=${TEST_BINARY_DIR}/default.profdata
+             --show-region-summary=false
+            --ignore-filename-regex=".*\.h"
+    WORKING_DIRECTORY ${TEST_BINARY_DIR}
+    COMMENT "Running coverage analysis..."
+)
