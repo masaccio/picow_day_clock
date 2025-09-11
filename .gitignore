@@ -12,3 +12,8 @@ secrets.cmake
 
 # vim
 .*.swp
+
+# Profiling
+*.profraw
+*.profdata
+
