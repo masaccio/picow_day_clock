@@ -7,6 +7,7 @@
 
 typedef struct
 {
+    int cyw43_auth_error_count;
     bool cyw43_arch_init_fail;
     bool udp_new_ip_type_fail;
     bool dns_lookup_fail;

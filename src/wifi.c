@@ -12,7 +12,7 @@
 
 wifi_status_t connect_to_wifi(const char ssid[], const char password[])
 {
-    if (cyw43_arch_init()) {
+    if (cyw43_arch_init() != 0) {
         return WIFI_STATUS_INIT_FAIL;
     }
 
@@ -34,7 +34,7 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
             CLOCK_DEBUG("Wi-Fi: timeout; trying again\r\n");
         } else if (ret == PICO_ERROR_BADAUTH) {
             bad_auth_count++;
-            if (bad_auth_count > WIFI_BAD_AUTH_RETRY_COUNT) {
+            if (bad_auth_count >= WIFI_BAD_AUTH_RETRY_COUNT) {
                 CLOCK_DEBUG("Wi-Fi: too many bad authentication failures; giving up\r\n");
                 return WIFI_STATUS_BAD_AUTH;
             } else {

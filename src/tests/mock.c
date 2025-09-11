@@ -109,7 +109,8 @@ int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, u
     (void)password;
     (void)auth;
     (void)timeout_ms;
-    if (strcmp(ssid, WIFI_SSID) != 0 || strcmp(password, WIFI_PASSWORD) != 0) {
+    if (test_config.cyw43_auth_error_count > 0) {
+        test_config.cyw43_auth_error_count--;
         return PICO_ERROR_BADAUTH;
     }
     return 0;

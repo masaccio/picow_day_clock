@@ -7,6 +7,7 @@
 
 #include "clock.h"
 #include "test.h"
+#include "wifi.h"
 
 // These system calls have been redefined in mock.h so undef them here
 // so that we can call into the system libraries as needed.
@@ -32,10 +33,10 @@ static int run_test(test_func_t func, const char *test_name, bool expect_fail, c
     int status = func();
 
     if (status == 1 && expect_fail) {
-        printf("TEST %s: OK (expected failure)\n", test_name);
+        printf("TEST %s: OK\n", test_name);
         status = 0;
     } else if (status == 0 && expect_fail) {
-        printf("TEST %s: FAIL (unexpected success)\n", test_name);
+        printf("TEST %s: FAIL\n", test_name);
     } else if (status == 1) {
         printf("TEST %s: FAIL\n", test_name);
     } else {
@@ -85,10 +86,24 @@ int test_bad_lcd1(void)
     return status == 1;
 }
 
-int test_bad_cy43_init(void)
+int test_cy43_init_fail(void)
 {
     test_config.cyw43_arch_init_fail = true;
     return test_main() == 1;
+}
+
+int test_cy43_auth_errors(void)
+{
+    test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
+    if (test_main() != 0) {
+        return 1;
+    }
+
+    test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
+    if (test_main() != 1) {
+        return 1;
+    }
+    return 0;
 }
 
 int test_bad_udp_alloc(void)
@@ -211,11 +226,23 @@ int main(void)
 
     status |= run_test(test_ntp_drift, "NTP drift", false, NULL);
 
-    // static const char *test_bad_cy43_init_ref[] = {
-    //     "Wi-Fi: failed to initialise CYW43",
-    //     NULL,
-    // };
-    // run_test(test_bad_cy43_init, "cyw43_arch_init error", true, test_bad_cy43_init_ref);
+    static const char *test_cy43_init_fail_ref[] = {
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi init error",
+        NULL,
+    };
+    status |= run_test(test_cy43_init_fail, "cyw43_arch_init error", true, test_cy43_init_fail_ref);
+
+    static const char *test_cy43_auth_errors_ref[] = {
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP time OK",
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi auth error",
+        NULL,
+    };
+    status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", false, test_cy43_auth_errors_ref);
 
     // static const char *test_bad_udp_alloc_ref[] = {
     //     "Wi-Fi: connected to my-test-ssid",
