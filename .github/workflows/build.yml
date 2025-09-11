@@ -18,11 +18,21 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      - name: Create secrets.cmake
+      - name: Create secrets.cmake (non-Windows)
+        if: matrix.os != 'windows-latest'
         run: |
           rm -f secrets.cmake
           echo 'set(WIFI_SSID "my-test-ssid")' >> secrets.cmake
           echo 'set(WIFI_PASSWORD "my-test-password")' >> secrets.cmake
+
+      # Windows (PowerShell)
+      - name: Create secrets.cmake (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (Test-Path secrets.cmake) { Remove-Item secrets.cmake }
+          Add-Content secrets.cmake 'set(WIFI_SSID "my-test-ssid")'
+          Add-Content secrets.cmake 'set(WIFI_PASSWORD "my-test-password")'
+        shell: pwsh
 
       - name: Checkout Pico SDK
         uses: actions/checkout@v4
