@@ -185,7 +185,7 @@ bool clock_timer_callback(struct repeating_timer *t)
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
-#if !TEST_MODE
+#ifndef TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
                 lcd_update_screen(state->lcd_states[ii]);
@@ -220,6 +220,10 @@ bool clock_timer_callback(struct repeating_timer *t)
 
 #ifdef TEST_MODE
 int test_main(void)
+#define lcd_print_line(state, line_num, color, msg)                                                                    \
+    (void)line_num;                                                                                                    \
+    (void)color;                                                                                                       \
+    mock_printf("LCD: %s", msg)
 #else
 int main(void)
 #endif
@@ -324,9 +328,11 @@ int main(void)
     // the system clock drifts from NTP time
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 
+#ifndef TEST_MODE
     while (true) {
         sleep_ms(1000);
     }
+#endif
 
     disconnect_from_wifi();
     return 0;
