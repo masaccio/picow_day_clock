@@ -20,10 +20,9 @@ jobs:
 
       - name: Create secrets.cmake
         run: |
-          cat <<EOF > secrets.cmake
-          set(WIFI_SSID "my-test-ssid"")
-          set(WIFI_PASSWORD "my-test-password")
-          EOF
+          rm -f secrets.cmake
+          echo 'set(WIFI_SSID "my-test-ssid")' >> secrets.cmake
+          echo 'set(WIFI_PASSWORD "my-test-password")' >> secrets.cmake
 
       - name: Checkout Pico SDK
         uses: actions/checkout@v4
