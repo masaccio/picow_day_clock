@@ -9,6 +9,7 @@ typedef struct
 {
     int cyw43_auth_error_count;
     int cyw43_arch_wifi_connect_status;
+    int cyw43_auth_timeout_count;
     bool cyw43_arch_init_fail;
     bool udp_new_ip_type_fail;
     bool dns_lookup_fail;
