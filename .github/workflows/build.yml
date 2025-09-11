@@ -25,7 +25,6 @@ jobs:
           echo 'set(WIFI_SSID "my-test-ssid")' >> secrets.cmake
           echo 'set(WIFI_PASSWORD "my-test-password")' >> secrets.cmake
 
-      # Windows (PowerShell)
       - name: Create secrets.cmake (Windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -56,6 +55,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew update
+          brew uninstall cmake
           brew install cmake ninja llvm arm-none-eabi-gcc
           echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
           echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
@@ -70,7 +70,7 @@ jobs:
 
       # Build Pico target (cross compile)
       - name: Configure Pico build
-        run: cmake -B build/pico -S . -G Ninja -DPICO_BOARD=pico
+        run: cmake -B build/pico -S . -G Ninja
       - name: Build Pico target
         run: cmake --build build/pico --parallel
 
