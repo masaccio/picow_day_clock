@@ -80,12 +80,5 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           ninja -C build picow_day_clock
-          LLVM_PROFILE_FILE=build/tests_build/coverage.profraw build/tests_build/test_picow_day_clock
-          llvm-profdata merge \
-            -sparse build/tests_build/coverage.profraw \
-            -o build/tests_build/coverage.profdata
-          llvm-cov report \
-            build/tests_build/test_picow_day_clock \
-            --instr-profile=build/tests_build/coverage.profdata
-            --show-region-summary=false
-            --ignore-filename-regex=".*\.h"
+          cmake --build build --target run_tests
+          cmake --build build --target coverage

@@ -109,7 +109,7 @@ set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
 add_custom_target(run_tests
     DEPENDS test_picow_day_clock
-    COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock
+    COMMAND LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw ${TEST_BINARY_DIR}/test_picow_day_clock
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running native tests..."
 )
@@ -119,16 +119,16 @@ add_test(NAME picow_day_clock_test
 add_custom_target(coverage
     DEPENDS test_picow_day_clock
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-profdata merge 
-            -sparse ${TEST_BINARY_DIR}/default.profraw
-            -o ${TEST_BINARY_DIR}/default.profdata
+            -sparse ${TEST_BINARY_DIR}/coverage.profraw
+            -o ${TEST_BINARY_DIR}/coverage.profdata
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov report 
             ${TEST_BINARY_DIR}/test_picow_day_clock
-            --instr-profile=${TEST_BINARY_DIR}/default.profdata
+            --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --show-region-summary=false
             --ignore-filename-regex=".*\.h"
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov show
             ${TEST_BINARY_DIR}/test_picow_day_clock
-            --instr-profile=${TEST_BINARY_DIR}/default.profdata
+            --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --ignore-filename-regex=".*\.h"
             --format=html > ${TEST_BINARY_DIR}/coverage.html
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
