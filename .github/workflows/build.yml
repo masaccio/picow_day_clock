@@ -57,7 +57,6 @@ jobs:
           brew update
           brew uninstall cmake
           brew install cmake ninja llvm arm-none-eabi-gcc
-          brew install newlib
           echo "$(brew --prefix arm-none-eabi-gcc)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
           echo "PICO_TOOLCHAIN_PATH=$(brew --cellar arm-none-eabi-gcc)/$(brew list --versions arm-none-eabi-gcc | awk '{print $2}')"" >> $GITHUB_ENV
