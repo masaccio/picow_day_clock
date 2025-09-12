@@ -11,8 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # os: [macos-latest]
 
     steps:
       - name: Checkout project
@@ -57,8 +57,8 @@ jobs:
           brew update
           brew uninstall cmake
           brew install cmake ninja llvm arm-none-eabi-gcc
-          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
+          echo "PICO_TOOLCHAIN_PATH=$(brew --prefix arm-none-eabi-gcc)" >> $GITHUB_ENV
+          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
 
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -68,19 +68,24 @@ jobs:
           choco install gcc-arm-embedded --version=10.3.1 -y
         shell: powershell
 
-      # Build Pico target (cross compile)
-      - name: Configure Pico build
-        run: cmake -B build/pico -S . -G Ninja
+      - name: Configure CMake
+        run: cmake -DCMAKE_BUILD_TYPE:STRING=Debug \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
+                   --no-warn-unused-cli -B build -G Ninja
+
       - name: Build Pico target
-        run: cmake --build build/pico --parallel
+        run: ninja -C build picow_day_clock
 
-      # Build native test target
-      - name: Configure native test build
-        run: cmake -B build/native -S . -DBUILD_TESTS=ON
-      - name: Build native tests
-        run: cmake --build build/native --parallel
-
-      # Run native tests (skip on Windows)
-      - name: Run tests
+      - name: Build native target and run tests
         if: matrix.os != 'windows-latest'
-        run: ctest --test-dir build/native --output-on-failure
+        run: |
+          ninja -C build picow_day_clock
+          LLVM_PROFILE_FILE=build/tests_build/coverage.profraw build/tests_build/test_picow_day_clock
+          llvm-profdata merge \
+            -sparse build/tests_build/coverage.profraw \
+            -o build/tests_build/coverage.profdata
+          llvm-cov report \
+            build/tests_build/test_picow_day_clock \
+            --instr-profile=build/tests_build/coverage.profdata
+            --show-region-summary=false
+            --ignore-filename-regex=".*\.h"
