@@ -57,8 +57,16 @@ jobs:
           brew update
           brew uninstall cmake
           brew install cmake ninja llvm arm-none-eabi-gcc
-          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix arm-none-eabi-gcc)/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
+
+      - name: Verify compilers
+        if: matrix.os == 'macos-latest'
+        run: |
+          arm-none-eabi-gcc --version
+          llvm-cov --version
+          which arm-none-eabi-gcc
+          which llvm-cov
 
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
