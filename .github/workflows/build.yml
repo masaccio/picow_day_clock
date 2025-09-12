@@ -69,9 +69,10 @@ jobs:
         shell: powershell
 
       - name: Configure CMake
-        run: cmake -DCMAKE_BUILD_TYPE:STRING=Debug \
-                   -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
-                   --no-warn-unused-cli -B build -G Ninja
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -no-warn-unused-cli -B build -G Ninja
 
       - name: Build Pico target
         run: ninja -C build picow_day_clock
