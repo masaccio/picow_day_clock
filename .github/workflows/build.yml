@@ -39,6 +39,7 @@ jobs:
           repository: raspberrypi/pico-sdk
           path: pico-sdk
           ref: master
+          submodules: recursive
 
       - name: Set environment vars
         run: |
@@ -85,7 +86,7 @@ jobs:
                 -B build -G Ninja
 
       - name: Build Pico target
-        run: ninja -C build picow_day_clock
+        run: ninja -v -C build picow_day_clock
 
       - name: Build native target and run tests
         if: matrix.os != 'windows-latest'
