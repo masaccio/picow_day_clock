@@ -107,7 +107,7 @@ ExternalProject_Add(
 
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
-add_custom_target(run_tests ALL
+add_custom_target(run_tests
     DEPENDS test_picow_day_clock
     COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
@@ -116,7 +116,7 @@ add_custom_target(run_tests ALL
 add_test(NAME picow_day_clock_test
          COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
-add_custom_target(coverage ALL
+add_custom_target(coverage
     DEPENDS test_picow_day_clock
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-profdata merge 
             -sparse ${TEST_BINARY_DIR}/default.profraw
