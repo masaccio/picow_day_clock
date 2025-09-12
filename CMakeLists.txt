@@ -109,7 +109,9 @@ set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
 add_custom_target(run_tests
     DEPENDS test_picow_day_clock
-    COMMAND LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw ${TEST_BINARY_DIR}/test_picow_day_clock
+    COMMAND ${CMAKE_COMMAND} -E env
+            LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
+            ${TEST_BINARY_DIR}/test_picow_day_clock
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running native tests..."
 )
