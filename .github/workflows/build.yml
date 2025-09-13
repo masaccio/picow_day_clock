@@ -57,18 +57,9 @@ jobs:
         run: |
           brew update
           brew uninstall cmake
-          brew install picotool cmake ninja llvm arm-none-eabi-gcc
-          echo "$(brew --prefix arm-none-eabi-gcc)/bin" >> $GITHUB_PATH
+          brew install picotool cmake ninja llvm gcc-arm-embedded
+          echo "$(brew --prefix gcc-arm-embedded)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
-          echo "PICO_TOOLCHAIN_PATH=$(brew --cellar arm-none-eabi-gcc)/$(brew list --versions arm-none-eabi-gcc | cut -d' ' -f2)" >> $GITHUB_ENV
-
-      - name: Verify compilers
-        if: matrix.os == 'macos-latest'
-        run: |
-          arm-none-eabi-gcc --version
-          llvm-cov --version
-          which arm-none-eabi-gcc
-          which llvm-cov
 
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -82,6 +73,7 @@ jobs:
         run: |
           cmake -DCMAKE_BUILD_TYPE=Debug \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DPICO_SDK_PATH="$GITHUB_WORKSPACE/pico-sdk" \
                 --no-warn-unused-cli \
                 -B build -G Ninja
 
@@ -91,6 +83,5 @@ jobs:
       - name: Build native target and run tests
         if: matrix.os != 'windows-latest'
         run: |
-          ninja -C build picow_day_clock
           cmake --build build --target run_tests
           cmake --build build --target coverage
