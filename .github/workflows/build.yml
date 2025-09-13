@@ -83,5 +83,6 @@ jobs:
       - name: Build native target and run tests
         if: matrix.os != 'windows-latest'
         run: |
+          ninja -C build test_picow_day_clock
           cmake --build build --target run_tests
           cmake --build build --target coverage
