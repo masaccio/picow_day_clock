@@ -1,11 +1,4 @@
-# ====================================================================================
-# This may vary according to system configuration
-# ====================================================================================
-set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
-
-# ====================================================================================
-# Generated options -- do not change
-# ====================================================================================
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
@@ -24,6 +17,9 @@ set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
+# ====================================================================================
+
+set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
 
 # ====================================================================================
 # Pico target build
