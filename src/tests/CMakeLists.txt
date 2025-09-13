@@ -27,7 +27,13 @@ set(NON_COVERED_CLOCK_SRC_FILES
     ${CMAKE_SOURCE_DIR}/../../src/lcd.c
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
-set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
+if(APPLE)
+    set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
+elseif(UNIX)
+    set(COVERAGE_FLAGS "--coverage -O0 -g")
+else()
+    set(COVERAGE_FLAGS "")
+endif()
 set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
     PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS}"
 )
