@@ -71,11 +71,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -DCMAKE_BUILD_TYPE=Debug \
-                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                -DPICO_SDK_PATH="$GITHUB_WORKSPACE/pico-sdk" \
-                --no-warn-unused-cli \
-                -B build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPICO_SDK_PATH="$GITHUB_WORKSPACE/pico-sdk" --no-warn-unused-cli -B build -G Ninja
 
       - name: Build Pico target
         run: ninja -v -C build picow_day_clock
