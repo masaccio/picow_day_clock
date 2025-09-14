@@ -42,7 +42,7 @@ jobs:
 
       - name: Set environment vars
         run: |
-          echo "PICO_SDK_PATH=pico-sdk >> $GITHUB_ENV
+          echo "PICO_SDK_PATH=pico-sdk" >> $GITHUB_ENV
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
