@@ -133,11 +133,12 @@ add_custom_target(coverage_llvm
     COMMENT "Running coverage analysis..."
 )
 
+set(LCOV_TRACEFILE "${TEST_BINARY_DIR}/coverage.info")
 add_custom_target(coverage_gcc
     DEPENDS test_picow_day_clock
-    COMMAND lcov --capture --branch-coverage --directory ${TEST_BINARY_DIR} --output-file ${TEST_BINARY_DIR}/coverage.info
-    COMMAND lcov --remove ${TEST_BINARY_DIR}/coverage.info --output-file ${TEST_BINARY_DIR}/coverage.info
-    COMMAND lcov --list ${TEST_BINARY_DIR}/coverage.info
+    COMMAND lcov --capture --branch-coverage --directory ${TEST_BINARY_DIR} --output-file ${LCOV_TRACEFILE}
+    COMMAND lcov --remove ${LCOV_TRACEFILE} --output-file ${LCOV_TRACEFILE}
+    COMMAND lcov --list ${LCOV_TRACEFILE}
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running coverage analysis..."
 )
