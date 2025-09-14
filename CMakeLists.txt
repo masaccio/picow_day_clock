@@ -107,7 +107,7 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     add_custom_target(run_tests
         DEPENDS test_picow_day_clock
         COMMAND echo testing
-        COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock.exe
+        COMMAND cdb.exe -o ${TEST_BINARY_DIR}/test_picow_day_clock.exe
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running native tests..."
     )

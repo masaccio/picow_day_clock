@@ -18,6 +18,7 @@ elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
 elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     # MSVC does not support compiler-driven coverage
     set(COVERAGE_FLAGS "")
+    set(CMAKE_C_FLAGS_DEBUG "/Zi /Od") 
 else()
     message(FATAL_ERROR "Unsupported test host ${CMAKE_HOST_SYSTEM_NAME}")
 endif()
