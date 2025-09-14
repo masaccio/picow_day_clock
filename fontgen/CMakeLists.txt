@@ -17,6 +17,10 @@ set(CLOCK_C_SRC ${FONT_OUTPUT_DIR}/${CLOCK_C_NAME}.c)
 if(WIN32)
     set(PYTHON_EXECUTABLE ${VENV_DIR}/Scripts/python.exe)
     set(PIL_PACKAGE_DIR ${VENV_DIR}/Lib/site-packages/PIL)
+    message(STATUS "********* Building on Windows")
+    message(STATUS "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}")
+    message(STATUS "PIL_PACKAGE_DIR=${PIL_PACKAGE_DIR}")
+    message(STATUS "*********")
 else()
     set(PYTHON_EXECUTABLE ${VENV_DIR}/bin/python3)
     execute_process(
@@ -25,6 +29,10 @@ else()
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     set(PIL_PACKAGE_DIR ${VENV_DIR}/lib/python${PYTHON_VERSION}/site-packages/PIL)
+    message(STATUS "********* Building on macOS/Linux")
+    message(STATUS "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}")
+    message(STATUS "PIL_PACKAGE_DIR=${PIL_PACKAGE_DIR}")
+    message(STATUS "*********")
 endif()
 
 # Step 1: Create Python virtual environment
