@@ -114,7 +114,7 @@ add_custom_target(run_tests
 add_test(NAME picow_day_clock_test
          COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
-add_custom_target(coverage
+add_custom_target(coverage_llvm
     DEPENDS test_picow_day_clock
     COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-profdata merge 
             -sparse ${TEST_BINARY_DIR}/coverage.profraw
@@ -129,6 +129,15 @@ add_custom_target(coverage
             --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --ignore-filename-regex=".*\.h"
             --format=html > ${TEST_BINARY_DIR}/coverage.html
+    WORKING_DIRECTORY ${TEST_BINARY_DIR}
+    COMMENT "Running coverage analysis..."
+)
+
+add_custom_target(coverage_gcc
+    DEPENDS test_picow_day_clock
+    COMMAND lcov --capture --directory ${TEST_BINARY_DIR} --output-file ${TEST_BINARY_DIR}/coverage.info
+    COMMAND lcov --remove ${TEST_BINARY_DIR}/coverage.info '/usr/*' --output-file ${TEST_BINARY_DIR}/coverage.info
+    COMMAND lcov --list ${TEST_BINARY_DIR}/coverage.info
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running coverage analysis..."
 )
