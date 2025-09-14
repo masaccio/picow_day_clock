@@ -56,4 +56,4 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     TEST_MODE=1
 )
 
-target_link_libraries(test_picow_day_clock PRIVATE -fprofile-instr-generate -fcoverage-mapping)
+target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})
