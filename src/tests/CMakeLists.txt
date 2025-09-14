@@ -11,12 +11,15 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 
-if(APPLE)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
-elseif(UNIX)
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     set(COVERAGE_FLAGS "--coverage -O0 -g")
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    # MSVC does not support compiler-driven coverage
+    set(COVERAGE_FLAGS "")
 else()
-    message(FATAL_ERROR "Tests can only be built on macOS or UNIX-like systems.")
+    message(FATAL_ERROR "Unsupported test host ${CMAKE_HOST_SYSTEM_NAME}")
 endif()
 
 file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
@@ -45,8 +48,9 @@ add_executable(test_picow_day_clock
     ${TEST_SRC_FILES}
 )
 
-# We can be even more verbose than the Pico SDK
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
 target_compile_options(test_picow_day_clock PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
 
 target_compile_definitions(test_picow_day_clock PRIVATE
     WIFI_SSID="my-test-ssid"
@@ -56,4 +60,6 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     TEST_MODE=1
 )
 
-target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})
+if(COVERAGE_FLAGS)
+    target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})
+endif()
