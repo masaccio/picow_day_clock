@@ -42,7 +42,7 @@ jobs:
 
       - name: Set environment vars
         run: |
-          echo "PICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk" >> $GITHUB_ENV
+          echo "PICO_SDK_PATH=pico-sdk >> $GITHUB_ENV
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -70,11 +70,12 @@ jobs:
         shell: powershell
 
       - name: Configure CMake
-        run: |
-          cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPICO_SDK_PATH="$GITHUB_WORKSPACE/pico-sdk" --no-warn-unused-cli -B build -G Ninja
+        run: cmake -DCMAKE_BUILD_TYPE=Debug -DPICO_SDK_PATH=pico-sdk -B build -G Ninja
 
       - name: Build Pico target
-        run: ninja -v -C build picow_day_clock
+        run: |
+          ninja -C build generate_fonts
+          ninja -v -C build picow_day_clock
 
       - name: Build native target and run tests
         if: matrix.os != 'windows-latest'
