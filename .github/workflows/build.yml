@@ -73,19 +73,19 @@ jobs:
 
       - name: Build Pico target
         run: |
-          ninja -C build generate_fonts
+          ninja -v -C build generate_fonts
           ninja -v -C build picow_day_clock
 
       - name: Build native target and run tests (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          ninja -C build test_picow_day_clock
+          ninja -v -C build test_picow_day_clock
           cmake --build build --target run_tests
           cmake --build build --target coverage_llvm
 
       - name: Build native target and run tests (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          ninja -C build test_picow_day_clock
+          ninja -v -C build test_picow_day_clock
           cmake --build build --target run_tests
           cmake --build build --target coverage_gcc      
