@@ -25,6 +25,7 @@ char **log_buffer;
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
+    printf("run_test=%s\n", test_name);
     log_buffer = calloc(sizeof(char *), LOG_BUFFER_SIZE);
 
     // Always init the test config
@@ -235,6 +236,7 @@ int test_ntp_drift(void)
 int main(void)
 {
     int status = 0;
+    printf("Hello testing!\n");
 
     static const char *test_bad_ldc1_ref[] = {
         "LCD 1: failed to initialise",
