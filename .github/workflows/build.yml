@@ -48,8 +48,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc g++ \
-            gcc-arm-none-eabi libnewlib-arm-none-eabi
+          sudo apt-get install -y cmake ninja-build lcov gcc gcc-arm-none-eabi libnewlib-arm-none-eabi
 
       # macOS runners have Homebrew pre-installed with CMake and Ninja
       - name: Install dependencies (macOS)
