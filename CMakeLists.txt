@@ -103,14 +103,24 @@ ExternalProject_Add(
 
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
-add_custom_target(run_tests
-    DEPENDS test_picow_day_clock
-    COMMAND ${CMAKE_COMMAND} -E env
-            LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
-            ${TEST_BINARY_DIR}/test_picow_day_clock
-    WORKING_DIRECTORY ${TEST_BINARY_DIR}
-    COMMENT "Running native tests..."
-)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    add_custom_target(run_tests
+        DEPENDS test_picow_day_clock
+        COMMAND echo testing
+        COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock.exe
+        WORKING_DIRECTORY ${TEST_BINARY_DIR}
+        COMMENT "Running native tests..."
+    )
+else()
+    add_custom_target(run_tests
+        COMMAND ${CMAKE_COMMAND} -E env
+                LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
+                ${TEST_BINARY_DIR}/test_picow_day_clock
+        WORKING_DIRECTORY ${TEST_BINARY_DIR}
+        COMMENT "Running native tests..."
+    )
+endif()
+
 add_test(NAME picow_day_clock_test
          COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
