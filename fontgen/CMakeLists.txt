@@ -16,8 +16,15 @@ set(CLOCK_C_SRC ${FONT_OUTPUT_DIR}/${CLOCK_C_NAME}.c)
 
 if(WIN32)
     set(PYTHON_EXECUTABLE ${VENV_DIR}/Scripts/python.exe)
+    set(PIL_PACKAGE_DIR ${VENV_DIR}/Lib/site-packages/PIL)
 else()
     set(PYTHON_EXECUTABLE ${VENV_DIR}/bin/python3)
+    execute_process(
+        COMMAND python3 -c "import sys;v=sys.version_info;sys.stdout.write(f'{v.major}.{v.minor}')"
+        OUTPUT_VARIABLE PYTHON_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(PIL_PACKAGE_DIR ${VENV_DIR}/lib/python${PYTHON_VERSION}/site-packages/PIL)
 endif()
 
 # Step 1: Create Python virtual environment
@@ -29,11 +36,10 @@ add_custom_command(
 
 # Step 2: Install Pillow inside the venv
 add_custom_command(
-    OUTPUT ${VENV_DIR}/.pip_installed
+    OUTPUT ${PIL_PACKAGE_DIR}
     DEPENDS ${PYTHON_EXECUTABLE}
     COMMAND ${PYTHON_EXECUTABLE} -m pip install --upgrade pip
     COMMAND ${PYTHON_EXECUTABLE} -m pip install Pillow
-    COMMAND ${CMAKE_COMMAND} -E touch ${VENV_DIR}/.pip_installed
     COMMENT "Installing Pillow in virtual environment"
 )
 
@@ -43,7 +49,7 @@ set(GENERATED_FONT_SRC_FILES "")
 list(APPEND GENERATED_FONT_SRC_FILES ${TEXT_C_SRC})
 add_custom_command(
     OUTPUT ${TEXT_C_SRC}
-    DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${VENV_DIR}/.pip_installed
+    DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${PIL_PACKAGE_DIR}
     COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT} --c-name=${TEXT_C_NAME} --height=${TEXT_HEIGHT} ${TEXT_TTF} ${TEXT_C_SRC}
     COMMENT "Generating font file ${TEXT_C_SRC}"
 )
@@ -51,7 +57,7 @@ add_custom_command(
 list(APPEND GENERATED_FONT_SRC_FILES ${CLOCK_C_SRC})
 add_custom_command(
     OUTPUT ${CLOCK_C_SRC}
-    DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${VENV_DIR}/.pip_installed
+    DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${PIL_PACKAGE_DIR}
     COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT} --clock --c-name=${CLOCK_C_NAME} --height=${LCD_HEIGHT} --width=${LCD_WIDTH} ${CLOCK_TTF} ${CLOCK_C_SRC}
     COMMENT "Generating font file ${CLOCK_C_SRC}"
 )
