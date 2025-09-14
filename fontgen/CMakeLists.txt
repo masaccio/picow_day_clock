@@ -33,9 +33,9 @@ add_custom_command(
 )
 
 # Step 3: Generate font C files for each size
-set(GENERATED_FONT_FILES "")
+set(GENERATED_FONT_SRC_FILES "")
 
-list(APPEND GENERATED_FONT_FILES ${TEXT_C_SRC})
+list(APPEND GENERATED_FONT_SRC_FILES ${TEXT_C_SRC})
 add_custom_command(
     OUTPUT ${TEXT_C_SRC}
     DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${VENV_DIR}/.pip_installed
@@ -43,7 +43,7 @@ add_custom_command(
     COMMENT "Generating font file ${TEXT_C_SRC}"
 )
 
-list(APPEND GENERATED_FONT_FILES ${CLOCK_C_SRC})
+list(APPEND GENERATED_FONT_SRC_FILES ${CLOCK_C_SRC})
 add_custom_command(
     OUTPUT ${CLOCK_C_SRC}
     DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${VENV_DIR}/.pip_installed
@@ -53,8 +53,8 @@ add_custom_command(
 
 # Step 4: Create a custom target to group all font generation
 add_custom_target(generate_fonts ALL
-    DEPENDS ${GENERATED_FONT_FILES}
+    DEPENDS ${GENERATED_FONT_SRC_FILES}
     COMMENT "Generating all fonts from ${FONT_FILE_PATH}"
 )
 
-set(GENERATED_FONTS ${GENERATED_FONT_FILES} PARENT_SCOPE)
+set(GENERATED_FONT_SRC_FILES ${GENERATED_FONT_SRC_FILES} PARENT_SCOPE)

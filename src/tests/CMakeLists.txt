@@ -11,14 +11,16 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 
-if(APPLE OR UNIX)
-    set(CMAKE_C_COMPILER "/usr/bin/cc" CACHE STRING "" FORCE)
+if(APPLE)
+    set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
+elseif(UNIX)
+    set(COVERAGE_FLAGS "--coverage -O0 -g")
 else()
     message(FATAL_ERROR "Tests can only be built on macOS or UNIX-like systems.")
 endif()
 
 file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
-file(GLOB GENERATED_FONTS ${CMAKE_SOURCE_DIR}/../../generated/*.c)
+file(GLOB GENERATED_FONT_SRC_FILES ${CMAKE_SOURCE_DIR}/../../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
@@ -27,13 +29,6 @@ set(NON_COVERED_CLOCK_SRC_FILES
     ${CMAKE_SOURCE_DIR}/../../src/lcd.c
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
-if(APPLE)
-    set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
-elseif(UNIX)
-    set(COVERAGE_FLAGS "--coverage -O0 -g")
-else()
-    set(COVERAGE_FLAGS "")
-endif()
 set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
     PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS}"
 )
@@ -46,7 +41,7 @@ include_directories(
 add_executable(test_picow_day_clock 
     ${COVERED_CLOCK_SRC_FILES}
     ${NON_COVERED_CLOCK_SRC_FILES}
-    ${GENERATED_FONTS}
+    ${GENERATED_FONT_SRC_FILES}
     ${TEST_SRC_FILES}
 )
 

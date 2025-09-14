@@ -45,7 +45,7 @@ pico_sdk_init()
 set(CMAKE_BUILD_TYPE Debug)
 
 add_subdirectory(fontgen)
-set_source_files_properties(${GENERATED_FONTS} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${GENERATED_FONT_SRC_FILES} PROPERTIES GENERATED TRUE)
 
 include_directories(
     src
@@ -57,7 +57,7 @@ file(GLOB CLOCK_SRC_FILES src/*.c)
 
 add_executable(picow_day_clock 
     ${CLOCK_SRC_FILES}
-    ${GENERATED_FONTS}
+    ${GENERATED_FONT_SRC_FILES}
     )
 
 add_dependencies(picow_day_clock generate_fonts)
