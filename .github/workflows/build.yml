@@ -60,12 +60,10 @@ jobs:
           echo "$(brew --prefix gcc-arm-embedded)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
 
+      # Windows runners have Homebrew pre-installed with CMake and Ninja
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          # choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          # choco install ninja -y
-          choco install gcc-arm-embedded --version=10.3.1 -y
+        run: choco install gcc-arm-embedded --version=10.3.1 -y
         shell: powershell
 
       - name: Configure CMake
