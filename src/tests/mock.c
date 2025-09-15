@@ -294,9 +294,33 @@ time_t mock_time(time_t *tloc)
     return (time_t)(mock_system_time_ms / 1000);
 }
 
-int mock_settimeofday(const struct timeval *tp, const struct timezone *tzp)
+int mock_settimeofday(const struct timeval *tp, void *tzp)
 {
     (void)tzp; // Implementation has ignores timezones
     mock_system_time_ms = tp->tv_sec * 1000 + (tp->tv_usec * 1000);
     return 0;
 }
+
+#ifdef _WIN32
+#include <windows.h>
+
+int gettimeofday(struct timeval *tp, void *tzp)
+{
+    FILETIME ft;
+    unsigned __int64 tmpres = 0;
+    GetSystemTimeAsFileTime(&ft);
+
+    tmpres |= ft.dwHighDateTime;
+    tmpres <<= 32;
+    tmpres |= ft.dwLowDateTime;
+
+    // Convert to microseconds since Unix epoch
+    tmpres -= 116444736000000000ULL;
+    tmpres /= 10;
+
+    tp->tv_sec = (long)(tmpres / 1000000UL);
+    tp->tv_usec = (long)(tmpres % 1000000UL);
+
+    return 0;
+}
+#endif

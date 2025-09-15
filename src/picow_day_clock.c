@@ -14,8 +14,18 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
+
+#if defined(_WIN32)
+struct timeval
+{
+    long tv_sec;  /* seconds */
+    long tv_usec; /* microseconds */
+};
+extern int gettimeofday(struct timeval *tp, void *tzp);
+#else
+#include <sys/time.h>
+#endif
 
 // Pico SDK
 #ifndef TEST_MODE

@@ -7,8 +7,18 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
+
+#if defined(_WIN32)
+struct timeval
+{
+    long tv_sec;  /* seconds */
+    long tv_usec; /* microseconds */
+};
+extern int gettimeofday(struct timeval *tp, void *tzp);
+#else
+#include <sys/time.h>
+#endif
 
 // Define system data types
 typedef unsigned int uint;
@@ -72,7 +82,7 @@ extern unsigned long long mock_system_time_ms;
 extern time_t mock_time(time_t *);
 
 #define settimeofday(tp, tzp) mock_settimeofday(tp, tzp)
-int mock_settimeofday(const struct timeval *, const struct timezone *);
+int mock_settimeofday(const struct timeval *, void *);
 
 // Mock definitions for SDK constants
 enum
