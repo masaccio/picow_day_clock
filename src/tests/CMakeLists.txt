@@ -46,7 +46,7 @@ add_executable(test_picow_day_clock
     ${TEST_SRC_FILES}
 )
 
-target_compile_options(test_picow_day_clock PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(test_picow_day_clock PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-\#pragma-messages)
 
 target_compile_definitions(test_picow_day_clock PRIVATE
     WIFI_SSID="my-test-ssid"
