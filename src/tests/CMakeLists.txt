@@ -56,4 +56,10 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     TEST_MODE=1
 )
 
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+target_compile_definitions(test_picow_day_clock PRIVATE
+    _CRT_SECURE_NO_WARNINGS     # Ignore Windows secure CRT deprecation warnings
+)
+endif()
+
 target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})
