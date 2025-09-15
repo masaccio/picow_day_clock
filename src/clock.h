@@ -35,6 +35,14 @@ extern int test_printf(const char *format, ...);
 #define LCD_GPIO_CLK 10
 #define LCD_GPIO_MOSI 11
 
+#ifdef _WIN32
+struct timeval
+{
+    uint32_t tv_sec;
+    uint32_t tv_usec;
+};
+#endif
+
 typedef struct clock_state_t
 { // NTP state
     ntp_state_t *ntp_state;
