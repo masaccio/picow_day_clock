@@ -62,6 +62,8 @@ typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
                             short unsigned int port);
 
+#include "clock.h" // For struct timeval
+
 // Standard library functions
 #define printf(...) mock_printf(__VA_ARGS__)
 extern int mock_printf(const char *format, ...);
