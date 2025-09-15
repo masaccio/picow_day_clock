@@ -19,7 +19,7 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
+# set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
 
 # ====================================================================================
 # Pico target build
@@ -126,15 +126,15 @@ add_test(NAME picow_day_clock_test
 
 add_custom_target(coverage_llvm
     DEPENDS test_picow_day_clock
-    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-profdata merge 
+    COMMAND llvm-profdata merge 
             -sparse ${TEST_BINARY_DIR}/coverage.profraw
             -o ${TEST_BINARY_DIR}/coverage.profdata
-    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov report 
+    COMMAND llvm-cov report 
             ${TEST_BINARY_DIR}/test_picow_day_clock
             --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --show-region-summary=false
             --ignore-filename-regex=".*\.h"
-    COMMAND ${LLVM_TOOLCHAIN_PATH}/llvm-cov show
+    COMMAND llvm-cov show
             ${TEST_BINARY_DIR}/test_picow_day_clock
             --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --ignore-filename-regex=".*\.h"
