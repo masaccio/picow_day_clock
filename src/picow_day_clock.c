@@ -41,13 +41,13 @@ typedef struct
 } lcd_pin_config_t;
 
 static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
-    /* LCD 1 */ {.DC = 6, .CS = 7},
-    /* LCD 2 */ {.DC = 8, .CS = 9},
-    /* LCD 3 */ {.DC = 2, .CS = 3},
-    /* LCD 4 */ {.DC = 4, .CS = 5},
-    /* LCD 5 */ {.DC = 14, .CS = 15},
-    /* LCD 6 */ {.DC = 16, .CS = 17},
-    /* LCD 7 */ {.DC = 18, .CS = 19},
+    /* LCD 1 */ {.DC = LCD1_GPIO_DC, .CS = LCD1_GPIO_CS},
+    /* LCD 2 */ {.DC = LCD2_GPIO_DC, .CS = LCD2_GPIO_CS},
+    /* LCD 3 */ {.DC = LCD3_GPIO_DC, .CS = LCD3_GPIO_CS},
+    /* LCD 4 */ {.DC = LCD4_GPIO_DC, .CS = LCD4_GPIO_CS},
+    /* LCD 5 */ {.DC = LCD5_GPIO_DC, .CS = LCD5_GPIO_CS},
+    /* LCD 6 */ {.DC = LCD6_GPIO_DC, .CS = LCD6_GPIO_CS},
+    /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
 };
 
 static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
@@ -235,15 +235,14 @@ int main(void)
         printf("Failed to allocate clock state\r\n");
         return 1;
     }
-
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
         bool reset = (ii == 0) ? true : false;
-        state->lcd_states[ii] = lcd_init(/* RST  */ 12,
+        state->lcd_states[ii] = lcd_init(/* RST  */ LCD_GPIO_RST,
                                          /* DC   */ lcd_pin_config[ii].DC,
-                                         /* BL   */ 13,
+                                         /* BL   */ LCD_GPIO_BL,
                                          /* CS   */ lcd_pin_config[ii].CS,
-                                         /* CLK  */ 10,
-                                         /* MOSI */ 11, reset);
+                                         /* CLK  */ LCD_GPIO_CLK,
+                                         /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
             printf("LCD %d: failed to initialise\r\n", ii + 1);
             return 1;

@@ -16,9 +16,27 @@ extern int test_printf(const char *format, ...);
 #include "lcd.h"
 #include "ntp.h"
 
+#define LCD1_GPIO_DC 6
+#define LCD1_GPIO_CS 7
+#define LCD2_GPIO_DC 8
+#define LCD2_GPIO_CS 9
+#define LCD3_GPIO_DC 2
+#define LCD3_GPIO_CS 3
+#define LCD4_GPIO_DC 4
+#define LCD4_GPIO_CS 5
+#define LCD5_GPIO_DC 14
+#define LCD5_GPIO_CS 15
+#define LCD6_GPIO_DC 16
+#define LCD6_GPIO_CS 17
+#define LCD7_GPIO_DC 18
+#define LCD7_GPIO_CS 19
+#define LCD_GPIO_RST 12
+#define LCD_GPIO_BL 13
+#define LCD_GPIO_CLK 10
+#define LCD_GPIO_MOSI 11
+
 typedef struct clock_state_t
-{
-    // NTP state
+{ // NTP state
     ntp_state_t *ntp_state;
     time_t ntp_time;
     time_t ntp_last_sync;
