@@ -62,8 +62,6 @@ typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
                             short unsigned int port);
 
-#include "clock.h" // For struct timeval
-
 // Standard library functions
 #define printf(...) mock_printf(__VA_ARGS__)
 extern int mock_printf(const char *format, ...);
@@ -77,6 +75,9 @@ extern unsigned long long mock_system_time_ms;
 extern time_t mock_time(time_t *);
 
 #define settimeofday(tp, tzp) mock_settimeofday(tp, tzp)
+#ifdef _WIN32
+struct timeval;
+#endif
 int mock_settimeofday(const struct timeval *, void *);
 
 // Mock definitions for SDK constants
