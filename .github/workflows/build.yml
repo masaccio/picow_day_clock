@@ -48,7 +48,8 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build lcov gcc gcc-arm-none-eabi libnewlib-arm-none-eabi
+          sudo apt-get install -y cmake ninja-build lcov llvm gcc 
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
 
       # macOS runners have Homebrew pre-installed with CMake and Ninja
       - name: Install dependencies (macOS)
@@ -86,7 +87,7 @@ jobs:
         run: |
           ninja -v -C build test_picow_day_clock
           cmake --build build --target run_tests
-          cmake --build build --target coverage_gcc
+          cmake --build build --target coverage_llvm
 
       - name: Build native target and run tests (Windows)
         if: matrix.os == 'windows-latest'
