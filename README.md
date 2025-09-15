@@ -35,7 +35,7 @@ The pinout for the LCD is defined in `clock.h` using a series of C macros `LCD1_
 | Debug Probe TX          | GP1       | 2   | XXXXX | 39  | VSYS 5V   |                         |
 | Debug Probe GND         | GND       | 3   | XXXXX | 38  | GND       | LCD GND                 |
 | LCD 3 data/command (DC) | GP2       | 4   | XXXXX | 37  | 3V3 En    |                         |
-| LCD 3 chip select (CS)  | GP3       | 5   | XXXXX | 36  | 3V3 Out   | LCD VCC                 |
+| LCD 3 chip select (CS)  | GP3       | 5   | XXXXX | 36  | 3V3 Out   | DollaTek VIN            |
 | LCD 4 data/command (DC) | GP4       | 6   | XXXXX | 35  | ADC VRef  |                         |
 | LCD 4 chip select (CS)  | GP5       | 7   | XXXXX | 34  | GP28 A2   |                         |
 |                         | GND       | 8   | XXXXX | 33  | ADC Gnd   |                         |
@@ -52,32 +52,15 @@ The pinout for the LCD is defined in `clock.h` using a series of C macros `LCD1_
 | LCD 5 data/command (DC) | GP14      | 19  | XXXXX | 22  | GP17      | LCD 6 chip select (CS)  |
 | LCD 5 chip select (CS)  | GP15      | 20  | XXXXX | 21  | GP16      | LCD 6 data/command (DC) |
 
-## LCD connections
+## Electrical Design
 
-| Pico    | LCD 1 | LCD 2 | LCD 3 | LCD 4 | LCD 5 | LCD 6 | LCD 7 |
-|---------|-------|-------|-------|-------|-------|-------|-------|
-| 3V3 Out | VCC   | VCC   | VCC   | VCC   | VCC   | VCC   | VCC   |
-| GND     | GND   | GND   | GND   | GND   | GND   | GND   | GND   |
-| GP11    | DIN   | DIN   | DIN   | DIN   | DIN   | DIN   | DIN   |
-| GP10    | CLK   | CLK   | CLK   | CLK   | CLK   | CLK   | CLK   |
-| GP2     |       |       | DC    |       |       |       |       |
-| GP3     |       |       | CS    |       |       |       |       |
-| GP4     |       |       |       | DC    |       |       |       |
-| GP5     |       |       |       | CS    |       |       |       |
-| GP6     | DC    |       |       |       |       |       |       |
-| GP7     | CS    |       |       |       |       |       |       |
-| GP8     |       | DC    |       |       |       |       |       |
-| GP9     |       | CS    |       |       |       |       |       |
-| GP12    | RST   | RST   | RST   | RST   | RST   | RST   | RST   |
-| GP13    | BL    | BL    | BL    | BL    | BL    | BL    | BL    |
-| GP14    |       |       |       |       | DC    |       |       |
-| GP15    |       |       |       |       | CS    |       |       |
-| GP16    |       |       |       |       |       | DC    |       |
-| GP17    |       |       |       |       |       | CS    |       |
-| GP18    |       |       |       |       |       |       | DC    |
-| GP19    |       |       |       |       |       |       | CS    |
+The LCD module expects a 3.3V supply and the [datasheet for the Waveshare 1.47inch LCD](https://files.waveshare.com/upload/9/99/1.47inch_LCD_Datasheet.pdf) indicates that the backlight draws 60-90mA. All the LCDs can therefore be driven by a single voltage regulator such as the DollaTek 1117:
 
-The [datasheet for the Waveshare 1.47inch LCD](https://files.waveshare.com/upload/9/99/1.47inch_LCD_Datasheet.pdf) indicates that the backlight draws 60-90mA which is too much for the Pico to drive across all LCDs.
+* VIN: 5V VSYS from the USB power supply shared with the Pico
+* VOUT: LCD VCC, shared across all LCD modules
+* GND: any GND pin on the Pico
+
+The BL backlight pin of the LCD module is not the actual LCD backlight; it is a control pin to the LCD module's TXB0108PWR level shifter so can also be shared across all LCDs and, like the other control signals, driven directly from the Pico.
 
 ## TODO List
 
