@@ -224,7 +224,7 @@ void *mock_calloc(size_t num, size_t size)
     static unsigned int calloc_counter = 0;
     if (calloc_fail_at != 0) {
         calloc_counter++;
-        if (calloc_counter > calloc_fail_at) {
+        if (calloc_counter >= calloc_fail_at) {
             return NULL;
         }
     }
@@ -236,11 +236,22 @@ static udp_recv_fn udp_recv_callback;
 static void *udp_recv_callback_arg;
 unsigned mock_ntp_seconds = 0;
 
+extern unsigned int pbuf_alloc_fail_at;
+
 struct pbuf *pbuf_alloc(pbuf_layer l, u16_t length, pbuf_type type)
 {
+    static unsigned int pbuf_alloc_counter = 0;
     (void)l;
     (void)length;
     (void)type;
+
+    if (pbuf_alloc_fail_at != 0) {
+        pbuf_alloc_counter++;
+        if (pbuf_alloc_counter >= pbuf_alloc_fail_at) {
+            return NULL;
+        }
+    }
+
     static struct pbuf p;
     return &p;
 }
@@ -251,6 +262,10 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     (void)p;
     (void)dst_ip;
     (void)dst_port;
+
+    if (test_config.udp_sendto_fail) {
+        return -1;
+    }
     // Calling the recv() callback right away is harmless for this implementation.
     // And we hard-code a hacked up NTP packet as that's all that will ever be used
     p->tot_len = NTP_MSG_LEN;

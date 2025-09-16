@@ -21,6 +21,7 @@ typedef int (*test_func_t)(void);
 
 unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
+unsigned int pbuf_alloc_fail_at = 0;
 char **log_buffer;
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
@@ -79,11 +80,12 @@ test_config_t test_config = {
     .udp_new_ip_type_fail = false,
     .dns_lookup_delay = 0,
     .dns_lookup_fail = false,
+    .udp_sendto_fail = false,
 };
 
 int test_bad_lcd1(void)
 {
-    calloc_fail_at = 1;
+    calloc_fail_at = 2;
     int status = test_main();
     calloc_fail_at = 0;
     return (status == 1) ? 0 : 1;
@@ -150,12 +152,6 @@ int test_cy43_auth_errors(void)
         return 1;
     }
     return 0;
-}
-
-int test_bad_udp_alloc(void)
-{
-    test_config.udp_new_ip_type_fail = true;
-    return (test_main() == 1) ? 0 : 1;
 }
 
 extern bool clock_timer_callback(repeating_timer_t *);
@@ -257,6 +253,25 @@ int test_ntp_drift(void)
     return status;
 }
 
+int test_ntp_errors(void)
+{
+    test_config.udp_new_ip_type_fail = true;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.udp_new_ip_type_fail = false;
+    pbuf_alloc_fail_at = 1;
+    if (test_main() != 1) {
+        return 1;
+    }
+    pbuf_alloc_fail_at = 0;
+    test_config.udp_sendto_fail = true;
+    if (test_main() != 1) {
+        return 1;
+    }
+    return 0;
+}
+
 int main(void)
 {
     int status = 0;
@@ -306,14 +321,6 @@ int main(void)
     };
     status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", test_cy43_auth_errors_ref);
 
-    static const char *test_bad_udp_alloc_ref[] = {
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init error",
-        NULL,
-    };
-    status |= run_test(test_bad_udp_alloc, "udp_new_ip_type error", test_bad_udp_alloc_ref);
-
     static const char *test_dns_lookup_ref[] = {
         // DNS lookup failed
         "LCD: LCD init OK",
@@ -334,5 +341,22 @@ int main(void)
     };
     status |= run_test(test_dns_lookups, "DNS failure", test_dns_lookup_ref);
 
+    static const char *test_ntp_errors_ref[] = {
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init error",
+        // pbuf_alloc failure
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP memory error",
+        // udp_sendto failure
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP unknown error",
+        NULL,
+    };
+    status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
     return status;
 }

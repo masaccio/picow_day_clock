@@ -7,11 +7,15 @@
 
 typedef struct
 {
+    // Wi-Fi
     int cyw43_auth_error_count;
     int cyw43_arch_wifi_connect_status;
     int cyw43_auth_timeout_count;
     bool cyw43_arch_init_fail;
+    // UDP
     bool udp_new_ip_type_fail;
+    bool udp_sendto_fail;
+    // DNS
     int dns_lookup_delay;
     bool dns_lookup_fail;
 } test_config_t;
