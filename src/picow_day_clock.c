@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2025 Jon Connell
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
 #ifndef WIFI_SSID
 #error "WIFI_SSID is not defined. Please define it in config.cmake or via a compile flag."
 #endif

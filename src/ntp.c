@@ -1,11 +1,3 @@
-/**
- * Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
- *
- * Additional code copyright (c) 2025 Jon Connell
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
 // Pico SDK
 #ifndef TEST_MODE
 #include "lwip/dns.h"
