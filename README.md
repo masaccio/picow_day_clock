@@ -64,6 +64,7 @@ The BL backlight pin of the LCD module is not the actual LCD backlight; it is a 
 
 ![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.png)
 
+A TXB0108 logic level shifter is used as a set of buffers to increase the available current ro drive CLK, DIN, RST and BL control signals as the Pico's GPIO is insufficient to drive 7 LCDs without significant signal degredation.
 
 ## TODO List
 
