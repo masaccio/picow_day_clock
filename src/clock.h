@@ -36,7 +36,6 @@ extern int test_printf(const char *format, ...);
 #define LCD_GPIO_MOSI 11
 
 #ifdef _WIN32
-#pragma message("-> Defining struct timeval)")
 struct timeval
 {
     uint32_t tv_sec;
