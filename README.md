@@ -92,10 +92,12 @@ A TXB0108 logic level shifter is used as a set of buffers to increase the availa
 
 ## Credits
 
-GPIO, SPI and PCM driver code for the LCD and the framebuffer management is derived from the [Waveshare Sample Demo](https://www.waveshare.com/wiki/1.47inch_LCD_Module) code for the Waveshare 1.47inch LCD. The driver [is licensed](licenses/waveshare.txt) by the Waveshare team under an MIT license.
+GPIO, SPI and PCM driver code for the LCD and the framebuffer management is derived from the [Waveshare Sample Demo](https://www.waveshare.com/wiki/1.47inch_LCD_Module) code for the Waveshare 1.47inch LCD. The driver is [licensed](licenses/waveshare.txt) by the Waveshare team under an MIT license.
 
-Variable width fonts replace the fixed width fonts in the Waveshare examples, but the C data structures are ultimately derived from work by [STMicroelectronics](licenses/stm.txt) licensed under the 3-clause BSD license.
+NTP driver code is derived from [pico_ntp_client](https://github.com/raspberrypi/pico-examples/tree/master/pico_w/wifi/ntp_client) in the [Raspberry Pi Pico SDK Examples](https://github.com/raspberrypi/pico-examples) which is [licensed](raspberry-pi.txt) under a BSD license.
 
-The digit font is [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is licensed under the [Open Font License](licenses/BebasNeue-OFL.txt).
+Variable width fonts replace the fixed-width fonts in the Waveshare examples, but the C data structures are ultimately derived from work by STMicroelectronics [licensed](licenses/stm.txt) under the 3-clause BSD license.
 
-The text font used in display diagnostics during boot is [Roboto Medium](https://fonts.google.com/specimen/Roboto) which is licensed under the [Open Font License](licenses/Roboto-OFL.txt).
+The digit font is [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is [licensed](licenses/BebasNeue-OFL.txt) under the Open Font License.
+
+The text font used in display diagnostics during boot is [Roboto Medium](https://fonts.google.com/specimen/Roboto) which is [licensed](licenses/Roboto-OFL.txt) under the Open Font License.
