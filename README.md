@@ -62,6 +62,8 @@ The LCD module expects a 3.3V supply and the [datasheet for the Waveshare 1.47in
 
 The BL backlight pin of the LCD module is not the actual LCD backlight; it is a control pin to the LCD module's TXB0108PWR level shifter so can also be shared across all LCDs and, like the other control signals, driven directly from the Pico.
 
+![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/images/schematic.jpg)
+
 ## TODO List
 
 1. Look at whether the scan across the display can be eliminated
