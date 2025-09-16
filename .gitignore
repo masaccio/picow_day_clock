@@ -4,7 +4,7 @@ build/
 build
 
 # Password file
-secrets.cmake
+config.cmake
 
 # macOS
 .DS_Store
