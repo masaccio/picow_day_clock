@@ -125,9 +125,110 @@ void cyw43_arch_deinit(void)
 {
 }
 
+unsigned long long mock_system_time_ms = 0;
+unsigned long long mock_boot_time_ms = 0;
+
+// Timer functions
+void sleep_ms(uint32_t ms)
+{
+    mock_system_time_ms += ms;
+    mock_boot_time_ms += ms;
+}
+
+static const char *dns_hostname;
+static dns_callback_fn dns_found_func;
+static void *dns_found_arg;
+
+absolute_time_t get_absolute_time(void)
+{
+    return (absolute_time_t)(mock_boot_time_ms * 1000);
+}
+
+int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to)
+{
+    if (test_config.dns_lookup_delay) {
+        test_config.dns_lookup_delay--;
+        if (test_config.dns_lookup_delay == 0) {
+            if (test_config.dns_lookup_fail) {
+                dns_found_func(dns_hostname, NULL, dns_found_arg);
+            } else {
+                static const ip_addr_t ipaddr = {0xdeadbeef};
+                dns_found_func(dns_hostname, &ipaddr, dns_found_arg);
+            }
+        }
+    }
+    return to - from;
+}
+
+int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
+                           repeating_timer_t *out_timer)
+{
+    (void)ms;
+    (void)callback;
+    out_timer->user_data = user_data;
+    return 0;
+}
+
+int mock_printf(const char *format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    int buffer_len = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    if (log_buffer_size >= LOG_BUFFER_SIZE) {
+        printf("*** MOCK BUFFER OVERFLOW!\n");
+        return 1;
+    } else {
+        log_buffer[log_buffer_size] = calloc(1, buffer_len + 1);
+        strncpy(log_buffer[log_buffer_size], buffer, buffer_len);
+        log_buffer_size += 1;
+        return 0;
+    }
+}
+
+time_t mock_time(time_t *tloc)
+{
+    (void)tloc; // Always called with NULL
+    return (time_t)(mock_system_time_ms / 1000);
+}
+
+int mock_settimeofday(const struct timeval *tp, void *tzp)
+{
+    (void)tzp; // Implementation has ignores timezones
+    mock_system_time_ms = tp->tv_sec * 1000 + (tp->tv_usec * 1000);
+    return 0;
+}
+
 // Utility functions
 void stdio_init_all(void)
 {
+}
+
+int test_printf(const char *format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    (void)vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    printf("DEBUG: %s", buffer);
+    return 0;
+}
+
+extern unsigned int calloc_fail_at;
+
+void *mock_calloc(size_t num, size_t size)
+{
+    static unsigned int calloc_counter = 0;
+    if (calloc_fail_at != 0) {
+        calloc_counter++;
+        if (calloc_counter > calloc_fail_at) {
+            return NULL;
+        }
+    }
+    return calloc(num, size);
 }
 
 // lwIP functions
@@ -180,15 +281,20 @@ u8_t pbuf_get_at(const struct pbuf *p, u16_t offset)
     return p->payload[offset];
 }
 
-int dns_gethostbyname(const char *hostname, ip_addr_t *addr,
-                      void (*found)(const char *name, const ip_addr_t *ipaddr, void *arg), void *arg)
+int dns_gethostbyname(const char *hostname, ip_addr_t *addr, dns_callback_fn found, void *arg)
 {
-    static const ip_addr_t ipaddr = {0xdeadbeef};
+    if (test_config.dns_lookup_delay > 0) {
+        dns_hostname = hostname;
+        dns_found_func = found;
+        dns_found_arg = arg;
+        return ERR_INPROGRESS;
+    }
     if (test_config.dns_lookup_fail) {
         addr->addr = 0;
         found(hostname, NULL, arg);
         return ERR_INPROGRESS;
     } else {
+        static const ip_addr_t ipaddr = {0xdeadbeef};
         found(hostname, &ipaddr, arg);
         return ERR_OK;
     }
@@ -214,90 +320,4 @@ struct udp_pcb *udp_new_ip_type(u8_t type)
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2)
 {
     return addr1->addr == addr2->addr;
-}
-
-unsigned long long mock_system_time_ms = 0;
-unsigned long long mock_boot_time_ms = 0;
-
-// Timer functions
-void sleep_ms(uint32_t ms)
-{
-    mock_system_time_ms += ms;
-    mock_boot_time_ms += ms;
-}
-
-absolute_time_t get_absolute_time(void)
-{
-    return (absolute_time_t)(mock_boot_time_ms * 1000);
-}
-
-int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to)
-{
-    return to - from;
-}
-
-int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
-                           repeating_timer_t *out_timer)
-{
-    (void)ms;
-    (void)callback;
-    out_timer->user_data = user_data;
-    return 0;
-}
-
-int mock_printf(const char *format, ...)
-{
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    int buffer_len = vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
-    if (log_buffer_size >= LOG_BUFFER_SIZE) {
-        printf("*** MOCK BUFFER OVERFLOW!\n");
-        return 1;
-    } else {
-        log_buffer[log_buffer_size] = calloc(1, buffer_len + 1);
-        strncpy(log_buffer[log_buffer_size], buffer, buffer_len);
-        log_buffer_size += 1;
-        return 0;
-    }
-}
-
-int test_printf(const char *format, ...)
-{
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    (void)vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    printf("DEBUG: %s", buffer);
-    return 0;
-}
-
-extern unsigned int calloc_fail_at;
-
-void *mock_calloc(size_t num, size_t size)
-{
-    static unsigned int calloc_counter = 0;
-    if (calloc_fail_at != 0) {
-        calloc_counter++;
-        if (calloc_counter > calloc_fail_at) {
-            return NULL;
-        }
-    }
-    return calloc(num, size);
-}
-
-time_t mock_time(time_t *tloc)
-{
-    (void)tloc; // Always called with NULL
-    return (time_t)(mock_system_time_ms / 1000);
-}
-
-int mock_settimeofday(const struct timeval *tp, void *tzp)
-{
-    (void)tzp; // Implementation has ignores timezones
-    mock_system_time_ms = tp->tv_sec * 1000 + (tp->tv_usec * 1000);
-    return 0;
 }

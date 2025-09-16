@@ -12,6 +12,7 @@ typedef struct
     int cyw43_auth_timeout_count;
     bool cyw43_arch_init_fail;
     bool udp_new_ip_type_fail;
+    int dns_lookup_delay;
     bool dns_lookup_fail;
 } test_config_t;
 

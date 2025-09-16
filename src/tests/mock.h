@@ -58,6 +58,7 @@ typedef struct ip_addr_t
     unsigned long addr;
 
 } ip_addr_t;
+typedef void (*dns_callback_fn)(const char *name, const ip_addr_t *ipaddr, void *arg);
 typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
                             short unsigned int port);
@@ -133,8 +134,7 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
 u8_t pbuf_free(struct pbuf *p);
 u16_t pbuf_copy_partial(const struct pbuf *p, void *dataptr, u16_t len, u16_t offset);
 u8_t pbuf_get_at(const struct pbuf *p, u16_t offset);
-int dns_gethostbyname(const char *hostname, ip_addr_t *addr,
-                      void (*found)(const char *name, const ip_addr_t *ipaddr, void *arg), void *arg);
+int dns_gethostbyname(const char *hostname, ip_addr_t *addr, dns_callback_fn found, void *arg);
 void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg);
 struct udp_pcb *udp_new_ip_type(u8_t type);
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);

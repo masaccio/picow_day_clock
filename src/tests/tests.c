@@ -77,6 +77,7 @@ test_config_t test_config = {
     .cyw43_auth_timeout_count = 0,
     .cyw43_arch_init_fail = false,
     .udp_new_ip_type_fail = false,
+    .dns_lookup_delay = 0,
     .dns_lookup_fail = false,
 };
 
@@ -88,11 +89,24 @@ int test_bad_lcd1(void)
     return (status == 1) ? 0 : 1;
 }
 
-int test_dns_lookup_fail(void)
+int test_dns_lookups(void)
 {
     test_config.dns_lookup_fail = true;
-    int status = test_main();
-    return (status == 1) ? 0 : 1;
+    if (test_main() != 1) {
+        return 1;
+    }
+    // DNS poll loops every 500ms for 30s
+    test_config.dns_lookup_delay = 61;
+    test_config.dns_lookup_fail = false;
+    if (test_main() != 1) {
+        return 1;
+    }
+    // DNS poll loops every 500ms for 30s
+    test_config.dns_lookup_delay = 60;
+    if (test_main() != 0) {
+        return 1;
+    }
+    return 0;
 }
 
 int test_cy43_init_errors(void)
@@ -300,10 +314,25 @@ int main(void)
     };
     status |= run_test(test_bad_udp_alloc, "udp_new_ip_type error", test_bad_udp_alloc_ref);
 
-    static const char *test_dns_lookup_fail_ref[] = {
-        "LCD: LCD init OK", "LCD: Wi-Fi connect OK", "LCD: NTP init OK", "LCD: NTP DNS failed", NULL,
+    static const char *test_dns_lookup_ref[] = {
+        // DNS lookup failed
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP DNS failed",
+        // DNS lookup timed out
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP timeout",
+        // DNS lookup just inside timeout
+        "LCD: LCD init OK",
+        "LCD: Wi-Fi connect OK",
+        "LCD: NTP init OK",
+        "LCD: NTP time OK",
+        NULL,
     };
-    status |= run_test(test_dns_lookup_fail, "DNS failure", test_dns_lookup_fail_ref);
+    status |= run_test(test_dns_lookups, "DNS failure", test_dns_lookup_ref);
 
     return status;
 }
