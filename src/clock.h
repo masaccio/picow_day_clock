@@ -2,8 +2,8 @@
 #ifndef _CLOCK_H
 #define _CLOCK_H
 
-#if CLOCK_DEBUG_ENABLED
-#if TEST_MODE
+#ifdef CLOCK_DEBUG_ENABLED
+#ifdef TEST_MODE
 extern int test_printf(const char *format, ...);
 #define CLOCK_DEBUG(...) test_printf(__VA_ARGS__)
 #else
