@@ -5,11 +5,11 @@
  */
 
 #ifndef WIFI_SSID
-#error "WIFI_SSID is not defined. Please define it in secrets.cmake or via a compile flag."
+#error "WIFI_SSID is not defined. Please define it in config.cmake or via a compile flag."
 #endif
 
 #ifndef WIFI_PASSWORD
-#error "WIFI_PASSWORD is not defined. Please define it in secrets.cmake or via a compile flag."
+#error "WIFI_PASSWORD is not defined. Please define it in config.cmake or via a compile flag."
 #endif
 
 #include <stdio.h>

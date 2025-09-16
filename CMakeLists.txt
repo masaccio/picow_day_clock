@@ -33,10 +33,10 @@ project(picow_day_clock C CXX ASM)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/secrets.cmake")
-    include(${CMAKE_SOURCE_DIR}/secrets.cmake)
+if(EXISTS "${CMAKE_SOURCE_DIR}/config.cmake")
+    include(${CMAKE_SOURCE_DIR}/config.cmake)
 else()
-    message(FATAL_ERROR "Missing secrets.cmake for Wi-Fi configuration! Expected contents:\nset(WIFI_SSID \"yourSSID\" CACHE STRING \"\")\nset(WIFI_PASSWORD \"yourPassword\" CACHE STRING \"\")")
+    message(FATAL_ERROR "Missing config.cmake for Wi-Fi configuration! Expected contents:\nset(WIFI_SSID \"yourSSID\" CACHE STRING \"\")\nset(WIFI_PASSWORD \"yourPassword\" CACHE STRING \"\")")
 endif()
 
 # Initialise the Raspberry Pi Pico SDK
@@ -63,14 +63,14 @@ add_executable(picow_day_clock
 add_dependencies(picow_day_clock generate_fonts)
 
 # Configuration options for the clock. Wi-Fi credentials are required
-# and found in secrets.cmake
+# and found in config.cmake
 target_compile_definitions(picow_day_clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
-    NTP_SERVER=\"uk.pool.ntp.org\"
+    NTP_SERVER=\"${NTP_SERVER}\"
     PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
-    CLOCK_DEBUG_ENABLED=1               # Clock debug
-    LWIP_MALLOC_DEBUG=1                 # Enable debug of memory allocations
+    CLOCK_DEBUG_ENABLED=0               # Clock debug
+    LWIP_MALLOC_DEBUG=0                 # Enable debug of memory allocations
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
 )
 
