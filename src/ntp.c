@@ -113,16 +113,12 @@ ntp_status_t ntp_get_time(ntp_state_t *state)
 {
     absolute_time_t start_time = get_absolute_time();
 
-    if (state->ntp_server_address.addr != 0) {
-        ntp_request(state);
-        return state->status;
-    }
+    state->status = NTP_STATUS_PENDING;
 
     cyw43_arch_lwip_begin();
     int dns_status = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 
-    state->status = NTP_STATUS_PENDING;
     if (dns_status == ERR_OK) {
         ntp_request(state);
     } else if (dns_status != ERR_INPROGRESS) {
@@ -130,7 +126,7 @@ ntp_status_t ntp_get_time(ntp_state_t *state)
         return NTP_STATUS_DNS_ERROR;
     }
 
-    while (state->status != NTP_STATUS_SUCCESS) {
+    while (state->status == NTP_STATUS_PENDING) {
         sleep_ms(500); // wait for background lwIP
 
         if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {

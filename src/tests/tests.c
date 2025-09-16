@@ -72,8 +72,12 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
 }
 
 test_config_t test_config = {
+    .cyw43_auth_error_count = 0,
+    .cyw43_arch_wifi_connect_status = 0,
+    .cyw43_auth_timeout_count = 0,
     .cyw43_arch_init_fail = false,
     .udp_new_ip_type_fail = false,
+    .dns_lookup_fail = false,
 };
 
 int test_bad_lcd1(void)
@@ -81,6 +85,13 @@ int test_bad_lcd1(void)
     calloc_fail_at = 1;
     int status = test_main();
     calloc_fail_at = 0;
+    return (status == 1) ? 0 : 1;
+}
+
+int test_dns_lookup_fail(void)
+{
+    test_config.dns_lookup_fail = true;
+    int status = test_main();
     return (status == 1) ? 0 : 1;
 }
 
@@ -288,6 +299,11 @@ int main(void)
         NULL,
     };
     status |= run_test(test_bad_udp_alloc, "udp_new_ip_type error", test_bad_udp_alloc_ref);
+
+    static const char *test_dns_lookup_fail_ref[] = {
+        "LCD: LCD init OK", "LCD: Wi-Fi connect OK", "LCD: NTP init OK", "LCD: NTP DNS failed", NULL,
+    };
+    status |= run_test(test_dns_lookup_fail, "DNS failure", test_dns_lookup_fail_ref);
 
     return status;
 }

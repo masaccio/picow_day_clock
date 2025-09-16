@@ -187,12 +187,13 @@ int dns_gethostbyname(const char *hostname, ip_addr_t *addr,
     if (test_config.dns_lookup_fail) {
         addr->addr = 0;
         found(hostname, NULL, arg);
-
+        return ERR_INPROGRESS;
     } else {
         found(hostname, &ipaddr, arg);
+        return ERR_OK;
     }
-    return ERR_OK;
 }
+
 void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg)
 {
     (void)pcb;
