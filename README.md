@@ -6,7 +6,7 @@ The project is *not* compatible with earlier versions of the Pico and requires t
 
 ## Software Operation
 
-The pin-out and Wi-Fi settings are hard-coded into the project at buuld time. The credentials for Wi-Fi must be created in `secrets.cmake` and the project will fail to build without these. After the Pico firmware boots, the software will:
+The pin-out and Wi-Fi settings are hard-coded into the project at buuld time. After the Pico firmware boots, the software will:
 
 * Initialise all 7 LCD modules writing to the UART and exiting if this fails
 * Create a Wi-Fi connection to the hard-coded Wi-Fi networt
@@ -17,6 +17,16 @@ The software takes into consideration daylight savings time, but currently calcu
 
 NTP syncs start at once per day and respect back-off requests from the server if this is too frequent. The timer itself runs once per second and any NTP drift that occurs daily is compensated for in these timer callbacks.
 
+## Configuration
+
+Before CMake configuration, the Wi-Fi credentials must be set in `config.cmake` which is not part of the git repository. The project will fail to build without these. The configuration file is also a good place to set the domain name of the NTP server which otherwise defaults to `pool.ntp.org`. An example configuraion is:
+
+``` cmake
+set(WIFI_SSID "My SSID)
+set(WIFI_PASSWORD "v3ry-s3cr3et")
+set(NTP_SERVER "uk.pool.ntp.org")
+```
+
 ## Build and Testing
 
 The software is expected to build on Mac, Linux and Windows hosts and should be able to be imported into the Raspberry Pi Pico extension to Visual Studio Code.
@@ -24,6 +34,15 @@ The software is expected to build on Mac, Linux and Windows hosts and should be 
 Tests for the core clock functionality and error handling is largely complete through some very basic mocking of the Pico SDK. The [code](src/tests/mock.c) for the mocking is by no means complete and is just the very minimum required to make the clock function and generate errors that might occur such as DNS timeouts.
 
 The tests run on the host and assume Clang is available. Automated CI is provided by [GitHub runners](.github/workflows/build.yml).
+
+## Debug
+
+On boot, all LCDs are initialised first and diagnostic messages are displayed on the LCD1 as Wi-Fi and then NTP is initialised. On success, the clock starts. If any error is unrecoverable, signaled by a status message in red, the clock will not start and the diagnostics will remain. If the diagnostics do not appear at all, there is a problem with the LCD connections or the LCD driver. The following CMake configuration is available for debug to the UART:
+
+* `CLOCK_DEBUG_ENABLED`: debug messages from the day of week clock itself
+* `PICO_CYW43_ARCH_DEBUG_ENABLED`: SDK built-in debug of Wi-FI connections
+* `LWIP_MALLOC_DEBUG`: SDK built-in memory allocation debug
+* `LWIP_PROTOCOL_DEBUG`: SDK built-in UDP debug
 
 ## Pico pinout
 
