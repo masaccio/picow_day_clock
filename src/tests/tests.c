@@ -199,10 +199,19 @@ int test_dst(void)
     if (strncmp(clock_state->current_lcd_digits, "SUN0022", 7) != 0) {
         return 1;
     }
+    time_t now = mock_time(NULL);
+    if (strncmp(time_as_string(now), "00:22:00", 14) != 0) {
+        return 1;
+    }
+
     // Sun March 25, 2001 at 01:22 (just after clocks change)
     set_localtime(2001, 2, 25, 1, 22, 0);
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "SUN0222", 7) != 0) {
+        return 1;
+    }
+    now = mock_time(NULL);
+    if (strncmp(time_as_string(now), "02:22:00 (DST)", 14) != 0) {
         return 1;
     }
     return 0;
