@@ -13,9 +13,15 @@ The pin-out and Wi-Fi settings are hard-coded into the project at buuld time. Af
 * Get the current time from public NTP servers
 * Display the abbreviated day of week on the first three LCDs and the current time in hours in minutes on the remaining 4 displays
 
-The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom. The default time is also set to GMT and no support for timezones is included. It would be trivial to assign some configuration parameters for the default timezone and whether to apply DST shifts but this is future work.
-
 NTP syncs start at once per day and respect back-off requests from the server if this is too frequent. The timer itself runs once per second and any NTP drift that occurs daily is compensated for in these timer callbacks.
+
+### Timezones
+
+The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom. 
+
+The default time is also set to UTC with daylight savings time, which is the configuration for the United Kingdom.
+
+Should the clock be useful to others, and pull requests are always appreciated, the handling of timezones could be improved as well as the settings for daylight savings time.
 
 ## Configuration
 
@@ -84,11 +90,6 @@ The BL backlight pin of the LCD module is not the actual LCD backlight; it is a 
 ![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.png)
 
 A TXB0108 logic level shifter is used as a set of buffers to increase the available current ro drive CLK, DIN, RST and BL control signals as the Pico's GPIO is insufficient to drive 7 LCDs without significant signal degredation.
-
-## TODO List
-
-1. Look at whether the scan across the display can be eliminated
-2. Move the LCD code away from a frame-buffer to direct SPI calls
 
 ## Credits
 
