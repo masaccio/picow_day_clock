@@ -55,7 +55,7 @@ void ntp_timer_callback(void *state, time_t *ntp_time)
     clock_state->ntp_time = *ntp_time;
 }
 
-static int last_day_of_month(int day, int month, int year)
+int last_day_of_month(int day, int month, int year)
 {
     // Compute the last day of the month using Zeller's congruence
     // See https://en.wikipedia.org/wiki/Zeller%27s_congruence

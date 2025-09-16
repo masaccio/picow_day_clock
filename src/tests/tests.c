@@ -187,10 +187,17 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
     return clock_state;
 }
 
+extern int last_day_of_month(int day, int month, int year);
+
 int test_dst(void)
 {
     repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = create_test_clock_state(timer);
+
+    // Coverage test for Zeller's congruence
+    if (last_day_of_month(28, 2, 2025) != /* Friday */ 5) {
+        return 1;
+    }
 
     // Sun March 25, 2001 at 00:22 (just before clocks change)
     set_localtime(2001, 2, 25, 0, 22, 0);
