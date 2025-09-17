@@ -8,7 +8,7 @@
             "command": "${userHome}/.pico-sdk/ninja/v1.12.1/ninja",
             "args": [
                 "-C",
-                "${userHome}/.pico-build/picow_day_clock"
+                "${workspaceFolder}/build"
             ],
             "group": "build",
             "presentation": {
@@ -26,7 +26,7 @@
             "command": "${env:HOME}/.pico-sdk/picotool/2.2.0/picotool/picotool",
             "args": [
                 "load",
-                "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
+                "${workspaceFolder}/build/picow_day_clock.elf",
                 "-fx"
             ],
             "presentation": {
@@ -50,7 +50,7 @@
                 "-f",
                 "target/${command:raspberry-pi-pico.getTarget}.cfg",
                 "-c",
-                "adapter speed 5000; program \"${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf\" verify reset exit"
+                "adapter speed 5000; program \"${workspaceFolder}/build/picow_day_clock.elf\" verify reset exit"
             ],
             "problemMatcher": [],
             "windows": {

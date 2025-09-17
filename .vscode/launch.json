@@ -29,7 +29,7 @@
                 "${workspaceFolder}/fontgen/Roboto-Medium.ttf",
                 "/tmp/roboto_medium_20.c"
             ],
-            "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
+            "python": "${workspaceFolder}/build/fontgen_venv/bin/python3"
         },
         {
             "name": "Python Fontgen (Clock)",
@@ -44,12 +44,12 @@
                 "${workspaceFolder}/fontgen/BebasNeue-Regular.ttf",
                 "/tmp/bebas_neue_40.c"
             ],
-            "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
+            "python": "${workspaceFolder}/build/fontgen_venv/bin/python3"
         },
         {
             "name": "Debug (Pico Probe)",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
-            "executable": "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
+            "executable": "${workspaceFolder}/build/picow_day_clock.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
@@ -63,7 +63,7 @@
             "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
             "overrideLaunchCommands": [
                 "monitor reset init",
-                "load \"${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf\""
+                "load \"${workspaceFolder}/build/picow_day_clock.elf\""
             ],
             "openOCDLaunchCommands": [
                 "adapter speed 5000"
@@ -72,7 +72,7 @@
         {
             "name": "Attach to Pico",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
-            "executable": "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
+            "executable": "${workspaceFolder}/build/picow_day_clock.elf",
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
