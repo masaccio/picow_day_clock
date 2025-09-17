@@ -20,8 +20,8 @@
 #include <time.h>
 
 // Local includes
+#include "bitmap.h"
 #include "fb.h"
-#include "font.h"
 
 #define LCD_HEIGHT 172
 #define LCD_WIDTH 320

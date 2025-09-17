@@ -96,6 +96,24 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
     state->data[addr] = data_byte | ((color << 6) >> ((x % 4) * 2));
 }
 
+void fb_copy_image(frame_buffer_t *state, const unsigned char *image, uint16_t x_start, uint16_t y_start,
+                   uint16_t image_width, uint16_t image_height, color_t fgcolor)
+{
+    int bytes_per_row = (image_width + 7) / 8;
+
+    for (int jj = 0; jj < image_height; jj++) {
+        for (int byte = 0; byte < bytes_per_row; byte++) {
+            unsigned char bits = *image++;
+            for (int bit = 0; bit < 8; bit++) {
+                int x = x_start + byte * 8 + (7 - bit); // MSB-first
+                if (x < x_start + image_width) {
+                    fb_set_pixel(state, x, y_start + jj, (bits & (1 << bit)) ? fgcolor : 0);
+                }
+            }
+        }
+    }
+}
+
 // Clear the entire frame buffer and set to a specific color
 void fb_clear(frame_buffer_t *state, color_t color)
 {

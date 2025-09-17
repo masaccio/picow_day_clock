@@ -15,6 +15,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/watchdog.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "pico/util/datetime.h"
@@ -23,9 +24,9 @@
 #endif
 
 // Local includes
+#include "bitmap.h"
 #include "clock.h"
 #include "fb.h"
-#include "font.h"
 #include "lcd.h"
 #include "ntp.h"
 #include "wifi.h"
@@ -151,7 +152,7 @@ bool clock_timer_callback(struct repeating_timer *t)
 {
     clock_state_t *state = (clock_state_t *)t->user_data;
 
-    /* Adjust the NTP drift a second at a time */
+    // Adjust the NTP drift a second at a time
     if (state->ntp_drift > 0) {
         state->ntp_drift--;
     } else if (state->ntp_drift < 0) {
@@ -159,6 +160,9 @@ bool clock_timer_callback(struct repeating_timer *t)
     }
     time_t now = time(NULL) + state->ntp_drift;
     struct tm *current_time = gmtime(&now);
+
+    watchdog_update();
+    CLOCK_DEBUG("Current time is: %s\r\n", time_as_string(now));
 
     if (state->init_done == false || current_time->tm_sec == 0) {
         if (time_is_dst(current_time)) {
@@ -184,6 +188,11 @@ bool clock_timer_callback(struct repeating_timer *t)
 #ifndef TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
+                if (ii == 0) {
+                    fb_copy_image(state->lcd_states[0]->fb, wifi_icon, 110, 0, 24, 24, RED);
+                    fb_copy_image(state->lcd_states[0]->fb, dns_icon, 140, 0, 24, 24, GREEN);
+                }
+
                 lcd_update_screen(state->lcd_states[ii]);
 #endif
                 state->current_lcd_digits[ii] = lcd_digits[ii];
@@ -215,19 +224,26 @@ bool clock_timer_callback(struct repeating_timer *t)
 }
 
 #ifdef TEST_MODE
-int test_main(void)
 #define lcd_print_line(state, line_num, color, msg)                                                                    \
     (void)line_num;                                                                                                    \
     (void)color;                                                                                                       \
     mock_printf("LCD: %s", msg)
-#else
-int main(void)
+
+#define main(...) test_main(void)
 #endif
+
+int main(void)
 {
     stdio_init_all();
 
+    if (watchdog_caused_reboot()) {
+        // TODO: init the LCD differently to minimise the display artefacts
+        CLOCK_DEBUG("Resuming from watchdog reset\r\n");
+    }
+
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
+        // Unrecoverable state and no chance to display status on the LCD
         printf("Failed to allocate clock state\r\n");
         return 1;
     }
@@ -240,6 +256,7 @@ int main(void)
                                          /* CLK  */ LCD_GPIO_CLK,
                                          /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
+            // Unrecoverable state and no chance to display status on the LCD
             printf("LCD %d: failed to initialise\r\n", ii + 1);
             return 1;
         }
@@ -248,6 +265,9 @@ int main(void)
 
     uint16_t line_num = 1;
     lcd_print_line(state->lcd_states[0], line_num++, GREEN, "LCD init OK");
+    lcd_update_screen(state->lcd_states[0]);
+    fb_copy_image(state->lcd_states[0]->fb, wifi_icon, 110, 0, 24, 24, RED);
+    fb_copy_image(state->lcd_states[0]->fb, dns_icon, 140, 0, 24, 24, GREEN);
     lcd_update_screen(state->lcd_states[0]);
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
@@ -259,14 +279,17 @@ int main(void)
         case WIFI_STATUS_INIT_FAIL:
             lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi init error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and reset
             return 1;
         case WIFI_STATUS_TIMEOUT:
             lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi timeout error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and retry until success
             return 1;
         case WIFI_STATUS_BAD_AUTH:
             lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi auth error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and retry until success
             return 1;
         case WIFI_STATUS_CONNECT_FAILED:
             lcd_print_line(state->lcd_states[0], 2, RED, "Wi-Fi connect error");
@@ -275,6 +298,7 @@ int main(void)
         default: // whould be WIFI_STATUS_UNKNOWN_ERROR
             lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi unknown error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and reset
             return 1;
     }
 
@@ -282,6 +306,7 @@ int main(void)
     if (state->ntp_state == NULL) {
         lcd_print_line(state->lcd_states[0], line_num, RED, "NTP init error");
         lcd_update_screen(state->lcd_states[0]);
+        // TODO: display a status icon and reset
         return 1;
     }
     lcd_print_line(state->lcd_states[0], line_num++, GREEN, "NTP init OK");
@@ -296,18 +321,22 @@ int main(void)
         case NTP_STATUS_DNS_ERROR:
             lcd_print_line(state->lcd_states[0], line_num, RED, "NTP DNS failed");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and retry until success
             return 1;
         case NTP_STATUS_TIMEOUT:
             lcd_print_line(state->lcd_states[0], line_num, RED, "NTP timeout");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and retry until success
             return 1;
         case NTP_STATUS_MEMORY_ERROR:
             lcd_print_line(state->lcd_states[0], line_num, RED, "NTP memory error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and reset
             return 1;
         default: // Should be NTP_STATUS_INVALID_RESPONSE
             lcd_print_line(state->lcd_states[0], line_num, RED, "NTP unknown error");
             lcd_update_screen(state->lcd_states[0]);
+            // TODO: display a status icon and reset
             return 1;
     }
 
@@ -320,7 +349,10 @@ int main(void)
     settimeofday(&tv, NULL);
 
     // Call the timer every second to enable us to slowly change the clock if
-    // the system clock drifts from NTP time
+    // the system clock drifts from NTP time. Let the watchdog reset the clock
+    // if the timer callback has not happened in a few ticks.
+    // TODO: handle hard faults and reset with a status icon
+    watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ true);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 
 #ifndef TEST_MODE
@@ -329,6 +361,5 @@ int main(void)
     }
 #endif
 
-    disconnect_from_wifi();
-    return 0;
+    return 0; // coverage off
 }

@@ -44,8 +44,9 @@ pico_sdk_init()
 
 set(CMAKE_BUILD_TYPE Debug)
 
-add_subdirectory(fontgen)
+add_subdirectory(scripts)
 set_source_files_properties(${GENERATED_FONT_SRC_FILES} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${GENERATED_ICON_SRC_FILES} PROPERTIES GENERATED TRUE)
 
 include_directories(
     src
@@ -58,9 +59,11 @@ file(GLOB CLOCK_SRC_FILES src/*.c)
 add_executable(picow_day_clock 
     ${CLOCK_SRC_FILES}
     ${GENERATED_FONT_SRC_FILES}
-    )
+    ${GENERATED_ICON_SRC_FILES}
+)
 
 add_dependencies(picow_day_clock generate_fonts)
+add_dependencies(picow_day_clock generate_icons)
 
 # Configuration options for the clock. Wi-Fi credentials are required
 # and found in config.cmake
@@ -68,10 +71,10 @@ target_compile_definitions(picow_day_clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"${NTP_SERVER}\"
-    PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
-    CLOCK_DEBUG_ENABLED=0               # Clock debug
-    LWIP_MALLOC_DEBUG=0                 # Enable debug of memory allocations
-    LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
+    PICO_CYW43_ARCH_DEBUG_ENABLED=1     # CYW43 Wi-Fi debug
+    CLOCK_DEBUG_ENABLED=1               # Clock debug
+    LWIP_MALLOC_DEBUG=1                 # Enable debug of memory allocations
+    LWIP_PROTOCOL_DEBUG=1               # Enable debug of UDP and NTP
 )
 
 pico_set_program_name(picow_day_clock "picow_day_clock")
@@ -83,6 +86,7 @@ target_link_libraries(picow_day_clock
         pico_stdlib
         hardware_pwm
         hardware_spi
+        hardware_watchdog
         )
 
 pico_add_extra_outputs(picow_day_clock)

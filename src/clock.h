@@ -7,7 +7,7 @@
 extern int test_printf(const char *format, ...);
 #define CLOCK_DEBUG(...) test_printf(__VA_ARGS__)
 #else
-#define CLOCK_DEBUG(...) printf(__VA_ARGS__)
+#define CLOCK_DEBUG(format, ...) printf("CLOCK: " format, ##__VA_ARGS__)
 #endif // #if TEST_MODE
 #else
 #define CLOCK_DEBUG(...) ((void)0)
@@ -34,6 +34,8 @@ extern int test_printf(const char *format, ...);
 #define LCD_GPIO_BL 13
 #define LCD_GPIO_CLK 10
 #define LCD_GPIO_MOSI 11
+
+#define WATCHDOG_TIMEOUT_MS 3000
 
 #ifdef _WIN32
 struct timeval

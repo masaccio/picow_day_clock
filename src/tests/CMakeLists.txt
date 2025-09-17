@@ -21,7 +21,7 @@ endif()
 set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
 
 file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
-file(GLOB GENERATED_FONT_SRC_FILES ${CMAKE_SOURCE_DIR}/../../generated/*.c)
+file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
@@ -42,7 +42,7 @@ include_directories(
 add_executable(test_picow_day_clock 
     ${COVERED_CLOCK_SRC_FILES}
     ${NON_COVERED_CLOCK_SRC_FILES}
-    ${GENERATED_FONT_SRC_FILES}
+    ${GENERATED_SRC_FILES}
     ${TEST_SRC_FILES}
 )
 
