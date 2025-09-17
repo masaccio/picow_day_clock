@@ -35,7 +35,7 @@ set(NTP_SERVER "uk.pool.ntp.org")
 
 ## Build and Testing
 
-The software is expected to build on Mac, Linux and Windows hosts and should be able to be imported into the Raspberry Pi Pico extension to Visual Studio Code.
+The software is expected to build on Mac, Linux and Windows hosts and should be able to be imported into the Raspberry Pi Pico extension to Visual Studio Code. The Pico target build uses the standard Pico SDK tooling, but the native tests and coverage require LLVM for Clang and the coverage tools.
 
 Tests for the core clock functionality and error handling is largely complete through some very basic mocking of the Pico SDK. The [code](src/tests/mock.c) for the mocking is by no means complete and is just the very minimum required to make the clock function and generate errors that might occur such as DNS timeouts.
 
