@@ -124,7 +124,7 @@ def generate_variable_width_font(
         font_struct_name = f"{c_name}_{char_height}"
 
     target.write(get_commented_license(os.path.join(dirname(dirname(__file__)), "LICENSE")))
-    target.write('#include "font.h"\n\n')
+    target.write('#include "bitmap.h"\n\n')
 
     min_x = min(font.getbbox(char)[0] for char in ASCII_CHAR_RANGE)
     max_x = max(font.getbbox(char)[2] for char in ASCII_CHAR_RANGE)

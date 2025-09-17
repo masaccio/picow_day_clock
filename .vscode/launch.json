@@ -21,30 +21,30 @@
             "name": "Python Fontgen (Text)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/fontgen/create-font-bitmaps.py",
+            "program": "${workspaceFolder}/scripts/create-font-bitmaps.py",
             "console": "integratedTerminal",
             "args": [
                 "--height",
                 "20",
-                "${workspaceFolder}/fontgen/Roboto-Medium.ttf",
+                "${workspaceFolder}/fonts/Roboto-Medium.ttf",
                 "/tmp/roboto_medium_20.c"
             ],
-            "python": "${workspaceFolder}/build/fontgen_venv/bin/python3"
+            "python": "${workspaceFolder}/build/scripts_venv/bin/python3"
         },
         {
             "name": "Python Fontgen (Clock)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/fontgen/create-font-bitmaps.py",
+            "program": "${workspaceFolder}/scripts/create-font-bitmaps.py",
             "console": "integratedTerminal",
             "args": [
                 "--height=40",
                 "--width=20",
                 "--clock",
-                "${workspaceFolder}/fontgen/BebasNeue-Regular.ttf",
+                "${workspaceFolder}/fonts/BebasNeue-Regular.ttf",
                 "/tmp/bebas_neue_40.c"
             ],
-            "python": "${workspaceFolder}/build/fontgen_venv/bin/python3"
+            "python": "${workspaceFolder}/build/scripts_venv/bin/python3"
         },
         {
             "name": "Debug (Pico Probe)",

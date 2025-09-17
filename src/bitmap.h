@@ -1,5 +1,5 @@
-#ifndef _FONT_H
-#define _FONT_H
+#ifndef _BITMAP_H
+#define _BITMAP_H
 
 #include <stdint.h>
 
@@ -19,4 +19,8 @@ typedef struct
 extern font_t text_font;
 extern font_t clock_digit_font;
 
-#endif // _FONT_H
+extern const unsigned char *dns_icon;
+extern const unsigned char *ntp_icon;
+extern const unsigned char *wifi_icon;
+
+#endif // _BITMAP_H
