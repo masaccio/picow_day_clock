@@ -22,10 +22,10 @@ def image_to_bitmap(input_file: TextIO, size: int) -> list[int]:
     return data
 
 
-def format_as_c_array(data: list[int], name: str) -> str:
+def format_as_c_array(data: list[int], name: str, size: int) -> str:
     hex_data = [f"0x{b:02X}" for b in data]
     wrapped = textwrap.fill(", ".join(hex_data), width=80)
-    return f"const unsigned char {name}[] = {{\n{wrapped}\n}};\n"
+    return f"const uint8_t {name}[{len(data)}] = {{\n{wrapped}\n}};\n"
 
 
 def main():
@@ -38,9 +38,9 @@ def main():
     args = parser.parse_args()
 
     data = image_to_bitmap(args.input, args.size)
-    c_array = format_as_c_array(data, args.c_name or "bitmap")
+    c_array = format_as_c_array(data, args.c_name or "bitmap", args.size)
 
-    args.output.write(f"// Monochrome {args.size}x{args.size} bitmap, {len(data)} bytes\n")
+    args.output.write("#include <stdint.h>\n\n")
     args.output.write(c_array)
 
 

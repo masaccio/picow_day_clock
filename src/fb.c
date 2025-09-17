@@ -101,13 +101,13 @@ void fb_copy_image(frame_buffer_t *state, const unsigned char *image, uint16_t x
 {
     int bytes_per_row = (image_width + 7) / 8;
 
-    for (int jj = 0; jj < image_height; jj++) {
+    for (int yy = 0; yy < image_height; yy++) {
         for (int byte = 0; byte < bytes_per_row; byte++) {
             unsigned char bits = *image++;
             for (int bit = 0; bit < 8; bit++) {
-                int x = x_start + byte * 8 + (7 - bit); // MSB-first
+                int x = x_start + (byte * 8) + bit;
                 if (x < x_start + image_width) {
-                    fb_set_pixel(state, x, y_start + jj, (bits & (1 << bit)) ? fgcolor : 0);
+                    fb_set_pixel(state, x, y_start + yy, (bits & (1 << bit)) ? fgcolor : 0);
                 }
             }
         }

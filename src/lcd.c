@@ -27,6 +27,7 @@
 #endif
 
 // Local includes
+#include "bitmap.h"
 #include "clock.h"
 #include "fb.h"
 #include "lcd.h"
@@ -93,6 +94,26 @@ void lcd_clear_screen(lcd_state_t *state, color_t color)
 {
     fb_clear(state->fb, color);
     lcd_update_screen(state);
+}
+
+void lcd_update_icon(lcd_state_t *state, icon_type_t icon, color_t color)
+{
+    // Position last icon 10 pixels from edge to handle rounded corner
+    uint16_t x_start = LCD_HEIGHT - ICON_SIZE - 10;
+    x_start -= ((uint16_t)icon * ICON_SIZE + 4);
+    const unsigned char *icon_data;
+    switch (icon) {
+        case WIFI_ICON:
+            icon_data = wifi_icon;
+            break;
+        case NTP_ICON:
+            icon_data = ntp_icon;
+            break;
+        case DNS_ICON:
+            icon_data = dns_icon;
+            break;
+    }
+    fb_copy_image(state->fb, icon_data, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
 // Initialise the Pico peripeherals we will use (SPI, GPIO, PWM)

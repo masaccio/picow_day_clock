@@ -19,8 +19,10 @@ typedef struct
 extern font_t text_font;
 extern font_t clock_digit_font;
 
-extern const unsigned char *dns_icon;
-extern const unsigned char *ntp_icon;
-extern const unsigned char *wifi_icon;
+#define ICON_SIZE 24
+
+extern const uint8_t *dns_icon;
+extern const uint8_t *ntp_icon;
+extern const uint8_t *wifi_icon;
 
 #endif // _BITMAP_H

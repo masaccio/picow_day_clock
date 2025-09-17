@@ -189,10 +189,10 @@ bool clock_timer_callback(struct repeating_timer *t)
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
                 if (ii == 0) {
-                    fb_copy_image(state->lcd_states[0]->fb, wifi_icon, 110, 0, 24, 24, RED);
-                    fb_copy_image(state->lcd_states[0]->fb, dns_icon, 140, 0, 24, 24, GREEN);
+                    lcd_update_icon(state->lcd_states[0], DNS_ICON, RED);
+                    lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
+                    lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
                 }
-
                 lcd_update_screen(state->lcd_states[ii]);
 #endif
                 state->current_lcd_digits[ii] = lcd_digits[ii];
@@ -265,9 +265,9 @@ int main(void)
 
     uint16_t line_num = 1;
     lcd_print_line(state->lcd_states[0], line_num++, GREEN, "LCD init OK");
-    lcd_update_screen(state->lcd_states[0]);
-    fb_copy_image(state->lcd_states[0]->fb, wifi_icon, 110, 0, 24, 24, RED);
-    fb_copy_image(state->lcd_states[0]->fb, dns_icon, 140, 0, 24, 24, GREEN);
+    lcd_update_icon(state->lcd_states[0], DNS_ICON, RED);
+    lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
+    lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
     lcd_update_screen(state->lcd_states[0]);
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
