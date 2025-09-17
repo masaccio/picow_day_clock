@@ -47,30 +47,6 @@
             "python": "${userHome}/.pico-build/picow_day_clock/fontgen_venv/bin/python3"
         },
         {
-            "name": "Debug to main (Pico Probe)",
-            "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
-            "executable": "${command:raspberry-pi-pico.launchTargetPath}",
-            "request": "launch",
-            "type": "cortex-debug",
-            "servertype": "openocd",
-            "serverpath": "${userHome}/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
-            "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
-            "device": "${command:raspberry-pi-pico.getChipUppercase}",
-            "configFiles": [
-                "interface/cmsis-dap.cfg",
-                "target/${command:raspberry-pi-pico.getTarget}.cfg"
-            ],
-            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
-            "runToEntryPoint": "main",
-            "overrideLaunchCommands": [
-                "monitor reset init",
-                "load \"${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf\""
-            ],
-            "openOCDLaunchCommands": [
-                "adapter speed 5000"
-            ]
-        },
-        {
             "name": "Debug (Pico Probe)",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
             "executable": "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
@@ -91,6 +67,28 @@
             ],
             "openOCDLaunchCommands": [
                 "adapter speed 5000"
+            ]
+        },
+        {
+            "name": "Attach to Pico",
+            "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
+            "executable": "${userHome}/.pico-build/picow_day_clock/picow_day_clock.elf",
+            "request": "attach",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "serverpath": "${userHome}/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
+            "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
+            "device": "${command:raspberry-pi-pico.getChipUppercase}",
+            "configFiles": [
+                "interface/cmsis-dap.cfg",
+                "target/${command:raspberry-pi-pico.getTarget}.cfg"
+            ],
+            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
+            "openOCDLaunchCommands": [
+                "adapter speed 5000"
+            ],
+            "postAttachCommands": [
+                "continue"
             ]
         }
     ]
