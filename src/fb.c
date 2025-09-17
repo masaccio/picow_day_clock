@@ -55,13 +55,7 @@ void fb_rotate(frame_buffer_t *state, uint16_t rotate)
     state->rotate = rotate;
 }
 
-/******************************************************************************
-function: Draw Pixels
-parameter:
-    x_point : At point x
-    y_point : At point y
-    color  : Painted colors
-******************************************************************************/
+// Draw an individual pixel
 void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uint16_t color)
 {
     if (x_point > state->width || y_point > state->height) {
@@ -114,117 +108,7 @@ void fb_clear(frame_buffer_t *state, color_t color)
     }
 }
 
-/******************************************************************************
-function: Clear the color of a window
-parameter:
-    Xstart : x starting point
-    Ystart : y starting point
-    Xend   : x end point
-    Yend   : y end point
-    color  : Painted colors
-******************************************************************************/
-void paint_clear_windows(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
-                         uint16_t color)
-{
-    uint16_t x, y;
-    for (y = y_start; y < y_end; y++) {
-        for (x = x_start; x < x_end; x++) { // 8 pixel =  1 byte
-            fb_set_pixel(state, x, y, color);
-        }
-    }
-}
-
-/******************************************************************************
-function: Draw Point(x_point, y_point) Fill the color
-parameter:
-    x_point		: The x_point coordinate of the point
-    y_point		: The y_point coordinate of the point
-    color		: Painted color
-******************************************************************************/
-void paint_draw_point(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uint16_t color)
-{
-    if (x_point > state->width || y_point > state->height) {
-        return;
-    }
-
-    int16_t x_dir_num, y_dir_num;
-    for (x_dir_num = 0; x_dir_num < 2 * 1 - 1; x_dir_num++) {
-        for (y_dir_num = 0; y_dir_num < 2 * 1 - 1; y_dir_num++) {
-            if (x_point + x_dir_num - 1 < 0 || y_point + y_dir_num - 1 < 0)
-                break;
-            fb_set_pixel(state, x_point + x_dir_num - 1, y_point + y_dir_num - 1, color);
-        }
-    }
-}
-
-/******************************************************************************
-function: Draw a line of arbitrary slope
-parameter:
-    Xstart ：Starting x_point point coordinates
-    Ystart ：Starting x_point point coordinates
-    Xend   ：End point x_point coordinate
-    Yend   ：End point y_point coordinate
-    color  ：The color of the line segment
-******************************************************************************/
-void paint_draw_line(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
-                     uint16_t color)
-{
-    if (x_start > state->width || y_start > state->height || x_end > state->width || y_end > state->height) {
-        return;
-    }
-
-    uint16_t x_point = x_start;
-    uint16_t y_point = y_start;
-    int dx = (int)x_end - (int)x_start >= 0 ? x_end - x_start : x_start - x_end;
-    int dy = (int)y_end - (int)y_start <= 0 ? y_end - y_start : y_start - y_end;
-
-    // Increment direction, 1 is positive, -1 is counter;
-    int x_addway = x_start < x_end ? 1 : -1;
-    int y_addway = y_start < y_end ? 1 : -1;
-
-    // Cumulative error
-    int esp = dx + dy;
-
-    for (;;) {
-        // Painted dotted line, 2 point is really virtual
-        paint_draw_point(state, x_point, y_point, color);
-        if (2 * esp >= dy) {
-            if (x_point == x_end)
-                break;
-            esp += dy;
-            x_point += x_addway;
-        }
-        if (2 * esp <= dx) {
-            if (y_point == y_end)
-                break;
-            esp += dx;
-            y_point += y_addway;
-        }
-    }
-}
-
-/******************************************************************************
-function: Draw a rectangle
-parameter:
-    Xstart ：Rectangular  Starting x_point point coordinates
-    Ystart ：Rectangular  Starting x_point point coordinates
-    Xend   ：Rectangular  End point x_point coordinate
-    Yend   ：Rectangular  End point y_point coordinate
-    color  ：The color of the Rectangular segment
-******************************************************************************/
-void fb_draw_rectangle(frame_buffer_t *state, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end,
-                       uint16_t color)
-{
-    if (x_start > state->width || y_start > state->height || x_end > state->width || y_end > state->height) {
-        return;
-    }
-
-    uint16_t y_point;
-    for (y_point = y_start; y_point < y_end; y_point++) {
-        paint_draw_line(state, x_start, y_point, x_end, y_point, color);
-    }
-}
-
+// Write a single character to the display
 int fb_write_char(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
                   color_t fgcolor, color_t bgcolor)
 {
