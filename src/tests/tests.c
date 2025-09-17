@@ -78,9 +78,10 @@ test_config_t test_config = {
     .cyw43_auth_timeout_count = 0,
     .cyw43_arch_init_fail = false,
     .udp_new_ip_type_fail = false,
+    .udp_sendto_fail = false,
     .dns_lookup_delay = 0,
     .dns_lookup_fail = false,
-    .udp_sendto_fail = false,
+    .watchdog_caused_reboot = false,
 };
 
 int test_bad_lcd1(void)

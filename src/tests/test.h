@@ -18,6 +18,8 @@ typedef struct
     // DNS
     int dns_lookup_delay;
     bool dns_lookup_fail;
+    // Watchdog
+    bool watchdog_caused_reboot;
 } test_config_t;
 
 extern int test_main(void);

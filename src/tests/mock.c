@@ -127,12 +127,14 @@ void cyw43_arch_deinit(void)
 
 unsigned long long mock_system_time_ms = 0;
 unsigned long long mock_boot_time_ms = 0;
+unsigned long long watchdog_time_ms = 0;
 
 // Timer functions
 void sleep_ms(uint32_t ms)
 {
     mock_system_time_ms += ms;
     mock_boot_time_ms += ms;
+    watchdog_time_ms += ms;
 }
 
 static const char *dns_hostname;
@@ -335,4 +337,21 @@ struct udp_pcb *udp_new_ip_type(u8_t type)
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2)
 {
     return addr1->addr == addr2->addr;
+}
+
+// Watchdog
+void watchdog_update(void)
+{
+    watchdog_time_ms = 0;
+}
+
+bool watchdog_caused_reboot(void)
+{
+    return test_config.watchdog_caused_reboot;
+}
+
+void watchdog_enable(uint32_t delay_ms, bool pause_on_debug)
+{
+    (void)delay_ms;
+    (void)pause_on_debug;
 }

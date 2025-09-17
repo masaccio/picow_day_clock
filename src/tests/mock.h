@@ -145,4 +145,9 @@ int64_t absolute_time_diff_us(absolute_time_t t1, absolute_time_t t2);
 int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
                            repeating_timer_t *out_timer);
 
+// Watchdog
+bool watchdog_caused_reboot(void);
+void watchdog_enable(uint32_t delay_ms, bool pause_on_debug);
+void watchdog_update(void);
+
 #endif // MOCK_H
