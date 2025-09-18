@@ -15,6 +15,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
@@ -46,6 +47,17 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     /* LCD 6 */ {.DC = LCD6_GPIO_DC, .CS = LCD6_GPIO_CS},
     /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
 };
+
+#ifndef TEST_MODE
+persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
+#else
+// In test mode, we want to return from main() but fatal_error() cannor return
+// so we use setjmp/longjmp to break out
+#include <setjmp.h>
+
+static jmp_buf fatal_jmp_buf;
+persistent_state_t persistent_state;
+#endif
 
 static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
@@ -152,6 +164,8 @@ bool clock_timer_callback(struct repeating_timer *t)
 {
     clock_state_t *state = (clock_state_t *)t->user_data;
 
+    watchdog_update();
+
     // Adjust the NTP drift a second at a time
     if (state->ntp_drift > 0) {
         state->ntp_drift--;
@@ -161,7 +175,6 @@ bool clock_timer_callback(struct repeating_timer *t)
     time_t now = time(NULL) + state->ntp_drift;
     struct tm *current_time = gmtime(&now);
 
-    watchdog_update();
     CLOCK_DEBUG("Current time is: %s\r\n", time_as_string(now));
 
     if (state->init_done == false || current_time->tm_sec == 0) {
@@ -185,18 +198,32 @@ bool clock_timer_callback(struct repeating_timer *t)
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
+                // Skip updates in test mode for performance reasons; all the subsequent
+                // stubbed calls to GPIO consume a lot of unncessary CPU over the tests
 #ifndef TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
-                if (ii == 0) {
-                    lcd_update_icon(state->lcd_states[0], DNS_ICON, RED);
-                    lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
-                    lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
-                }
-                lcd_update_screen(state->lcd_states[ii]);
 #endif
-                state->current_lcd_digits[ii] = lcd_digits[ii];
             }
+
+            if (ii == 0) {
+                CLOCK_DEBUG("LCD icons: reason=%d, boot_count=%d, NTP=%s\r\n", state->last_reset_reason,
+                            persistent_state.boot_count,
+                            (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
+                if (state->last_reset_reason != RESET_REASON_NONE) {
+                    unsigned char buffer[16];
+                    snprintf((char *)buffer, 16, "%d", persistent_state.boot_count);
+                    lcd_print_line(state->lcd_states[0], 0, RED, (const char *)buffer);
+                }
+                if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
+                    lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
+                    lcd_update_icon(state->lcd_states[0], NTP_ICON, GREEN);
+                }
+            }
+#ifndef TEST_MODE
+            lcd_update_screen(state->lcd_states[ii]);
+#endif
+            state->current_lcd_digits[ii] = lcd_digits[ii];
         }
 
         if ((now - state->ntp_last_sync) >= NTP_SYNC_INTERVAL_SEC) {
@@ -223,32 +250,70 @@ bool clock_timer_callback(struct repeating_timer *t)
     return true; // Keep repeating
 }
 
+static void fatal_reset(reset_reason_t reason)
+{
+    persistent_state.reset_reason = reason;
+    watchdog_reboot(0, SRAM_END, 0);
+    while (1)
+#ifndef TEST_MODE
+        __wfi(); // hang until reset
+#else
+        // Returns into main() which will then exit with status=1
+        longjmp(fatal_jmp_buf, 1);
+#endif
+}
+
 #ifdef TEST_MODE
+// In test mode, key status updates to the LCD are treated like a printf()
+// but tagged with an LCD prefix so that the test harness can check the sequence
+// of events.
+//
+// main() also always returns, even in the case of a fatal error in test mode
+// as we need to that fatal errors happened for the correct reasons.
 #define lcd_print_line(state, line_num, color, msg)                                                                    \
     (void)line_num;                                                                                                    \
     (void)color;                                                                                                       \
     mock_printf("LCD: %s", msg)
 
-#define main(...) test_main(void)
-#endif
+#define lcd_update_icon(state, reason, color)                                                                          \
+    (void)state;                                                                                                       \
+    mock_printf("LCD: %s %s", #reason, #color)
 
+int test_main(void)
+{
+    if (setjmp(fatal_jmp_buf)) {
+        // Fatal reset happened, exit cleanly
+        return 1;
+    }
+#else
 int main(void)
 {
+#endif
+
     stdio_init_all();
 
+    clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
+
     if (watchdog_caused_reboot()) {
-        // TODO: init the LCD differently to minimise the display artefacts
-        CLOCK_DEBUG("Resuming from watchdog reset\r\n");
+        persistent_state.boot_count++;
+        state->last_reset_reason = persistent_state.reset_reason;
+        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=0x%0x\r\n", persistent_state.boot_count,
+                    persistent_state.reset_reason);
+        persistent_state.reset_reason = RESET_REASON_NONE;
+    } else {
+        persistent_state.boot_count = 0;
+        persistent_state.reset_reason = RESET_REASON_NONE;
+        state->last_reset_reason = RESET_REASON_NONE;
+        CLOCK_DEBUG("Cold boot\r\n");
     }
 
-    clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
         printf("Failed to allocate clock state\r\n");
         return 1;
     }
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        bool reset = (ii == 0) ? true : false;
+        bool reset = (ii == 0 && persistent_state.reset_reason == RESET_REASON_NONE) ? true : false;
         state->lcd_states[ii] = lcd_init(/* RST  */ LCD_GPIO_RST,
                                          /* DC   */ lcd_pin_config[ii].DC,
                                          /* BL   */ LCD_GPIO_BL,
@@ -263,81 +328,75 @@ int main(void)
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
-    uint16_t line_num = 1;
-    lcd_print_line(state->lcd_states[0], line_num++, GREEN, "LCD init OK");
-    lcd_update_icon(state->lcd_states[0], DNS_ICON, RED);
-    lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
-    lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
-    lcd_update_screen(state->lcd_states[0]);
-
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     switch (wifi_status) {
         case WIFI_STATUS_SUCCESS:
-            lcd_print_line(state->lcd_states[0], line_num++, GREEN, "Wi-Fi connect OK");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
             lcd_update_screen(state->lcd_states[0]);
             break;
         case WIFI_STATUS_INIT_FAIL:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi init error");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and reset
-            return 1;
+            fatal_reset(RESET_REASON_WIFI);
+            // Never reached: reset happens
         case WIFI_STATUS_TIMEOUT:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi timeout error");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and retry until success
-            return 1;
+            fatal_reset(RESET_REASON_WIFI);
+            // Never reached: reset happens
         case WIFI_STATUS_BAD_AUTH:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi auth error");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and retry until success
-            return 1;
+            fatal_reset(RESET_REASON_WIFI);
+            // Never reached: reset happens
         case WIFI_STATUS_CONNECT_FAILED:
-            lcd_print_line(state->lcd_states[0], 2, RED, "Wi-Fi connect error");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            return 1;
+            fatal_reset(RESET_REASON_WIFI);
+            // Never reached: reset happens
         default: // whould be WIFI_STATUS_UNKNOWN_ERROR
-            lcd_print_line(state->lcd_states[0], line_num, RED, "Wi-Fi unknown error");
+            lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and reset
-            return 1;
+            fatal_reset(RESET_REASON_WIFI);
+            // Never reached: reset happens
     }
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
     if (state->ntp_state == NULL) {
-        lcd_print_line(state->lcd_states[0], line_num, RED, "NTP init error");
+        lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
         lcd_update_screen(state->lcd_states[0]);
-        // TODO: display a status icon and reset
-        return 1;
+        fatal_reset(RESET_REASON_NTP);
+        // Never reached: reset happens
     }
-    lcd_print_line(state->lcd_states[0], line_num++, GREEN, "NTP init OK");
+    lcd_update_icon(state->lcd_states[0], NTP_ICON, GREEN);
     lcd_update_screen(state->lcd_states[0]);
 
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
         case NTP_STATUS_SUCCESS:
-            lcd_print_line(state->lcd_states[0], line_num++, GREEN, "NTP time OK");
+            lcd_update_icon(state->lcd_states[0], NTP_ICON, GREEN);
             lcd_update_screen(state->lcd_states[0]);
             break;
         case NTP_STATUS_DNS_ERROR:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP DNS failed");
+            lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and retry until success
-            return 1;
+            fatal_reset(RESET_REASON_NTP);
+            // Never reached: reset happens
         case NTP_STATUS_TIMEOUT:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP timeout");
+            lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and retry until success
-            return 1;
+            fatal_reset(RESET_REASON_NTP);
+            // Never reached: reset happens
         case NTP_STATUS_MEMORY_ERROR:
-            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP memory error");
+            lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and reset
-            return 1;
+            fatal_reset(RESET_REASON_NTP);
+            // Never reached: reset happens
         default: // Should be NTP_STATUS_INVALID_RESPONSE
-            lcd_print_line(state->lcd_states[0], line_num, RED, "NTP unknown error");
+            lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            // TODO: display a status icon and reset
-            return 1;
+            fatal_reset(RESET_REASON_NTP);
+            // Never reached: reset happens
     }
 
     state->ntp_drift = 0;
@@ -351,7 +410,6 @@ int main(void)
     // Call the timer every second to enable us to slowly change the clock if
     // the system clock drifts from NTP time. Let the watchdog reset the clock
     // if the timer callback has not happened in a few ticks.
-    // TODO: handle hard faults and reset with a status icon
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ true);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 
