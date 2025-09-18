@@ -95,19 +95,19 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
     data_byte = data_byte & (~(0xC0 >> ((x % 4) * 2)));
     state->data[addr] = data_byte | ((color << 6) >> ((x % 4) * 2));
 }
-
-void fb_copy_image(frame_buffer_t *state, const unsigned char *image, uint16_t x_start, uint16_t y_start,
+void fb_copy_image(frame_buffer_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start,
                    uint16_t image_width, uint16_t image_height, color_t fgcolor)
 {
     int bytes_per_row = (image_width + 7) / 8;
 
     for (int yy = 0; yy < image_height; yy++) {
-        for (int byte = 0; byte < bytes_per_row; byte++) {
-            unsigned char bits = *image++;
+        for (int byte_idx = 0; byte_idx < bytes_per_row; byte_idx++) {
+            uint8_t byte = *image++;
             for (int bit = 0; bit < 8; bit++) {
-                int x = x_start + (byte * 8) + bit;
+                int x = x_start + (byte_idx * 8) + bit;
                 if (x < x_start + image_width) {
-                    fb_set_pixel(state, x, y_start + yy, (bits & (1 << bit)) ? fgcolor : 0);
+                    // Most significant bit is left-most pixel
+                    fb_set_pixel(state, x, y_start + yy, (byte & (1 << (7 - bit))) ? fgcolor : 0);
                 }
             }
         }

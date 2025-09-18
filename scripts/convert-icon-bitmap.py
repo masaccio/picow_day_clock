@@ -21,13 +21,17 @@ def image_to_bitmap(input_file: TextIO, size: int) -> list[int]:
     pixels = list(img.getdata())
 
     data = []
-    for i in range(0, len(pixels), 8):
-        byte = 0
-        for bit in range(8):
-            if i + bit < len(pixels):
-                byte |= (pixels[i + bit] & 1) << (7 - bit)  # MSB first
-        data.append(byte)
-
+    bytes_per_row = (size + 7) // 8
+    for y in range(size):
+        row_start = y * size
+        for byte_index in range(bytes_per_row):
+            byte = 0
+            for bit in range(8):
+                x = byte_index * 8 + bit
+                if x < size:
+                    # Most significant bit is left-most pixel
+                    byte |= (pixels[row_start + x] & 1) << (7 - bit)
+            data.append(byte)
     return data
 
 
