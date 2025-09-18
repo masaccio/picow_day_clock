@@ -14,7 +14,7 @@ set(CLOCK_C_NAME clock_digit_font)
 set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/BebasNeue-Regular.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
-set(ICONS_LIST dns ntp wifi)
+set(ICONS_LIST ntp wifi)
 set(ICON_SIZE 24)
 set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/convert-icon-bitmap.py)
 
@@ -89,12 +89,12 @@ foreach(ICON_NAME IN ITEMS ${ICONS_LIST})
     )
 endforeach()
 
-add_custom_target(generate_fonts ALL
+add_custom_target(generate_fonts
     DEPENDS ${GENERATED_FONT_SRC_FILES}
     COMMENT "Generating all fonts"
 )
 
-add_custom_target(generate_icons ALL
+add_custom_target(generate_icons
     DEPENDS ${GENERATED_ICON_SRC_FILES}
     COMMENT "Generating all icons"
 )
