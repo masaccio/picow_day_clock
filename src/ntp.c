@@ -1,5 +1,6 @@
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/watchdog.h"
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
@@ -58,6 +59,9 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 {
     ntp_state_t *state = (ntp_state_t *)arg;
     (void)pcb;
+
+    watchdog_update();
+
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
 
@@ -72,6 +76,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         time_t epoch = seconds_since_1970;
 
         state->status = NTP_STATUS_SUCCESS;
+        CLOCK_DEBUG("NTP: update success timestamp=%ul\r\n", epoch);
         state->time_handler(state->parent_state, &epoch);
     } else if (addrs_valid && response_valid && stratum == 0) {
         // We got a 'kiss of death' from the NTP server for too many requests.
