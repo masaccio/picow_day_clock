@@ -47,7 +47,7 @@ struct timeval
 
 typedef enum
 {
-    RESET_REASON_NONE = 0,
+    RESET_REASON_NONE = 0xff,
     RESET_REASON_WIFI = -1,
     RESET_REASON_NTP = -2,
 } reset_reason_t;
