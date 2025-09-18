@@ -92,7 +92,7 @@
 
 // Begin local settings, different from Pico Examples
 #define MEM_SIZE                    16*1024
-#if LWIP_MALLOC_DEBUG
+#if defined LWIP_MALLOC_DEBUG && LWIP_MALLOC_DEBUG == 1
 #define LWIP_STATS                  1
 #define LWIP_STATS_DISPLAY          1
 #define MEM_STATS                   1
@@ -103,7 +103,7 @@
 #define MEMP_OVERFLOW_CHECK         2
 #endif // LWIP_MALLOC_DEBUG
 
-#if LWIP_PROTOCOL_DEBUG
+#if defined LWIP_PROTOCOL_DEBUG && LWIP_PROTOCOL_DEBUG == 1
 #define LWIP_DEBUG                  1
 #define PBUF_DEBUG                  LWIP_DBG_ON
 #define UDP_DEBUG                   LWIP_DBG_ON
