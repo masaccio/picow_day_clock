@@ -72,12 +72,11 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 =
             seconds_buf[0] << 24 | seconds_buf[1] << 16 | seconds_buf[2] << 8 | seconds_buf[3];
-        uint32_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
-        time_t epoch = seconds_since_1970;
+        time_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
 
         state->status = NTP_STATUS_SUCCESS;
-        CLOCK_DEBUG("NTP: update success timestamp=%ul\r\n", epoch);
-        state->time_handler(state->parent_state, &epoch);
+        CLOCK_DEBUG("NTP: update success timestamp=%llu\r\n", seconds_since_1970);
+        state->time_handler(state->parent_state, &seconds_since_1970);
     } else if (addrs_valid && response_valid && stratum == 0) {
         // We got a 'kiss of death' from the NTP server for too many requests.
         state->status = NTP_STATUS_KOD;
