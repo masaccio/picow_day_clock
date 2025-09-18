@@ -50,7 +50,6 @@ typedef struct lcd_state_t
 typedef enum
 {
     WIFI_ICON,
-    DNS_ICON,
     NTP_ICON,
 } icon_type_t;
 
