@@ -150,14 +150,18 @@ bool time_is_dst(struct tm *utc)
 const char *time_as_string(time_t t)
 {
     static char buffer[32];
+    struct tm tm_utc;
 
-    int dst = time_is_dst(gmtime(&t));
-    time_t local_time_t = t + (dst ? 3600 : 0);
-    struct tm *local = gmtime(&local_time_t);
+    gmtime_r(&t, &tm_utc);
+    int dst = time_is_dst(&tm_utc);
+    time_t local_epoch = t + (dst ? 3600 : 0);
+    struct tm tm_local;
+    gmtime_r(&local_epoch, &tm_local);
 
-    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", local->tm_hour, local->tm_min, local->tm_sec,
+    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", tm_local.tm_hour, tm_local.tm_min, tm_local.tm_sec,
              dst ? " (DST)" : "");
-    return (const char *)buffer;
+
+    return buffer;
 }
 
 bool clock_timer_callback(struct repeating_timer *t)
@@ -173,27 +177,28 @@ bool clock_timer_callback(struct repeating_timer *t)
         state->ntp_drift++;
     }
     time_t now = time(NULL) + state->ntp_drift;
-    struct tm *current_time = gmtime(&now);
+    struct tm current_time;
+    gmtime_r(&now, &current_time);
 
-    CLOCK_DEBUG("Current time is: %s\r\n", time_as_string(now));
+    CLOCK_DEBUG("Current time is: %s timestamp=%llu\r\n", time_as_string(now), now);
 
-    if (state->init_done == false || current_time->tm_sec == 0) {
-        if (time_is_dst(current_time)) {
+    if (state->init_done == false || current_time.tm_sec == 0) {
+        if (time_is_dst(&current_time)) {
             /* Apply daylight savings */
-            if (current_time->tm_hour == 23) {
-                current_time->tm_hour = 0;
-                current_time->tm_wday = (current_time->tm_wday + 1) % 7;
+            if (current_time.tm_hour == 23) {
+                current_time.tm_hour = 0;
+                current_time.tm_wday = (current_time.tm_wday + 1) % 7;
             } else {
-                current_time->tm_hour++;
+                current_time.tm_hour++;
             }
         }
 
         static char lcd_digits[NUM_LCDS + 1];
-        strncpy(lcd_digits, day_of_week[current_time->tm_wday], 3);
-        lcd_digits[3] = '0' + (current_time->tm_hour / 10);
-        lcd_digits[4] = '0' + (current_time->tm_hour % 10);
-        lcd_digits[5] = '0' + (current_time->tm_min / 10);
-        lcd_digits[6] = '0' + (current_time->tm_min % 10);
+        strncpy(lcd_digits, day_of_week[current_time.tm_wday], 3);
+        lcd_digits[3] = '0' + (current_time.tm_hour / 10);
+        lcd_digits[4] = '0' + (current_time.tm_hour % 10);
+        lcd_digits[5] = '0' + (current_time.tm_min / 10);
+        lcd_digits[6] = '0' + (current_time.tm_min % 10);
         lcd_digits[7] = '\0';
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
@@ -210,10 +215,11 @@ bool clock_timer_callback(struct repeating_timer *t)
                 CLOCK_DEBUG("LCD icons: reason=%d, boot_count=%d, NTP=%s\r\n", state->last_reset_reason,
                             persistent_state.boot_count,
                             (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
-                if (state->last_reset_reason != RESET_REASON_NONE) {
+                if (persistent_state.boot_count > 0) {
                     unsigned char buffer[16];
                     snprintf((char *)buffer, 16, "%d", persistent_state.boot_count);
-                    lcd_print_line(state->lcd_states[0], 0, RED, (const char *)buffer);
+                    lcd_print_line(state->lcd_states[0], 0,
+                                   (state->last_reset_reason == RESET_REASON_NONE) ? GREEN : RED, (const char *)buffer);
                 }
                 if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
                     lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
@@ -297,7 +303,7 @@ int main(void)
     if (watchdog_caused_reboot()) {
         persistent_state.boot_count++;
         state->last_reset_reason = persistent_state.reset_reason;
-        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=0x%0x\r\n", persistent_state.boot_count,
+        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
                     persistent_state.reset_reason);
         persistent_state.reset_reason = RESET_REASON_NONE;
     } else {
@@ -306,6 +312,7 @@ int main(void)
         state->last_reset_reason = RESET_REASON_NONE;
         CLOCK_DEBUG("Cold boot\r\n");
     }
+    watchdog_update();
 
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
