@@ -21,8 +21,7 @@ extern font_t clock_digit_font;
 
 #define ICON_SIZE 24
 
-extern const uint8_t *dns_icon;
-extern const uint8_t *ntp_icon;
-extern const uint8_t *wifi_icon;
+extern const uint8_t wifi_icon[ICON_SIZE * 3];
+extern const uint8_t ntp_icon[ICON_SIZE * 3];
 
 #endif // _BITMAP_H
