@@ -146,8 +146,10 @@ int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), v
                            repeating_timer_t *out_timer);
 
 // Watchdog
+#define SRAM_END -1
 bool watchdog_caused_reboot(void);
 void watchdog_enable(uint32_t delay_ms, bool pause_on_debug);
+void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms);
 void watchdog_update(void);
 
 #endif // MOCK_H

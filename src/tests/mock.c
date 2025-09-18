@@ -350,6 +350,13 @@ bool watchdog_caused_reboot(void)
     return test_config.watchdog_caused_reboot;
 }
 
+void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
+{
+    (void)pc;
+    (void)sp;
+    (void)delay_ms;
+}
+
 void watchdog_enable(uint32_t delay_ms, bool pause_on_debug)
 {
     (void)delay_ms;
