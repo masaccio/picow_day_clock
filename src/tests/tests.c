@@ -45,9 +45,25 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         return status;
     }
 
+    bool log_mismatch = false;
+    uint32_t max_log_width = 0;
+    uint32_t expected_log_size = 0;
+    for (unsigned int ii = 0; ii < log_buffer_size; ii++) {
+        if (strlen(log_buffer[ii]) > max_log_width) {
+            max_log_width = strlen(log_buffer[ii]);
+        }
+    }
+    for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
+        if (ii > expected_log_size) {
+            expected_log_size = ii;
+        }
+        if (strlen(expected_log[ii]) > expected_log_size) {
+            max_log_width = strlen(expected_log[ii]);
+        }
+    }
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
         if (ii >= log_buffer_size) {
-            printf("TEST %s: ERROR: log truncated at offset #%d\n", test_name, ii);
+            log_mismatch = true;
             break;
         }
         unsigned int test_len = strlen(log_buffer[ii]);
@@ -60,9 +76,17 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
             }
         }
         if (test_len != ref_len || strncmp(log_buffer[ii], expected_log[ii], max_len) != 0) {
-            printf("TEST %s: ERROR    : log mismatch position #%d\n", test_name, ii);
-            printf("TEST %s: EXPECTED : >>%s<<\n", test_name, expected_log[ii]);
-            printf("TEST %s: FOUND    : >>%s<<\n", test_name, log_buffer[ii]);
+            log_mismatch = true;
+        }
+    }
+
+    if (log_mismatch) {
+        printf("===== [REF] ======= %s ===== [TEST] =======\n", test_name);
+        for (unsigned int ii = 0; ii < expected_log_size; ii++) {
+            printf("  %-*s | %s\n", max_log_width, expected_log[ii], (log_buffer_size >= ii) ? log_buffer[ii] : "");
+        }
+        for (unsigned int ii = expected_log_size; ii < log_buffer_size; ii++) {
+            printf("  %-*s | %s\n", max_log_width, "", log_buffer[ii]);
         }
     }
     for (unsigned int ii = 0; ii <= log_buffer_size; ii++) {
@@ -112,7 +136,7 @@ int test_dns_lookups(void)
     return 0;
 }
 
-int test_cy43_init_errors(void)
+int test_wifi_init_errors(void)
 {
     test_config.cyw43_arch_init_fail = true;
     if (test_main() != 1) {
@@ -141,7 +165,7 @@ int test_cy43_init_errors(void)
     return 0;
 }
 
-int test_cy43_auth_errors(void)
+int test_wifi_auth_errors(void)
 {
     test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
     if (test_main() != 0) {
@@ -303,75 +327,43 @@ int main(void)
 
     status |= run_test(test_ntp_drift, "NTP drift", NULL);
 
-    static const char *test_cy43_init_errors_ref[] = {
-        // CY43 init fails
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi init error",
-        // CY43 connection failure
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect error",
-        // CY43 unknown failure
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi unknown error",
-        // Timeout OK
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP time OK",
-        // Timeout
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi timeout error",
+    static const char *test_wifi_init_errors_ref[] = {
+        "LCD: STATUS_WIFI_INIT=RED",
+        "LCD: STATUS_WIFI_CONNECT=RED",
+        "LCD: STATUS_WIFI_ERROR=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
+        "LCD: STATUS_WIFI_TIMEOUT=RED",
         NULL,
     };
-    status |= run_test(test_cy43_init_errors, "cyw43_arch_init error", test_cy43_init_errors_ref);
+    status |= run_test(test_wifi_init_errors, "Wi-Fi init error", test_wifi_init_errors_ref);
 
-    static const char *test_cy43_auth_errors_ref[] = {
-        // Bad auth within retry count
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP time OK",
-        // Bad auth exceeds retry count
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi auth error",
+    static const char *test_wifi_auth_errors_ref[] = {
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
+        "LCD: STATUS_WIFI_AUTH=RED",
         NULL,
     };
-    status |= run_test(test_cy43_auth_errors, "Wi-Fi auth", test_cy43_auth_errors_ref);
+    status |= run_test(test_wifi_auth_errors, "Wi-Fi auth", test_wifi_auth_errors_ref);
 
     static const char *test_dns_lookup_ref[] = {
-        // DNS lookup failed
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP DNS failed",
-        // DNS lookup timed out
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP timeout",
-        // DNS lookup just inside timeout
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP time OK",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_DNS=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_TIMEOUT=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
         NULL,
     };
     status |= run_test(test_dns_lookups, "DNS failure", test_dns_lookup_ref);
 
     static const char *test_ntp_errors_ref[] = {
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init error",
-        // pbuf_alloc failure
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP memory error",
-        // udp_sendto failure
-        "LCD: LCD init OK",
-        "LCD: Wi-Fi connect OK",
-        "LCD: NTP init OK",
-        "LCD: NTP unknown error",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_MEMORY=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
         NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
