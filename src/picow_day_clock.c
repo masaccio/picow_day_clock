@@ -216,10 +216,7 @@ bool clock_timer_callback(struct repeating_timer *t)
                             persistent_state.boot_count,
                             (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
                 if (persistent_state.boot_count > 0) {
-                    unsigned char buffer[16];
-                    snprintf((char *)buffer, 16, "%d", persistent_state.boot_count);
-                    lcd_print_line(state->lcd_states[0], 0, (state->last_reset_error == STATUS_NONE) ? GREEN : RED,
-                                   (const char *)buffer);
+                    lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, false);
                 }
                 if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
                     lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, false);
@@ -301,22 +298,6 @@ int main(void)
     stdio_init_all();
 
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
-
-    if (watchdog_caused_reboot()) {
-        persistent_state.boot_count++;
-        state->last_reset_error = persistent_state.reset_error;
-        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
-                    persistent_state.reset_error);
-        lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
-        persistent_state.reset_error = STATUS_NONE;
-    } else {
-        persistent_state.boot_count = 0;
-        persistent_state.reset_error = STATUS_NONE;
-        state->last_reset_error = STATUS_NONE;
-        CLOCK_DEBUG("Cold boot\r\n");
-    }
-    watchdog_update();
-
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
         printf("Failed to allocate clock state\r\n");
@@ -337,6 +318,21 @@ int main(void)
         }
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
+
+    if (watchdog_caused_reboot()) {
+        persistent_state.boot_count++;
+        state->last_reset_error = persistent_state.reset_error;
+        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
+                    persistent_state.reset_error);
+        lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
+        persistent_state.reset_error = STATUS_NONE;
+    } else {
+        persistent_state.boot_count = 0;
+        persistent_state.reset_error = STATUS_NONE;
+        state->last_reset_error = STATUS_NONE;
+        CLOCK_DEBUG("Cold boot\r\n");
+    }
+    watchdog_update();
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     switch (wifi_status) {
