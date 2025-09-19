@@ -212,14 +212,14 @@ bool clock_timer_callback(struct repeating_timer *t)
             }
 
             if (ii == 0) {
-                CLOCK_DEBUG("LCD icons: reason=%d, boot_count=%d, NTP=%s\r\n", state->last_reset_reason,
+                CLOCK_DEBUG("LCD icons: reason=%d, boot_count=%d, NTP=%s\r\n", state->last_reset_error,
                             persistent_state.boot_count,
                             (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
                 if (persistent_state.boot_count > 0) {
                     unsigned char buffer[16];
                     snprintf((char *)buffer, 16, "%d", persistent_state.boot_count);
-                    lcd_print_line(state->lcd_states[0], 0,
-                                   (state->last_reset_reason == RESET_REASON_NONE) ? GREEN : RED, (const char *)buffer);
+                    lcd_print_line(state->lcd_states[0], 0, (state->last_reset_error == ERROR_NONE) ? GREEN : RED,
+                                   (const char *)buffer);
                 }
                 if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
                     lcd_update_icon(state->lcd_states[0], WIFI_ICON, GREEN);
@@ -256,9 +256,9 @@ bool clock_timer_callback(struct repeating_timer *t)
     return true; // Keep repeating
 }
 
-static void fatal_reset(reset_reason_t reason)
+static void fatal_reset(clock_error_t reason)
 {
-    persistent_state.reset_reason = reason;
+    persistent_state.reset_error = reason;
     watchdog_reboot(0, SRAM_END, 0);
     while (1)
 #ifndef TEST_MODE
@@ -302,14 +302,14 @@ int main(void)
 
     if (watchdog_caused_reboot()) {
         persistent_state.boot_count++;
-        state->last_reset_reason = persistent_state.reset_reason;
+        state->last_reset_error = persistent_state.reset_error;
         CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
-                    persistent_state.reset_reason);
-        persistent_state.reset_reason = RESET_REASON_NONE;
+                    persistent_state.reset_error);
+        persistent_state.reset_error = ERROR_NONE;
     } else {
         persistent_state.boot_count = 0;
-        persistent_state.reset_reason = RESET_REASON_NONE;
-        state->last_reset_reason = RESET_REASON_NONE;
+        persistent_state.reset_error = ERROR_NONE;
+        state->last_reset_error = ERROR_NONE;
         CLOCK_DEBUG("Cold boot\r\n");
     }
     watchdog_update();
@@ -320,7 +320,7 @@ int main(void)
         return 1;
     }
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        bool reset = (ii == 0 && persistent_state.reset_reason == RESET_REASON_NONE) ? true : false;
+        bool reset = (ii == 0 && persistent_state.reset_error == ERROR_NONE) ? true : false;
         state->lcd_states[ii] = lcd_init(/* RST  */ LCD_GPIO_RST,
                                          /* DC   */ lcd_pin_config[ii].DC,
                                          /* BL   */ LCD_GPIO_BL,
@@ -344,27 +344,27 @@ int main(void)
         case WIFI_STATUS_INIT_FAIL:
             lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_WIFI);
+            fatal_reset(ERROR_WIFI_INIT);
             // Never reached: reset happens
         case WIFI_STATUS_TIMEOUT:
             lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_WIFI);
+            fatal_reset(ERROR_WIFI_TIMEOUT);
             // Never reached: reset happens
         case WIFI_STATUS_BAD_AUTH:
             lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_WIFI);
+            fatal_reset(ERROR_WIFI_AUTH);
             // Never reached: reset happens
         case WIFI_STATUS_CONNECT_FAILED:
             lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_WIFI);
+            fatal_reset(ERROR_WIFI_CONNECT);
             // Never reached: reset happens
         default: // whould be WIFI_STATUS_UNKNOWN_ERROR
             lcd_update_icon(state->lcd_states[0], WIFI_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_WIFI);
+            fatal_reset(ERROR_WIFI_ERROR);
             // Never reached: reset happens
     }
 
@@ -372,7 +372,7 @@ int main(void)
     if (state->ntp_state == NULL) {
         lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
         lcd_update_screen(state->lcd_states[0]);
-        fatal_reset(RESET_REASON_NTP);
+        fatal_reset(ERROR_NTP_INIT);
         // Never reached: reset happens
     }
     lcd_update_icon(state->lcd_states[0], NTP_ICON, GREEN);
@@ -387,22 +387,22 @@ int main(void)
         case NTP_STATUS_DNS_ERROR:
             lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_NTP);
+            fatal_reset(ERROR_NTP_DNS);
             // Never reached: reset happens
         case NTP_STATUS_TIMEOUT:
             lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_NTP);
+            fatal_reset(ERROR_NTP_TIMEOUT);
             // Never reached: reset happens
         case NTP_STATUS_MEMORY_ERROR:
             lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_NTP);
+            fatal_reset(ERROR_NTP_MEMORY);
             // Never reached: reset happens
         default: // Should be NTP_STATUS_INVALID_RESPONSE
             lcd_update_icon(state->lcd_states[0], NTP_ICON, RED);
             lcd_update_screen(state->lcd_states[0]);
-            fatal_reset(RESET_REASON_NTP);
+            fatal_reset(ERROR_NTP_INVALID);
             // Never reached: reset happens
     }
 

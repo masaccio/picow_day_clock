@@ -14,9 +14,11 @@ set(CLOCK_C_NAME clock_digit_font)
 set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/BebasNeue-Regular.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
-set(ICONS_LIST ntp wifi)
-set(ICON_SIZE 24)
-set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/convert-icon-bitmap.py)
+set(ICONS_LIST watchdog memory
+               wifi_init wifi_timeout wifi_password wifi_connect wifi_error 
+               ntp_init ntp_dns ntp_timeout ntp_memory ntp_error)
+set(ICON_SIZE 36)
+set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-icon-bitmaps.py)
 
 # GitHub runner's CMake doesn't set WIN32
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
@@ -82,19 +84,19 @@ foreach(ICON_NAME IN ITEMS ${ICONS_LIST})
         DEPENDS ${ICON_SCRIPT} ${PIL_PACKAGE_DIR}
         COMMAND ${PYTHON_EXECUTABLE} ${ICON_SCRIPT}
             --size=${ICON_SIZE}
-            ${CMAKE_SOURCE_DIR}/images/${ICON_NAME}-icon.jpeg
             --c-name=${ICON_NAME}_icon
             --output=${ICON_C_FILE}
+            ${CMAKE_SOURCE_DIR}/images/${ICON_NAME}-icon.jpeg
         COMMENT "Generating icon file ${ICON_C_FILE}"
     )
 endforeach()
 
-add_custom_target(generate_fonts
+add_custom_target(generate_fonts ALL
     DEPENDS ${GENERATED_FONT_SRC_FILES}
     COMMENT "Generating all fonts"
 )
 
-add_custom_target(generate_icons
+add_custom_target(generate_icons ALL
     DEPENDS ${GENERATED_ICON_SRC_FILES}
     COMMENT "Generating all icons"
 )

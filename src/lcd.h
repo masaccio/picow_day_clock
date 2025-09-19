@@ -60,7 +60,7 @@ extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 extern void lcd_init_peripherals(lcd_state_t *state, bool reset);
 
-extern void lcd_update_icon(lcd_state_t *state, icon_type_t icon, color_t color);
+void lcd_update_icon(lcd_state_t *state, uint16_t error, color_t color);
 
 extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 

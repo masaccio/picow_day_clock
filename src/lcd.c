@@ -96,21 +96,67 @@ void lcd_clear_screen(lcd_state_t *state, color_t color)
     lcd_update_screen(state);
 }
 
-void lcd_update_icon(lcd_state_t *state, icon_type_t icon, color_t color)
+void lcd_update_icon(lcd_state_t *state, uint16_t error, color_t color)
 {
-    // Position last icon 10 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_HEIGHT - ICON_SIZE - 10;
-    x_start -= ((uint16_t)icon * ICON_SIZE + 10);
-    const uint8_t *icon_data;
-    switch (icon) {
-        case WIFI_ICON:
-            icon_data = wifi_icon;
+    const uint8_t *icon;
+    int offset;
+    switch ((clock_error_t)error) {
+        case ERROR_WIFI_INIT:
+            icon = wifi_init_icon;
+            offset = 0;
             break;
-        case NTP_ICON:
-            icon_data = ntp_icon;
+
+        case ERROR_WIFI_TIMEOUT:
+            icon = wifi_timeout_icon;
+            offset = 0;
             break;
+
+        case ERROR_WIFI_AUTH:
+            icon = wifi_password_icon;
+            offset = 0;
+            break;
+
+        case ERROR_WIFI_CONNECT:
+            icon = wifi_connect_icon;
+            offset = 0;
+
+        case ERROR_WIFI_ERROR:
+            icon = wifi_error_icon;
+            offset = 0;
+            break;
+
+        case ERROR_NTP_INIT:
+            icon = ntp_init_icon;
+            offset = 1;
+            break;
+
+        case ERROR_NTP_DNS:
+            icon = ntp_dns_icon;
+            offset = 1;
+            break;
+
+        case ERROR_NTP_TIMEOUT:
+            icon = ntp_timeout_icon;
+            offset = 1;
+            break;
+
+        case ERROR_NTP_MEMORY:
+            icon = ntp_memory_icon;
+            offset = 1;
+            break;
+
+        case ERROR_NTP_INVALID:
+            icon = ntp_error_icon;
+            offset = 1;
+            break;
+
+        case ERROR_NONE:
+            return;
     }
-    fb_copy_image(state->fb, icon_data, x_start, 0, ICON_SIZE, ICON_SIZE, color);
+
+    // Position last icon 10 pixels from edge to handle rounded corner
+    uint16_t x_start = LCD_HEIGHT - 10 - ((ICON_SIZE + 10) * offset);
+    fb_copy_image(state->fb, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
 // Initialise the Pico peripeherals we will use (SPI, GPIO, PWM)

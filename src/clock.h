@@ -47,15 +47,23 @@ struct timeval
 
 typedef enum
 {
-    RESET_REASON_NONE = 0xff,
-    RESET_REASON_WIFI = -1,
-    RESET_REASON_NTP = -2,
-} reset_reason_t;
+    ERROR_WIFI_INIT = -1,
+    ERROR_WIFI_TIMEOUT = -2,
+    ERROR_WIFI_AUTH = -3,
+    ERROR_WIFI_CONNECT = -4,
+    ERROR_WIFI_ERROR = -5,
+    ERROR_NTP_INIT = -6,
+    ERROR_NTP_DNS = -7,
+    ERROR_NTP_TIMEOUT = -8,
+    ERROR_NTP_MEMORY = -9,
+    ERROR_NTP_INVALID = -10,
+    ERROR_NONE = 0xff,
+} clock_error_t;
 
 typedef struct
 {
     uint32_t boot_count;
-    reset_reason_t reset_reason;
+    clock_error_t reset_error;
 } persistent_state_t;
 
 typedef struct clock_state_t
@@ -71,7 +79,7 @@ typedef struct clock_state_t
     // Timer state
     bool init_done;
     repeating_timer_t timer;
-    reset_reason_t last_reset_reason;
+    clock_error_t last_reset_error;
 } clock_state_t;
 
 extern time_t tm_to_epoch(struct tm *tm);
