@@ -18,6 +18,20 @@
             }
         },
         {
+            "name": "Python Icons",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/create-icon-bitmaps.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--size=36",
+                "--output=/tmp/ntp_icon.c",
+                "--c-name=ntp_icon",
+                "${workspaceFolder}/images/ntp-icon.jpeg",
+            ],
+            "python": "${workspaceFolder}/build/scripts_venv/bin/python3"
+        },
+        {
             "name": "Python Fontgen (Text)",
             "type": "debugpy",
             "request": "launch",
