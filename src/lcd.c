@@ -105,74 +105,75 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
     switch (status) {
         case STATUS_WIFI_OK:
             icon = wifi_icon;
-            offset = 0;
+            offset = -1;
             break;
 
         case STATUS_WIFI_INIT:
             icon = wifi_init_icon;
-            offset = 0;
+            offset = -1;
             break;
 
         case STATUS_WIFI_TIMEOUT:
             icon = wifi_timeout_icon;
-            offset = 0;
+            offset = -1;
             break;
 
         case STATUS_WIFI_AUTH:
             icon = wifi_password_icon;
-            offset = 0;
+            offset = -1;
             break;
 
         case STATUS_WIFI_CONNECT:
             icon = wifi_connect_icon;
-            offset = 0;
+            offset = -1;
 
         case STATUS_WIFI_ERROR:
             icon = wifi_error_icon;
-            offset = 0;
+            offset = -1;
             break;
 
         case STATUS_NTP_OK:
             icon = ntp_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_NTP_INIT:
             icon = ntp_init_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_NTP_DNS:
             icon = ntp_dns_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_NTP_TIMEOUT:
             icon = ntp_timeout_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_NTP_MEMORY:
             icon = ntp_memory_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_NTP_INVALID:
             icon = ntp_error_icon;
-            offset = 1;
+            offset = -2;
             break;
 
         case STATUS_WATCHDOG_RESET:
             icon = watchdog_icon;
-            offset = 2;
+            offset = -3;
             break;
 
         case STATUS_NONE:
             return;
     }
 
-    // Position last icon 10 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_HEIGHT - 10 - ((ICON_SIZE + 10) * offset);
+    // Position last icon 5 pixels from edge to handle rounded corner and position all icons 5 pixels apart
+    uint16_t x_start = LCD_HEIGHT - 5;
+    x_start += ICON_SIZE * offset;
     fb_copy_image(state->fb, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
