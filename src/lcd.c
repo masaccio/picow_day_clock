@@ -31,6 +31,7 @@
 #include "clock.h"
 #include "fb.h"
 #include "lcd.h"
+#include "status.h"
 
 // How the 2-bit colours map to 16-bit colour
 static uint16_t color_table[] = {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0xFFFF /* white */};
@@ -96,61 +97,77 @@ void lcd_clear_screen(lcd_state_t *state, color_t color)
     lcd_update_screen(state);
 }
 
-void lcd_update_icon(lcd_state_t *state, uint16_t error, color_t color)
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
 {
     const uint8_t *icon;
     int offset;
-    switch ((clock_error_t)error) {
-        case ERROR_WIFI_INIT:
+    color_t color = is_error ? RED : GREEN;
+    switch (status) {
+        case STATUS_WIFI_OK:
+            icon = wifi_icon;
+            offset = 0;
+            break;
+
+        case STATUS_WIFI_INIT:
             icon = wifi_init_icon;
             offset = 0;
             break;
 
-        case ERROR_WIFI_TIMEOUT:
+        case STATUS_WIFI_TIMEOUT:
             icon = wifi_timeout_icon;
             offset = 0;
             break;
 
-        case ERROR_WIFI_AUTH:
+        case STATUS_WIFI_AUTH:
             icon = wifi_password_icon;
             offset = 0;
             break;
 
-        case ERROR_WIFI_CONNECT:
+        case STATUS_WIFI_CONNECT:
             icon = wifi_connect_icon;
             offset = 0;
 
-        case ERROR_WIFI_ERROR:
+        case STATUS_WIFI_ERROR:
             icon = wifi_error_icon;
             offset = 0;
             break;
 
-        case ERROR_NTP_INIT:
+        case STATUS_NTP_OK:
+            icon = ntp_icon;
+            offset = 1;
+            break;
+
+        case STATUS_NTP_INIT:
             icon = ntp_init_icon;
             offset = 1;
             break;
 
-        case ERROR_NTP_DNS:
+        case STATUS_NTP_DNS:
             icon = ntp_dns_icon;
             offset = 1;
             break;
 
-        case ERROR_NTP_TIMEOUT:
+        case STATUS_NTP_TIMEOUT:
             icon = ntp_timeout_icon;
             offset = 1;
             break;
 
-        case ERROR_NTP_MEMORY:
+        case STATUS_NTP_MEMORY:
             icon = ntp_memory_icon;
             offset = 1;
             break;
 
-        case ERROR_NTP_INVALID:
+        case STATUS_NTP_INVALID:
             icon = ntp_error_icon;
             offset = 1;
             break;
 
-        case ERROR_NONE:
+        case STATUS_WATCHDOG_RESET:
+            icon = watchdog_icon;
+            offset = 2;
+            break;
+
+        case STATUS_NONE:
             return;
     }
 

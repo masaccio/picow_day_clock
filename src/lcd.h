@@ -22,6 +22,7 @@
 // Local includes
 #include "bitmap.h"
 #include "fb.h"
+#include "status.h"
 
 #define LCD_HEIGHT 172
 #define LCD_WIDTH 320
@@ -47,12 +48,6 @@ typedef struct lcd_state_t
     frame_buffer_t *fb;
 } lcd_state_t;
 
-typedef enum
-{
-    WIFI_ICON,
-    NTP_ICON,
-} icon_type_t;
-
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, bool reset);
 
@@ -60,7 +55,7 @@ extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 extern void lcd_init_peripherals(lcd_state_t *state, bool reset);
 
-void lcd_update_icon(lcd_state_t *state, uint16_t error, color_t color);
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error);
 
 extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 
