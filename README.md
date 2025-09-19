@@ -15,6 +15,16 @@ The pin-out and Wi-Fi settings are hard-coded into the project at buuld time. Af
 
 NTP syncs start at once per day and respect back-off requests from the server if this is too frequent. The timer itself runs once per second and any NTP drift that occurs daily is compensated for in these timer callbacks.
 
+### Diagnostics
+
+A watchdog timer runs on the clock and reboots the Pico if there is no activity for `WATCHDOG_TIMEOUT_MS` which is 3 seconds by default. On reboot, the clock reconnects to Wi-Fi and resyncs with NTP.
+
+The clock displays icons along the top edge of LCD1 when errors occur. The icons indocate watchdog status, NTP status and Wi-Fi status. They are coloured red for errors and green for normal status and indicate the nature of the error that occured such as a Wi-Fi authentication provblem or network timeout.
+
+![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/icons-on-display.png)
+
+If the LCD cannot be initialises, the clock prints diagnostics to `stdout` as a last resort.
+
 ### Timezones
 
 The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom. 
