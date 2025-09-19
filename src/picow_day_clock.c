@@ -48,15 +48,76 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
 };
 
-#ifndef TEST_MODE
-persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
-#else
+#ifdef TEST_MODE
 // In test mode, we want to return from main() but fatal_error() cannor return
 // so we use setjmp/longjmp to break out
 #include <setjmp.h>
 
 static jmp_buf fatal_jmp_buf;
 persistent_state_t persistent_state;
+
+static const char *status_to_string(clock_status_t status);
+
+static void fatal_reset(clock_state_t *state, clock_status_t status)
+{
+    mock_printf("LCD: %s=RED", status_to_string(status));
+    lcd_update_screen(state->lcd_states[0]);
+    persistent_state.reset_error = status;
+    watchdog_reboot(0, SRAM_END, 0);
+    // Returns into main() which will then exit with status=1
+    longjmp(fatal_jmp_buf, 1);
+}
+
+#define STATUS_CASE(STATUS)                                                                                            \
+    case STATUS:                                                                                                       \
+        return #STATUS;
+
+static const char *status_to_string(clock_status_t status)
+{
+    switch (status) {
+        STATUS_CASE(STATUS_WIFI_OK)
+        STATUS_CASE(STATUS_NTP_OK)
+        STATUS_CASE(STATUS_WIFI_INIT)
+        STATUS_CASE(STATUS_WIFI_TIMEOUT)
+        STATUS_CASE(STATUS_WIFI_AUTH)
+        STATUS_CASE(STATUS_WIFI_CONNECT)
+        STATUS_CASE(STATUS_WIFI_ERROR)
+        STATUS_CASE(STATUS_NTP_INIT)
+        STATUS_CASE(STATUS_NTP_DNS)
+        STATUS_CASE(STATUS_NTP_TIMEOUT)
+        STATUS_CASE(STATUS_NTP_MEMORY)
+        STATUS_CASE(STATUS_NTP_INVALID)
+        STATUS_CASE(STATUS_WATCHDOG_RESET)
+        STATUS_CASE(STATUS_NONE)
+        default:
+            return "UNKNOWN_STATUS";
+    }
+}
+
+// In test mode, key status updates to the LCD are treated like a printf()
+// but tagged with an LCD prefix so that the test harness can check the sequence
+// of events.
+//
+#define lcd_print_line(state, line_num, color, msg)                                                                    \
+    (void)line_num;                                                                                                    \
+    (void)color;                                                                                                       \
+    mock_printf("LCD: %s", msg)
+
+#define lcd_update_icon(state, reason, is_error)                                                                       \
+    (void)state;                                                                                                       \
+    mock_printf("LCD: %s=%s", #reason, is_error ? "RED" : "GREEN")
+#else
+persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
+
+static void fatal_reset(clock_state_t *state, clock_status_t status)
+{
+    lcd_update_icon(state->lcd_states[0], status, true);
+    lcd_update_screen(state->lcd_states[0]);
+    persistent_state.reset_error = status;
+    watchdog_reboot(0, SRAM_END, 0);
+    while (1)
+        __wfi(); // hang until reset
+}
 #endif
 
 static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
@@ -216,11 +277,17 @@ bool clock_timer_callback(struct repeating_timer *t)
                             persistent_state.boot_count,
                             (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
                 if (persistent_state.boot_count > 0) {
+#ifndef TEST_MODE
+                    // Don't update in test mode as this will be VERY verbose
                     lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, false);
+#endif
                 }
                 if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
+#ifndef TEST_MODE
+                    // Don't update in test mode as this will be VERY verbose
                     lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, false);
                     lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, false);
+#endif
                 }
             }
 #ifndef TEST_MODE
@@ -253,37 +320,9 @@ bool clock_timer_callback(struct repeating_timer *t)
     return true; // Keep repeating
 }
 
-static void fatal_reset(clock_state_t *state, clock_status_t status)
-{
-    lcd_update_icon(state->lcd_states[0], status, true);
-    lcd_update_screen(state->lcd_states[0]);
-    persistent_state.reset_error = status;
-    watchdog_reboot(0, SRAM_END, 0);
-    while (1)
-#ifndef TEST_MODE
-        __wfi(); // hang until reset
-#else
-        // Returns into main() which will then exit with status=1
-        longjmp(fatal_jmp_buf, 1);
-#endif
-}
-
 #ifdef TEST_MODE
-// In test mode, key status updates to the LCD are treated like a printf()
-// but tagged with an LCD prefix so that the test harness can check the sequence
-// of events.
-//
-// main() also always returns, even in the case of a fatal error in test mode
+// IN test mode, main() always returns, even in the case of a fatal error
 // as we need to that fatal errors happened for the correct reasons.
-#define lcd_print_line(state, line_num, color, msg)                                                                    \
-    (void)line_num;                                                                                                    \
-    (void)color;                                                                                                       \
-    mock_printf("LCD: %s", msg)
-
-#define lcd_update_icon(state, reason, color)                                                                          \
-    (void)state;                                                                                                       \
-    mock_printf("LCD: %s %s", #reason, #color)
-
 int test_main(void)
 {
     if (setjmp(fatal_jmp_buf)) {
@@ -362,8 +401,6 @@ int main(void)
         fatal_reset(state, STATUS_NTP_INIT);
         // Never reached: reset happens
     }
-    lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, false);
-    lcd_update_screen(state->lcd_states[0]);
 
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
