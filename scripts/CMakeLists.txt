@@ -15,8 +15,8 @@ set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/BebasNeue-Regular.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
 set(ICONS_LIST watchdog memory
-               wifi_init wifi_timeout wifi_password wifi_connect wifi_error 
-               ntp_init ntp_dns ntp_timeout ntp_memory ntp_error)
+               wifi wifi_init wifi_timeout wifi_password wifi_connect wifi_error 
+               ntp ntp_init ntp_dns ntp_timeout ntp_memory ntp_error)
 set(ICON_SIZE 36)
 set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-icon-bitmaps.py)
 
