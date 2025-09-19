@@ -102,3 +102,5 @@ Variable width fonts replace the fixed-width fonts in the Waveshare examples, bu
 The digit font is [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is [licensed](licenses/BebasNeue-OFL.txt) under the Open Font License.
 
 The text font used in display diagnostics during boot is [Roboto Medium](https://fonts.google.com/specimen/Roboto) which is [licensed](licenses/Roboto-OFL.txt) under the Open Font License.
+
+Icons in this project are derived from [Google Material Design Icons](https://github.com/google/material-design-icons), which are licensed under the [Apache License 2.0](https://github.com/google/material-design-icons/blob/master/LICENSE). The icons have been resized and converted to C bitmaps for use in this project, and new icons have been derived to addition status badges.
