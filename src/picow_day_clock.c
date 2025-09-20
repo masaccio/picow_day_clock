@@ -48,26 +48,6 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
 };
 
-#ifdef TEST_MODE
-// In test mode, we want to return from main() but fatal_error() cannor return
-// so we use setjmp/longjmp to break out
-#include <setjmp.h>
-
-static jmp_buf fatal_jmp_buf;
-persistent_state_t persistent_state;
-
-static const char *status_to_string(clock_status_t status);
-
-static void fatal_reset(clock_state_t *state, clock_status_t status)
-{
-    mock_printf("LCD: %s=RED", status_to_string(status));
-    lcd_update_screen(state->lcd_states[0]);
-    persistent_state.reset_error = status;
-    watchdog_reboot(0, SRAM_END, 0);
-    // Returns into main() which will then exit with status=1
-    longjmp(fatal_jmp_buf, 1);
-}
-
 #define STATUS_CASE(STATUS)                                                                                            \
     case STATUS:                                                                                                       \
         return #STATUS;
@@ -92,6 +72,24 @@ static const char *status_to_string(clock_status_t status)
         default:
             return "UNKNOWN_STATUS";
     }
+}
+
+#ifdef TEST_MODE
+// In test mode, we want to return from main() but fatal_error() cannor return
+// so we use setjmp/longjmp to break out
+#include <setjmp.h>
+
+static jmp_buf fatal_jmp_buf;
+persistent_state_t persistent_state;
+
+static void fatal_reset(clock_state_t *state, clock_status_t status)
+{
+    mock_printf("LCD: %s=RED", status_to_string(status));
+    lcd_update_screen(state->lcd_states[0]);
+    persistent_state.reset_error = status;
+    watchdog_reboot(0, SRAM_END, 0);
+    // Returns into main() which will then exit with status=1
+    longjmp(fatal_jmp_buf, 1);
 }
 
 // In test mode, key status updates to the LCD are treated like a printf()
@@ -241,9 +239,11 @@ bool clock_timer_callback(struct repeating_timer *t)
     struct tm current_time;
     gmtime_r(&now, &current_time);
 
-    CLOCK_DEBUG("Current time is: %s timestamp=%llu\r\n", time_as_string(now), now);
-
     if (state->init_done == false || current_time.tm_sec == 0) {
+        CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%d, last_reset_error=%s, NTP=%s\r\n", time_as_string(now), now,
+                    persistent_state.boot_count, status_to_string(state->last_reset_error),
+                    (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
+
         if (time_is_dst(&current_time)) {
             /* Apply daylight savings */
             if (current_time.tm_hour == 23) {
@@ -273,9 +273,6 @@ bool clock_timer_callback(struct repeating_timer *t)
             }
 
             if (ii == 0) {
-                CLOCK_DEBUG("LCD icons: reason=%d, boot_count=%d, NTP=%s\r\n", state->last_reset_error,
-                            persistent_state.boot_count,
-                            (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
                 if (persistent_state.boot_count > 0) {
 #ifndef TEST_MODE
                     // Don't update in test mode as this will be VERY verbose
