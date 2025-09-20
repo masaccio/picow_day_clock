@@ -71,7 +71,7 @@ target_compile_definitions(picow_day_clock PRIVATE
     WIFI_SSID=\"${WIFI_SSID}\"
     WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
     NTP_SERVER=\"${NTP_SERVER}\"
-    PICO_CYW43_ARCH_DEBUG_ENABLED=1     # CYW43 Wi-Fi debug
+    PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
     CLOCK_DEBUG_ENABLED=1               # Clock debug
     LWIP_MALLOC_DEBUG=0                 # Enable debug of memory allocations
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
