@@ -2,7 +2,7 @@
 
 **THIS PROJECT IS A WORK IN PROGRESS**
 
-![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/refs/heads/main/images/prototype.jpeg)
+![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
 
 ## Planned work
 
@@ -14,6 +14,8 @@
 * Figure out how to safely remove the connectors from the Waveshare LCD module so they can be hidden behind the LCDs
 * Build the prototype into a more final layout that is more compact
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
+* Get the Windows CI build working for the test and coverage build
+* And probably more...
 
 ## Introduction
 
@@ -38,7 +40,7 @@ A watchdog timer runs on the clock and reboots the Pico if there is no activity 
 
 The clock displays icons along the top edge of LCD1 when errors occur. The icons indocate watchdog status, NTP status and Wi-Fi status. They are coloured red for errors and green for normal status and indicate the nature of the error that occured such as a Wi-Fi authentication provblem or network timeout.
 
-![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/refs/heads/main/images/icons-on-display.jpeg)
+![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/icons-on-display.jpeg)
 
 If the LCD cannot be initialises, the clock prints diagnostics to `stdout` as a last resort.
 
@@ -114,7 +116,7 @@ The LCD module expects a 3.3V supply and the [datasheet for the Waveshare 1.47in
 
 The BL backlight pin of the LCD module is not the actual LCD backlight; it is a control pin to the LCD module's TXB0108PWR level shifter so can also be shared across all LCDs and, like the other control signals, driven directly from the Pico.
 
-![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/refs/heads/main/images/schematic.jpeg)
+![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.jpeg)
 
 A TXB0108 logic level shifter is used as a set of buffers to increase the available current ro drive CLK, DIN, RST and BL control signals as the Pico's GPIO is insufficient to drive 7 LCDs without significant signal degredation.
 
