@@ -1,5 +1,22 @@
 # Raspberry Pi Pico Day of Week Clock
 
+**THIS PROJECT IS A WORK IN PROGRESS**
+
+![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.png)
+
+## Planned work
+
+* Test the TXB0108 is able to drive all 7 LCDs (currently the prototype just has 4)
+* Add a USB port and connect through to the Pico's USB with the correct isolation
+* Improve the handling of errors:
+  * Once the watchdog reboots, the watchdog icon permanently displays
+  * Provide feedback from within the Wi-Fi and NTP modules so that timeouts are clearer
+* Figure out how to safely remove the connectors from the Waveshare LCD module so they can be hidden behind the LCDs
+* Build the prototype into a more final layout that is more compact
+* Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
+
+## Introduction
+
 This project is the software, hardware design and clock enclosure design for an LCD clock driven by the Raspberry Pi Pico 2 W. The clock design is inspired by the idea of a [Nixie](https://en.wikipedia.org/wiki/Nixie_tube) clock but uses LCDs so that the display is brighter and clearly visible in daylight.
 
 The project is *not* compatible with earlier versions of the Pico and requires the CYW43439 Wi-Fi chip present in the Pico 2 W to function correctly.
