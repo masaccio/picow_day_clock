@@ -271,8 +271,17 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     // Calling the recv() callback right away is harmless for this implementation.
     // And we hard-code a hacked up NTP packet as that's all that will ever be used
     p->tot_len = NTP_MSG_LEN;
-    p->payload[0] = 0x4; // mode
-    p->payload[1] = 0x1; // stratum
+    if (test_config.udp_invalid_response) {
+        p->payload[0] = 0x0; // invalid mode
+    } else {
+        p->payload[0] = 0x4; // mode
+    }
+    if (test_config.udp_ntp_kod) {
+        p->payload[1] = 0x0; // stratum = kiss of death
+        test_config.udp_ntp_kod = false;
+    } else {
+        p->payload[1] = 0x1;
+    }
     p->payload[40] = mock_ntp_seconds >> 24;
     p->payload[41] = (mock_ntp_seconds >> 16) & 0xff;
     p->payload[42] = (mock_ntp_seconds >> 8) & 0xff;
@@ -310,9 +319,9 @@ int dns_gethostbyname(const char *hostname, ip_addr_t *addr, dns_callback_fn fou
         addr->addr = 0;
         found(hostname, NULL, arg);
         return ERR_INPROGRESS;
+    } else if (test_config.dns_bad_arg) {
+        return ERR_ARG;
     } else {
-        static const ip_addr_t ipaddr = {0xdeadbeef};
-        found(hostname, &ipaddr, arg);
         return ERR_OK;
     }
 }

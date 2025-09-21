@@ -85,6 +85,7 @@ int mock_settimeofday(const struct timeval *, void *);
 enum
 {
     ERR_OK,
+    ERR_ARG,
     ERR_INPROGRESS,
     PWM_CHAN_B,
     IPADDR_TYPE_ANY,

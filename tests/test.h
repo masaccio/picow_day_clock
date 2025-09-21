@@ -15,9 +15,12 @@ typedef struct
     // UDP
     bool udp_new_ip_type_fail;
     bool udp_sendto_fail;
+    bool udp_ntp_kod;
+    bool udp_invalid_response;
     // DNS
     int dns_lookup_delay;
     bool dns_lookup_fail;
+    bool dns_bad_arg;
     // Watchdog
     bool watchdog_caused_reboot;
 } test_config_t;

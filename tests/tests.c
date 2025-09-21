@@ -118,6 +118,10 @@ int test_bad_lcd1(void)
 
 int test_dns_lookups(void)
 {
+    test_config.dns_bad_arg = true;
+    if (test_main() != 1) {
+        return 1;
+    }
     test_config.dns_lookup_fail = true;
     if (test_main() != 1) {
         return 1;
@@ -129,7 +133,7 @@ int test_dns_lookups(void)
         return 1;
     }
     // DNS poll loops every 500ms for 30s
-    test_config.dns_lookup_delay = 60;
+    test_config.dns_lookup_delay = 59;
     if (test_main() != 0) {
         return 1;
     }
@@ -254,7 +258,7 @@ int lcd_digits_to_int(const char *digits)
     return ((*digits - '0') * 10) + (*(digits + 1) - '0');
 }
 
-int test_ntp_drift(void)
+int test_ntp_time(void)
 {
     repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = create_test_clock_state(timer);
@@ -262,13 +266,14 @@ int test_ntp_drift(void)
     // Tue January 9, 2001 at 09:28:32
     set_localtime(2001, 0, 9, 9, 28, 32);
     clock_state->ntp_last_sync = mock_time(NULL);
+    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
-    // Run for 3 simulated days
+    // Run for 5 simulated days
     int last_lcd_hour = -1;
     int last_lcd_min = -1;
     int drift = 50;
     int status = 0;
-    for (unsigned int ii = 0; ii < (3 * 24 * 60 * 60); ii++) {
+    for (unsigned int tick = 0; tick < (5 * 24 * 60 * 60); tick++) {
         (void)clock_timer_callback(timer);
         int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
         int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
@@ -284,7 +289,13 @@ int test_ntp_drift(void)
         last_lcd_hour = lcd_hour;
         last_lcd_min = lcd_min;
         mock_system_time_ms += 1000;
-        if (ii > 0 && (ii % (24 * 60 * 60)) == 0) {
+        if (tick == (2 * 24 * 60 * 60)) {
+            test_config.udp_ntp_kod = true;
+        }
+        if (tick == (3 * 24 * 60 * 60) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
+            return 1;
+        }
+        if (tick > 0 && (tick % (24 * 60 * 60)) == 0) {
             mock_ntp_seconds += drift;
             drift = -drift;
         } else {
@@ -296,6 +307,11 @@ int test_ntp_drift(void)
 
 int test_ntp_errors(void)
 {
+    test_config.udp_invalid_response = true;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.udp_invalid_response = false;
     test_config.udp_new_ip_type_fail = true;
     if (test_main() != 1) {
         return 1;
@@ -325,7 +341,7 @@ int main(void)
 
     status |= run_test(test_dst, "Daylight savings", NULL);
 
-    status |= run_test(test_ntp_drift, "NTP drift", NULL);
+    status |= run_test(test_ntp_time, "NTP time checks", NULL);
 
     static const char *test_wifi_init_errors_ref[] = {
         "LCD: STATUS_WIFI_INIT=RED",
@@ -347,24 +363,16 @@ int main(void)
     status |= run_test(test_wifi_auth_errors, "Wi-Fi auth", test_wifi_auth_errors_ref);
 
     static const char *test_dns_lookup_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_DNS=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_TIMEOUT=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_OK=GREEN",
-        NULL,
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_DNS=RED",   "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_DNS=RED",   "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_TIMEOUT=RED",
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN",  NULL,
     };
-    status |= run_test(test_dns_lookups, "DNS failure", test_dns_lookup_ref);
+    status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
 
     static const char *test_ntp_errors_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INIT=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_MEMORY=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INVALID=RED",
-        NULL,
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",  "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_MEMORY=RED",
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_INVALID=RED", NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
     return status;
