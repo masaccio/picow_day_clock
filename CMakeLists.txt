@@ -98,12 +98,13 @@ include(ExternalProject)
 enable_testing()
 ExternalProject_Add(
     test_picow_day_clock
-    SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/tests
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
     BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug
     BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
+add_dependencies(test_picow_day_clock generate_icons)
 
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 

@@ -20,14 +20,16 @@ else()
 endif()
 set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
 
-file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../../src/*.c)
-file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../../generated/*.c)
+file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/*.c)
+file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
+
+message(STATUS "******** CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}")
 
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
 set(NON_COVERED_CLOCK_SRC_FILES
-    ${CMAKE_SOURCE_DIR}/../../src/fb.c
-    ${CMAKE_SOURCE_DIR}/../../src/lcd.c
+    ${CMAKE_SOURCE_DIR}/../src/fb.c
+    ${CMAKE_SOURCE_DIR}/../src/lcd.c
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
 set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
@@ -35,8 +37,9 @@ set_source_files_properties(${COVERED_CLOCK_SRC_FILES}
 )
 
 include_directories(
-    ../../src
-    ../../generated
+    ${CMAKE_SOURCE_DIR}/../tests
+    ${CMAKE_SOURCE_DIR}/../src
+    ${CMAKE_SOURCE_DIR}/../generated
 )
 
 add_executable(test_picow_day_clock 

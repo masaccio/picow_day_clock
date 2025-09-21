@@ -3,7 +3,7 @@
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 #else
-#include "tests/mock.h"
+#include "mock.h"
 #endif
 
 // Local includes

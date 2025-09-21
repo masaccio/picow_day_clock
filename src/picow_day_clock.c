@@ -21,7 +21,7 @@
 #include "pico/time.h"
 #include "pico/util/datetime.h"
 #else
-#include "tests/mock.h"
+#include "mock.h"
 #endif
 
 // Local includes

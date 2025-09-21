@@ -6,7 +6,7 @@
 #include "lwip/udp.h"
 #include "pico/cyw43_arch.h"
 #else
-#include "tests/mock.h"
+#include "mock.h"
 #endif
 
 // Local includes
