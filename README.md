@@ -11,15 +11,15 @@
 * Improve the handling of errors:
   * Once the watchdog reboots, the watchdog icon permanently displays
   * Provide feedback from within the Wi-Fi and NTP modules so that timeouts are clearer
-* Figure out how to safely remove the connectors from the Waveshare LCD module so they can be hidden behind the LCDs
 * Build the prototype into a more final layout that is more compact
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
 * Get the Windows CI build working for the test and coverage build
+* Make the configuration cleaner and in one place: everything in a `config.h` that tests whether macros are defineded so that can be overridden by CMake
 * And probably more...
 
 ## Introduction
 
-This project is the software, hardware design and clock enclosure design for an LCD clock driven by the Raspberry Pi Pico 2 W. The clock design is inspired by the idea of a [Nixie](https://en.wikipedia.org/wiki/Nixie_tube) clock but uses LCDs so that the display is brighter and clearly visible in daylight.
+This project is the software, hardware design and clock enclosure design for an LCD clock driven by the Raspberry Pi Pico 2 W. The clock design is inspired by the idea of a [Nixie](https://en.wikipedia.org/wiki/Nixie_tube) clock but uses LCDs so that the display is brighter and clearly visible in daylight. The clock is intended to be wall-mounted so the read is left a little messy to simplify the electronics build.
 
 The project is *not* compatible with earlier versions of the Pico and requires the CYW43439 Wi-Fi chip present in the Pico 2 W to function correctly.
 
@@ -119,6 +119,12 @@ The BL backlight pin of the LCD module is not the actual LCD backlight; it is a 
 ![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.jpeg)
 
 A TXB0108 logic level shifter is used as a set of buffers to increase the available current ro drive CLK, DIN, RST and BL control signals as the Pico's GPIO is insufficient to drive 7 LCDs without significant signal degredation.
+
+## Mechanical design
+
+I chose the Waveshare LCD because it comes with a socket that has a wired plug with 2.54mm pin connectors for easy protoyping. For the final clock, this connector gets in the way of the wires hiding neatly behind the LCD. There are 172x320 LCD displays that are based on the ST7789 that come with an FPC connector which is neatly conencted on the narrow edge of the display. The bare LCD with the FPC connector has the disadvantage for the hobbyist that you need to add a ZIF socket and then break that out into something with a wider pitch to solder. The connector on the Waveshare board can be desoldered using solder braid and the connector carefully snipped off using flush snippers. The Waveshare module also has 2mm brass mounting holes which makes mounting the LCDs securely simpler. The main drawback of the approach is that the read of the LCD is quite messy, but the intended use is for a wall-mounted clock. The soldered connections look like this (please forgive the terrible soldering skills; I am out of practice):
+
+![Soldered connections to LCD module](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/module-connections.jpeg)
 
 ## Credits
 
