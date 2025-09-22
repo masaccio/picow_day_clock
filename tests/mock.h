@@ -77,7 +77,13 @@ extern time_t mock_time(time_t *);
 
 #define settimeofday(tp, tzp) mock_settimeofday(tp, tzp)
 #ifdef _WIN32
-struct timeval;
+struct timeval
+{
+    uint32_t tv_sec;
+    uint32_t tv_usec;
+};
+#endif
+
 #endif
 int mock_settimeofday(const struct timeval *, void *);
 

@@ -38,14 +38,6 @@ extern int test_printf(const char *format, ...);
 
 #define WATCHDOG_TIMEOUT_MS 3000
 
-#ifdef _WIN32
-struct timeval
-{
-    uint32_t tv_sec;
-    uint32_t tv_usec;
-};
-#endif
-
 typedef struct
 {
     uint32_t boot_count;
