@@ -5,6 +5,15 @@
 
 #define LOG_BUFFER_SIZE 256
 
+typedef enum
+{
+    UDP_NTP_OK,
+    UDP_NTP_KOD,
+    UDP_NTP_INVALID,
+    UDP_NTP_BAD_LEN,
+    UDP_NTP_BAD_PORT
+} udp_response_type_t;
+
 typedef struct
 {
     // Wi-Fi
@@ -15,8 +24,7 @@ typedef struct
     // UDP
     bool udp_new_ip_type_fail;
     bool udp_sendto_fail;
-    bool udp_ntp_kod;
-    bool udp_invalid_response;
+    udp_response_type_t udp_response_type;
     // DNS
     int dns_lookup_delay;
     bool dns_lookup_fail;

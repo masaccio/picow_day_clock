@@ -270,23 +270,18 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     }
     // Calling the recv() callback right away is harmless for this implementation.
     // And we hard-code a hacked up NTP packet as that's all that will ever be used
-    p->tot_len = NTP_MSG_LEN;
-    if (test_config.udp_invalid_response) {
-        p->payload[0] = 0x0; // invalid mode
-    } else {
-        p->payload[0] = 0x4; // mode
-    }
-    if (test_config.udp_ntp_kod) {
-        p->payload[1] = 0x0; // stratum = kiss of death
-        test_config.udp_ntp_kod = false;
-    } else {
-        p->payload[1] = 0x1;
-    }
+    p->tot_len = (test_config.udp_response_type == UDP_NTP_BAD_LEN) ? 0x0 : NTP_MSG_LEN;
+    p->payload[0] = (test_config.udp_response_type == UDP_NTP_INVALID) ? 0x0 : 0x4; // mode
+    p->payload[1] = (test_config.udp_response_type == UDP_NTP_KOD) ? 0x0 : 0x1;     // stratum
     p->payload[40] = mock_ntp_seconds >> 24;
     p->payload[41] = (mock_ntp_seconds >> 16) & 0xff;
     p->payload[42] = (mock_ntp_seconds >> 8) & 0xff;
     p->payload[43] = mock_ntp_seconds & 0xff;
-    udp_recv_callback(udp_recv_callback_arg, pcb, p, dst_ip, NTP_PORT);
+    udp_recv_callback(udp_recv_callback_arg, pcb, p, dst_ip,
+                      (test_config.udp_response_type == UDP_NTP_BAD_PORT) ? 0x0 : NTP_PORT);
+
+    // Only generate a single invalid response
+    test_config.udp_response_type = UDP_NTP_OK;
     return ERR_OK;
 }
 

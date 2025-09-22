@@ -304,7 +304,7 @@ int test_ntp_time(void)
         last_lcd_min = lcd_min;
         mock_system_time_ms += 1000;
         if (tick == (2 * 24 * 60 * 60)) {
-            test_config.udp_ntp_kod = true;
+            test_config.udp_response_type = UDP_NTP_KOD;
         }
         if (tick == (3 * 24 * 60 * 60) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
             return 1;
@@ -316,16 +316,24 @@ int test_ntp_time(void)
             mock_ntp_seconds++;
         }
     }
+    test_config.udp_response_type = UDP_NTP_OK;
     return status;
 }
 
 int test_ntp_errors(void)
 {
-    test_config.udp_invalid_response = true;
+    test_config.udp_response_type = UDP_NTP_INVALID;
     if (test_main() != 1) {
         return 1;
     }
-    test_config.udp_invalid_response = false;
+    test_config.udp_response_type = UDP_NTP_BAD_LEN;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.udp_response_type = UDP_NTP_BAD_PORT;
+    if (test_main() != 1) {
+        return 1;
+    }
     test_config.udp_new_ip_type_fail = true;
     if (test_main() != 1) {
         return 1;
@@ -389,17 +397,11 @@ int main(void)
     status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
 
     static const char *test_ntp_errors_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INVALID=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INIT=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_MEMORY=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INVALID=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INIT=RED",
-        NULL,
+        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INIT=RED",    "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_MEMORY=RED",  "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INIT=RED",    NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
     return status;
