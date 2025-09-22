@@ -11,6 +11,7 @@
 #include <time.h>
 #ifndef _WIN32
 #include <sys/time.h>
+#else
 #define gmtime_r(t, result) gmtime_s(result, t)
 #endif
 

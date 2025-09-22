@@ -84,7 +84,6 @@ struct timeval
 };
 #endif
 
-#endif
 int mock_settimeofday(const struct timeval *, void *);
 
 // Mock definitions for SDK constants
