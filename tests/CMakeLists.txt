@@ -14,7 +14,7 @@ set(CMAKE_BUILD_TYPE Debug)
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_C_COMPILER "clang")
 elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-    set(CMAKE_C_COMPILER "clang")
+    set(CMAKE_C_COMPILER "clang-cl")
 else()
     message(FATAL_ERROR "Unsupported test host ${CMAKE_HOST_SYSTEM_NAME}")
 endif()
@@ -23,8 +23,6 @@ set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
 file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/*.c)
 file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
-
-message(STATUS "******** CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}")
 
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
 set(NON_COVERED_CLOCK_SRC_FILES
