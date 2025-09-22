@@ -23,6 +23,7 @@ unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
 unsigned int calloc_counter = 0;
 unsigned int pbuf_alloc_fail_at = 0;
+bool watchdog_reboot_called = false;
 char **log_buffer;
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
@@ -112,10 +113,17 @@ test_config_t test_config = {
 int test_bad_lcd1(void)
 {
     calloc_counter = 0;
+    calloc_fail_at = 1;
+    if (test_main() != 1) {
+        return 1;
+    }
+    calloc_counter = 0;
     calloc_fail_at = 2;
-    int status = test_main();
+    if (test_main() != 1) {
+        return 1;
+    }
     calloc_fail_at = 0;
-    return (status == 1) ? 0 : 1;
+    return 0;
 }
 
 int test_dns_lookups(void)
@@ -356,11 +364,46 @@ int test_ntp_errors(void)
     return 0;
 }
 
+extern const char *status_to_string(clock_status_t status);
+extern persistent_state_t persistent_state;
+
+int test_watchdog(void)
+{
+    if (test_main() != 0) {
+        return 1;
+    }
+    test_config.watchdog_caused_reboot = true;
+    if (test_main() != 0) {
+        return 1;
+    }
+    if (test_main() != 0 || persistent_state.boot_count != 2) {
+        return 1;
+    }
+    test_config.watchdog_caused_reboot = false;
+    test_config.cyw43_arch_init_fail = true;
+    if (test_main() != 1 || !watchdog_reboot_called) {
+        return 1;
+    }
+    watchdog_reboot_called = false;
+    test_config.cyw43_arch_init_fail = false;
+
+    // Coverage on otherwise unused status debug values
+    if ((strcmp(status_to_string(STATUS_WIFI_OK), "STATUS_WIFI_OK") != 0) ||
+        (strcmp(status_to_string(STATUS_NTP_OK), "STATUS_NTP_OK") != 0) ||
+        (strcmp(status_to_string(STATUS_WATCHDOG_RESET), "STATUS_WATCHDOG_RESET") != 0) ||
+        (strcmp(status_to_string(STATUS_NONE), "STATUS_NONE") != 0) ||
+        (strcmp(status_to_string(-0xffff), "UNKNOWN_STATUS") != 0)) {
+        return 1;
+    }
+    return 0;
+}
+
 int main(void)
 {
     int status = 0;
 
     static const char *test_bad_ldc1_ref[] = {
+        "Failed to allocate clock state",
         "LCD 1: failed to initialise",
         NULL,
     };
@@ -404,5 +447,12 @@ int main(void)
         "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INIT=RED",    NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
+
+    static const char *test_watchdog_ref[] = {
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN", "LCD: STATUS_WATCHDOG_RESET=RED",
+        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN", NULL,
+    };
+    status |= run_test(test_watchdog, "Watchdog", test_watchdog_ref);
+
     return status;
 }

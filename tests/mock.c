@@ -227,6 +227,7 @@ void *mock_calloc(size_t num, size_t size)
     if (calloc_fail_at != 0) {
         calloc_counter++;
         if (calloc_counter >= calloc_fail_at) {
+            calloc_fail_at = 0;
             return NULL;
         }
     }
@@ -354,11 +355,14 @@ bool watchdog_caused_reboot(void)
     return test_config.watchdog_caused_reboot;
 }
 
+extern bool watchdog_reboot_called;
+
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
 {
     (void)pc;
     (void)sp;
     (void)delay_ms;
+    watchdog_reboot_called = true;
 }
 
 void watchdog_enable(uint32_t delay_ms, bool pause_on_debug)

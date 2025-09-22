@@ -52,7 +52,7 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     case STATUS:                                                                                                       \
         return #STATUS;
 
-static const char *status_to_string(clock_status_t status)
+const char *status_to_string(clock_status_t status)
 {
     switch (status) {
         STATUS_CASE(STATUS_WIFI_OK)
