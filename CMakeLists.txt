@@ -138,12 +138,13 @@ add_custom_target(coverage_llvm
             ${TEST_BINARY_DIR}/test_picow_day_clock
             --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --show-region-summary=false
+            --show-branch-summary=true
             --ignore-filename-regex=".*\.h"
     COMMAND llvm-cov show
             ${TEST_BINARY_DIR}/test_picow_day_clock
             --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             --ignore-filename-regex=".*\.h"
-            --show-branches=percent
+            --show-branches=count
             --format=html > ${TEST_BINARY_DIR}/coverage.html
     WORKING_DIRECTORY ${TEST_BINARY_DIR}
     COMMENT "Running coverage analysis..."
