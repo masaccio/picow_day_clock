@@ -21,6 +21,7 @@ typedef int (*test_func_t)(void);
 
 unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
+unsigned int calloc_counter = 0;
 unsigned int pbuf_alloc_fail_at = 0;
 char **log_buffer;
 
@@ -110,6 +111,7 @@ test_config_t test_config = {
 
 int test_bad_lcd1(void)
 {
+    calloc_counter = 0;
     calloc_fail_at = 2;
     int status = test_main();
     calloc_fail_at = 0;
@@ -250,6 +252,18 @@ int test_dst(void)
     if (strncmp(time_as_string(now), "02:22:00 (DST)", 14) != 0) {
         return 1;
     }
+
+    // Thu August 23, 2001 at 23:55 (test day rollover in DST))
+    set_localtime(2001, 7, 23, 23, 55, 0);
+    mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
+    (void)clock_timer_callback(timer);
+    if (strncmp(clock_state->current_lcd_digits, "FRI0055", 7) != 0) {
+        return 1;
+    }
+    now = mock_time(NULL);
+    if (strncmp(time_as_string(now), "00:55:00 (DST)", 14) != 0) {
+        return 1;
+    }
     return 0;
 }
 
@@ -326,6 +340,11 @@ int test_ntp_errors(void)
     if (test_main() != 1) {
         return 1;
     }
+    calloc_counter = 0;
+    calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
+    if (test_main() != 1) {
+        return 1;
+    }
     return 0;
 }
 
@@ -370,9 +389,17 @@ int main(void)
     status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
 
     static const char *test_ntp_errors_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INIT=RED",  "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_MEMORY=RED",
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_INVALID=RED", NULL,
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_MEMORY=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",
+        NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
     return status;

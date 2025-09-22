@@ -220,10 +220,10 @@ int test_printf(const char *format, ...)
 }
 
 extern unsigned int calloc_fail_at;
+extern unsigned int calloc_counter;
 
 void *mock_calloc(size_t num, size_t size)
 {
-    static unsigned int calloc_counter = 0;
     if (calloc_fail_at != 0) {
         calloc_counter++;
         if (calloc_counter >= calloc_fail_at) {
