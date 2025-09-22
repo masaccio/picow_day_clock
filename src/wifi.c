@@ -50,8 +50,3 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
         }
     }
 }
-
-void disconnect_from_wifi(void)
-{
-    cyw43_arch_deinit();
-}

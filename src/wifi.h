@@ -20,6 +20,4 @@ typedef enum
 
 extern wifi_status_t connect_to_wifi(const char ssid[], const char password[]);
 
-extern void disconnect_from_wifi(void);
-
 #endif // __WIFI_H
