@@ -62,9 +62,6 @@ add_executable(picow_day_clock
     ${GENERATED_ICON_SRC_FILES}
 )
 
-add_dependencies(picow_day_clock generate_fonts)
-add_dependencies(picow_day_clock generate_icons)
-
 # Configuration options for the clock. Wi-Fi credentials are required
 # and found in config.cmake
 target_compile_definitions(picow_day_clock PRIVATE
@@ -90,25 +87,33 @@ target_link_libraries(picow_day_clock
         )
 
 pico_add_extra_outputs(picow_day_clock)
+add_dependencies(picow_day_clock generate_fonts generate_icons)
 
 # ====================================================================================
 # Host test build
 # ====================================================================================
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    set(TEST_C_COMPILER "clang")
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    set(TEST_C_COMPILER "clang-cl")
+endif()
 include(ExternalProject)
 enable_testing()
 ExternalProject_Add(
     test_picow_day_clock
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
     BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=Debug
+    CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DCMAKE_C_STANDARD=11
+        -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
     BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
-add_dependencies(picow_day_clock generate_fonts generate_icons)
+
 add_dependencies(test_picow_day_clock generate_fonts generate_icons)
 
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
-
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     add_custom_target(run_tests
         DEPENDS test_picow_day_clock
