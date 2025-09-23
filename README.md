@@ -6,10 +6,9 @@
 
 ## Planned work
 
-* Test the TXB0108 is able to drive all 7 LCDs. It seems to have quite weak drivers so likely needs replacing
 * Add a USB port and connect through to the Pico's USB with the correct isolation
 * Improve the handling of errors:
-  * Once the watchdog reboots, the watchdog icon permanently displays
+  * Once the watchdog reboots, the watchdog icon permanently displays or displays for N hours
   * Provide feedback from within the Wi-Fi and NTP modules so that timeouts are clearer
 * Build the prototype into a more final layout that is more compact
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
@@ -118,7 +117,7 @@ The BL backlight pin of the LCD module is not the actual LCD backlight; it is a 
 
 ![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.jpeg)
 
-A TXB0108 logic level shifter is used as a set of buffers to increase the available current ro drive CLK, DIN, RST and BL control signals as the Pico's GPIO is insufficient to drive 7 LCDs without significant signal degredation.
+The Pico has insufficient drive strength to drive the control signals of 7 LCDs simultaneously, so a logic level converter with the VA and VB tied to 3V3 is used to increase the drive strength and buffer between the Pico and the LCDs. Care must be taken to choose a level shift with sufficient drive strength; a single TXB0108 proved insufficient and the final design uses two four-channel Gebildet CYT1076 level shifters. One CYT1076 drives the day of week LCDs (LCD1-3) and the other the time LCDs (LCD4-7).
 
 ## Mechanical design
 
