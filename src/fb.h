@@ -32,9 +32,6 @@ void fb_clear(frame_buffer_t *frame_buffer, color_t color);
 
 void fb_set_pixel(frame_buffer_t *frame_buffer, uint16_t x_point, uint16_t y_point, uint16_t color);
 
-void paint_clear_windows(frame_buffer_t *frame_buffer, uint16_t x_start, uint16_t y_start, uint16_t x_end,
-                         uint16_t y_end, uint16_t color);
-
 void fb_copy_image(frame_buffer_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start,
                    uint16_t image_width, uint16_t image_height, color_t fgcolor);
 
