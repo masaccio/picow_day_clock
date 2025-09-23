@@ -6,7 +6,7 @@
 
 ## Planned work
 
-* Test the TXB0108 is able to drive all 7 LCDs (currently the prototype just has 4)
+* Test the TXB0108 is able to drive all 7 LCDs. It seems to have quite weak drivers so likely needs replacing
 * Add a USB port and connect through to the Pico's USB with the correct isolation
 * Improve the handling of errors:
   * Once the watchdog reboots, the watchdog icon permanently displays
@@ -87,10 +87,10 @@ The pinout for the LCD is defined in `clock.h` using a series of C macros `LCD1_
 | Pin to device mapping   | Name      | Pin | Pico  | Pin | Name      | Pin to device mapping   |
 |-------------------------|-----------|-----| ----- |-----|-----------|-------------------------|
 | Debug Probe RX          | GP0       | 1   | XXXXX | 40  | VBUS 5V   |                         |
-| Debug Probe TX          | GP1       | 2   | XXXXX | 39  | VSYS 5V   |                         |
+| Debug Probe TX          | GP1       | 2   | XXXXX | 39  | VSYS 5V   | DollaTek VIN            |
 | Debug Probe GND         | GND       | 3   | XXXXX | 38  | GND       | LCD GND                 |
 | LCD 3 data/command (DC) | GP2       | 4   | XXXXX | 37  | 3V3 En    |                         |
-| LCD 3 chip select (CS)  | GP3       | 5   | XXXXX | 36  | 3V3 Out   | DollaTek VIN            |
+| LCD 3 chip select (CS)  | GP3       | 5   | XXXXX | 36  | 3V3 Out   |                         |
 | LCD 4 data/command (DC) | GP4       | 6   | XXXXX | 35  | ADC VRef  |                         |
 | LCD 4 chip select (CS)  | GP5       | 7   | XXXXX | 34  | GP28 A2   |                         |
 |                         | GND       | 8   | XXXXX | 33  | ADC Gnd   |                         |
