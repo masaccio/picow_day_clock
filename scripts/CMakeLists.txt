@@ -44,7 +44,7 @@ add_custom_command(
     OUTPUT ${PIL_PACKAGE_DIR}
     DEPENDS ${PYTHON_EXECUTABLE}
     COMMAND ${PYTHON_EXECUTABLE} -m pip install --upgrade pip
-    COMMAND ${PYTHON_EXECUTABLE} -m pip install Pillow
+    COMMAND ${PYTHON_EXECUTABLE} -m pip install --force Pillow
     COMMENT "Installing Pillow in virtual environment"
 )
 
@@ -102,6 +102,7 @@ add_custom_target(generate_icons
 )
 
 add_custom_target(clean_generated
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${PIL_PACKAGE_DIR}
     COMMAND ${CMAKE_COMMAND} -E rm -f
         ${GENERATED_FONT_SRC_FILES}
         ${GENERATED_ICON_SRC_FILES}
