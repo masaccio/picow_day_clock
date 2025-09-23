@@ -1,4 +1,3 @@
-
 #ifndef _CLOCK_H
 #define _CLOCK_H
 
@@ -13,36 +12,62 @@ extern int test_printf(const char *format, ...);
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
 
-#include "lcd.h"
+#include "config.h"
+#include "fb.h"
 #include "ntp.h"
-#include "status.h"
 
-#define LCD1_GPIO_DC 6
-#define LCD1_GPIO_CS 7
-#define LCD2_GPIO_DC 8
-#define LCD2_GPIO_CS 9
-#define LCD3_GPIO_DC 2
-#define LCD3_GPIO_CS 3
-#define LCD4_GPIO_DC 4
-#define LCD4_GPIO_CS 5
-#define LCD5_GPIO_DC 14
-#define LCD5_GPIO_CS 15
-#define LCD6_GPIO_DC 16
-#define LCD6_GPIO_CS 17
-#define LCD7_GPIO_DC 18
-#define LCD7_GPIO_CS 19
-#define LCD_GPIO_RST 12
-#define LCD_GPIO_BL 13
-#define LCD_GPIO_CLK 10
-#define LCD_GPIO_MOSI 11
+typedef enum
+{
+    WIFI_STATUS_SUCCESS = 0,
+    WIFI_STATUS_INIT_FAIL = -1,
+    WIFI_STATUS_TIMEOUT = -2,
+    WIFI_STATUS_BAD_AUTH = -3,
+    WIFI_STATUS_CONNECT_FAILED = -4,
+    WIFI_STATUS_UNKNOWN_ERROR = -5,
+} wifi_status_t;
 
-#define WATCHDOG_TIMEOUT_MS 3000
+typedef enum
+{
+    STATUS_WIFI_OK = 0,
+    STATUS_NTP_OK = 1,
+    STATUS_WIFI_INIT = -1,
+    STATUS_WIFI_TIMEOUT = -2,
+    STATUS_WIFI_AUTH = -3,
+    STATUS_WIFI_CONNECT = -4,
+    STATUS_WIFI_ERROR = -5,
+    STATUS_NTP_INIT = -6,
+    STATUS_NTP_DNS = -7,
+    STATUS_NTP_TIMEOUT = -8,
+    STATUS_NTP_MEMORY = -9,
+    STATUS_NTP_INVALID = -10,
+    STATUS_WATCHDOG_RESET = -11,
+    STATUS_NONE = 0xff,
+} clock_status_t;
 
 typedef struct
 {
     uint32_t boot_count;
     clock_status_t reset_error;
 } persistent_state_t;
+
+#define HORIZONTAL 0
+#define VERTICAL 1
+
+typedef struct lcd_state_t
+{
+    // GPIO config
+    uint16_t RST_gpio;
+    uint16_t DC_gpio;
+    uint16_t BL_gpio;
+    uint16_t CS_gpio;
+    uint16_t CLK_gpio;
+    uint16_t MOSI_gpio;
+    // Additional config
+    uint16_t width;
+    uint16_t height;
+    // Frame buffer
+    frame_buffer_t *fb;
+} lcd_state_t;
 
 typedef struct clock_state_t
 { // NTP state
@@ -59,6 +84,25 @@ typedef struct clock_state_t
     repeating_timer_t timer;
     clock_status_t last_reset_error;
 } clock_state_t;
+
+extern wifi_status_t connect_to_wifi(const char ssid[], const char password[]);
+
+extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
+                             uint16_t MOSI_gpio, bool reset);
+
+extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
+
+extern void lcd_init_peripherals(lcd_state_t *state, bool reset);
+
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error);
+
+extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
+
+extern void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char);
+
+extern void lcd_clear_screen(lcd_state_t *state, color_t color);
+
+void lcd_update_screen(lcd_state_t *state);
 
 extern time_t tm_to_epoch(struct tm *tm);
 

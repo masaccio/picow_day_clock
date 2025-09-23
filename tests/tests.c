@@ -6,8 +6,8 @@
 #include <time.h>
 
 #include "clock.h"
+#include "config.h"
 #include "test.h"
-#include "wifi.h"
 
 // These system calls have been redefined in mock.h so undef them here
 // so that we can call into the system libraries as needed.

@@ -29,9 +29,8 @@
 // Local includes
 #include "bitmap.h"
 #include "clock.h"
+#include "config.h"
 #include "fb.h"
-#include "lcd.h"
-#include "status.h"
 
 // How the 2-bit colours map to 16-bit colour
 static uint16_t color_table[] = {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0xFFFF /* white */};
@@ -57,7 +56,6 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     state->CS_gpio = CS_gpio;
     state->CLK_gpio = CLK_gpio;
     state->MOSI_gpio = MOSI_gpio;
-    state->scan_dir = VERTICAL;
 
     lcd_init_peripherals(state, reset);
     lcd_set_backlight(state, 90);
@@ -70,8 +68,8 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     lcd_set_backlight(state, 0);
 
     state->fb = fb_create(LCD_WIDTH, LCD_HEIGHT, 0);
-    fb_clear(state->fb, BGCOLOR);
     fb_rotate(state->fb, ROTATE_90);
+    fb_clear(state->fb, BGCOLOR);
 
     lcd_set_backlight(state, 100);
 
@@ -216,26 +214,15 @@ static void st7789_data_word(lcd_state_t *state, uint16_t data)
 
 static void st7789_init(lcd_state_t *state)
 {
-    uint8_t MemoryAccessReg = 0x00;
+    state->height = LCD_HEIGHT;
+    state->width = LCD_WIDTH;
 
-    if (state->scan_dir == HORIZONTAL) {
-        state->height = LCD_WIDTH;
-        state->width = LCD_HEIGHT;
-        MemoryAccessReg = 0X78;
-    } else {
-        state->height = LCD_HEIGHT;
-        state->width = LCD_WIDTH;
-        MemoryAccessReg = 0X00;
-    }
-    st7789_command(state, 0x36);              // MX, MY, RGB mode
-    st7789_data_byte(state, MemoryAccessReg); // 0x08 set RGB
+    st7789_command(state, 0x36);
+    st7789_data_byte(state, 0x00);
     st7789_command(state, 0x11);
     sleep_ms(120);
     st7789_command(state, 0x36);
-    if (state->scan_dir == HORIZONTAL)
-        st7789_data_byte(state, 0x00);
-    else
-        st7789_data_byte(state, 0x70);
+    st7789_data_byte(state, 0x70);
 
     st7789_command(state, 0x3A);
     st7789_data_byte(state, 0x05);
@@ -317,34 +304,20 @@ static void st7789_init(lcd_state_t *state)
 // Set the window address for the LCD update to be thw whole LCD
 void st7789_set_command_windows(lcd_state_t *state)
 {
-    if (state->scan_dir == HORIZONTAL) { // set the X coordinates
-        st7789_command(state, 0x2A);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x22);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0xcd);
 
-        // set the Y coordinates
-        st7789_command(state, 0x2B);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x01);
-        st7789_data_byte(state, 0x3f);
-    } else {
-        // set the X coordinates
-        st7789_command(state, 0x2A);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x01);
-        st7789_data_byte(state, 0x3f);
+    // X-cordinates are based on portrait mode
+    st7789_command(state, 0x2A);
+    st7789_data_byte(state, 0x00);
+    st7789_data_byte(state, 0x00);
+    st7789_data_byte(state, 0x01);
+    st7789_data_byte(state, 0x3f);
 
-        // set the Y coordinates
-        st7789_command(state, 0x2B);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0x22);
-        st7789_data_byte(state, 0x00);
-        st7789_data_byte(state, 0xcd);
-    }
+    // set the Y coordinates
+    st7789_command(state, 0x2B);
+    st7789_data_byte(state, 0x00);
+    st7789_data_byte(state, 0x22);
+    st7789_data_byte(state, 0x00);
+    st7789_data_byte(state, 0xcd);
 
     st7789_command(state, 0x2C);
 }

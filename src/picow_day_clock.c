@@ -29,10 +29,9 @@
 // Local includes
 #include "bitmap.h"
 #include "clock.h"
+#include "config.h"
 #include "fb.h"
-#include "lcd.h"
 #include "ntp.h"
-#include "wifi.h"
 
 typedef struct
 {

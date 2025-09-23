@@ -8,7 +8,7 @@
 
 // Local includes
 #include "clock.h"
-#include "wifi.h"
+#include "config.h"
 
 wifi_status_t connect_to_wifi(const char ssid[], const char password[])
 {

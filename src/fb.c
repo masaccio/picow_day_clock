@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "fb.h"
-#include "lcd.h"
 
 // Create a new frame buffer, allocating memory and initialising
 frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
