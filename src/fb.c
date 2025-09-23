@@ -6,7 +6,7 @@
 #include "fb.h"
 
 // Create a new frame buffer, allocating memory and initialising
-frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
+frame_buffer_t *fb_create(uint16_t width, uint16_t height)
 {
     frame_buffer_t *state = (frame_buffer_t *)calloc(1, sizeof(frame_buffer_t));
     if (state == NULL) {
@@ -26,32 +26,9 @@ frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate)
     state->width_byte = (state->width_memory % 4 == 0) ? (state->width_memory / 4) : (state->width_memory / 4 + 1);
     state->height_byte = height;
 
-    state->rotate = rotate;
-
-    if (rotate == ROTATE_0 || rotate == ROTATE_180) {
-        state->width = width;
-        state->height = height;
-    } else {
-        state->width = height;
-        state->height = width;
-    }
+    state->width = height;
+    state->height = width;
     return state;
-}
-
-// Set the new rotation of the display
-void fb_rotate(frame_buffer_t *state, uint16_t rotate)
-{
-    if (!(rotate == ROTATE_0 || rotate == ROTATE_90 || rotate == ROTATE_180 || rotate == ROTATE_270)) {
-        rotate = ROTATE_0;
-    }
-    bool current_is_rotated = (state->rotate == ROTATE_90 || state->rotate == ROTATE_270);
-    bool new_is_rotated = (rotate == ROTATE_90 || rotate == ROTATE_270);
-    if (current_is_rotated != new_is_rotated) {
-        uint16_t temp = state->width;
-        state->width = state->height;
-        state->height = temp;
-    }
-    state->rotate = rotate;
 }
 
 // Draw an individual pixel
@@ -61,27 +38,8 @@ void fb_set_pixel(frame_buffer_t *state, uint16_t x_point, uint16_t y_point, uin
         return;
     }
     uint16_t x, y;
-
-    switch (state->rotate) {
-        case 0:
-            x = x_point;
-            y = y_point;
-            break;
-        case 90:
-            x = state->width_memory - y_point - 1;
-            y = x_point;
-            break;
-        case 180:
-            x = state->width_memory - x_point - 1;
-            y = state->height_memory - y_point - 1;
-            break;
-        case 270:
-            x = y_point;
-            y = state->height_memory - x_point - 1;
-            break;
-        default:
-            return;
-    }
+    x = state->width_memory - y_point - 1;
+    y = x_point;
 
     if (x > state->width_memory || y > state->height_memory) {
         return;

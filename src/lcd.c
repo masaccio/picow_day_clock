@@ -67,8 +67,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     st7789_init(state);
     lcd_set_backlight(state, 0);
 
-    state->fb = fb_create(LCD_WIDTH, LCD_HEIGHT, 0);
-    fb_rotate(state->fb, ROTATE_90);
+    state->fb = fb_create(LCD_WIDTH, LCD_HEIGHT);
     fb_clear(state->fb, BGCOLOR);
 
     lcd_set_backlight(state, 100);

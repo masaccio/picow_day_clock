@@ -13,7 +13,6 @@ typedef struct
     uint16_t height;
     uint16_t width_memory;
     uint16_t height_memory;
-    uint16_t rotate;
     uint16_t width_byte;
     uint16_t height_byte;
 } frame_buffer_t;
@@ -29,17 +28,7 @@ typedef enum
 #define BGCOLOR BLACK
 #define FGCOLOR WHITE
 
-/**
- * Display rotate
- **/
-#define ROTATE_0 0
-#define ROTATE_90 90
-#define ROTATE_180 180
-#define ROTATE_270 270
-
-frame_buffer_t *fb_create(uint16_t width, uint16_t height, uint16_t rotate);
-
-void fb_rotate(frame_buffer_t *frame_buffer, uint16_t rotate);
+frame_buffer_t *fb_create(uint16_t width, uint16_t height);
 
 void fb_clear(frame_buffer_t *frame_buffer, color_t color);
 
