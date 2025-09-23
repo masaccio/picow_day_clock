@@ -81,7 +81,7 @@ On boot, all LCDs are initialised first and diagnostic messages are displayed on
 
 ## Pico pinout
 
-The pinout for the LCD is defined in `clock.h` using a series of C macros `LCD1_GPIO_xxx`. The backlight is shared across all of the LCDs as there is no need to control the dimming of the LCDs individually.
+The pinout for the LCD is defined in `config.h` using a series of C macros `LCD1_GPIO_xxx`. The backlight is shared across all of the LCDs as there is no need to control the dimming of the LCDs individually.
 
 | Pin to device mapping   | Name      | Pin | Pico  | Pin | Name      | Pin to device mapping   |
 |-------------------------|-----------|-----| ----- |-----|-----------|-------------------------|
