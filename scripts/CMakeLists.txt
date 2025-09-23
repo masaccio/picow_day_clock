@@ -91,14 +91,26 @@ foreach(ICON_NAME IN ITEMS ${ICONS_LIST})
     )
 endforeach()
 
-add_custom_target(generate_fonts ALL
+add_custom_target(generate_fonts
     DEPENDS ${GENERATED_FONT_SRC_FILES}
     COMMENT "Generating all fonts"
 )
 
-add_custom_target(generate_icons ALL
+add_custom_target(generate_icons
     DEPENDS ${GENERATED_ICON_SRC_FILES}
     COMMENT "Generating all icons"
+)
+
+add_custom_target(clean_generated
+    COMMAND ${CMAKE_COMMAND} -E rm -f
+        ${GENERATED_FONT_SRC_FILES}
+        ${GENERATED_ICON_SRC_FILES}
+    COMMENT "Cleaning generated font and icon files"
+)
+
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+    ${GENERATED_FONT_SRC_FILES}
+    ${GENERATED_ICON_SRC_FILES}
 )
 
 set(GENERATED_FONT_SRC_FILES ${GENERATED_FONT_SRC_FILES} PARENT_SCOPE)
