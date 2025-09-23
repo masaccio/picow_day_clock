@@ -104,7 +104,8 @@ ExternalProject_Add(
     BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
-add_dependencies(test_picow_day_clock generate_icons)
+add_dependencies(picow_day_clock generate_fonts generate_icons)
+add_dependencies(test_picow_day_clock generate_fonts generate_icons)
 
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 
