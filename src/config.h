@@ -26,6 +26,16 @@
 #define WIFI_BAD_AUTH_RETRY_COUNT 3         // How many bad auth errors to tolerate
 #define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    // Time to wait before retrying after auth error
 
+#ifndef NTP_SERVER
+#define NTP_SERVER "pool.ntp.org" // Default NTP server
+#endif
+
+#define NTP_MSG_LEN 48                       // NTP message size (fixed by lwIP)
+#define NTP_PORT 123                         // Default NTP port
+#define NTP_DELTA 2208988800                 // Seconds between 1 Jan 1900 and 1 Jan 1970
+#define NTP_TIMEOUT_MS (30 * 1000)           // How long to wait for a single NTP response
+#define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24) // Sync to NTP once per day
+
 #define LCD_HEIGHT 172 // Length of the short edge of the LCD in pixels
 #define LCD_WIDTH 320  // Length of the long edge of the LCD in pixels
 #define NUM_LCDS 7     // Number of LCDs (3 for day of week, 4 for time)

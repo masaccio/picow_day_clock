@@ -1,6 +1,19 @@
 #ifndef _CLOCK_H
 #define _CLOCK_H
 
+#include <stdlib.h>
+
+// Pico SDK
+#ifndef TEST_MODE
+#include "lwip/ip_addr.h"
+#include "pico/stdlib.h"
+#else
+#include "mock.h"
+#endif
+
+#include "config.h"
+#include "fb.h"
+
 #ifdef CLOCK_DEBUG_ENABLED
 #ifdef TEST_MODE
 extern int test_printf(const char *format, ...);
@@ -11,10 +24,6 @@ extern int test_printf(const char *format, ...);
 #else
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
-
-#include "config.h"
-#include "fb.h"
-#include "ntp.h"
 
 typedef enum
 {
@@ -44,14 +53,22 @@ typedef enum
     STATUS_NONE = 0xff,
 } clock_status_t;
 
+typedef enum
+{
+    NTP_STATUS_PENDING = 0,
+    NTP_STATUS_SUCCESS = 1,
+    NTP_STATUS_DNS_ERROR = -1,
+    NTP_STATUS_TIMEOUT = -2,
+    NTP_STATUS_INVALID_RESPONSE = -3,
+    NTP_STATUS_MEMORY_ERROR = -4,
+    NTP_STATUS_KOD = -5,
+} ntp_status_t;
+
 typedef struct
 {
     uint32_t boot_count;
     clock_status_t reset_error;
 } persistent_state_t;
-
-#define HORIZONTAL 0
-#define VERTICAL 1
 
 typedef struct lcd_state_t
 {
@@ -69,8 +86,21 @@ typedef struct lcd_state_t
     frame_buffer_t *fb;
 } lcd_state_t;
 
+typedef void (*ntp_time_handler_t)(void *state, time_t *time);
+
+typedef struct ntp_state_t
+{
+    ip_addr_t ntp_server_address;
+    bool dns_request_sent;
+    struct udp_pcb *ntp_pcb;
+    void *parent_state;
+    ntp_status_t status;
+    ntp_time_handler_t time_handler;
+} ntp_state_t;
+
 typedef struct clock_state_t
-{ // NTP state
+{
+    // NTP state
     ntp_state_t *ntp_state;
     time_t ntp_time;
     time_t ntp_last_sync;
@@ -104,6 +134,16 @@ extern void lcd_clear_screen(lcd_state_t *state, color_t color);
 
 void lcd_update_screen(lcd_state_t *state);
 
+extern bool time_is_dst(struct tm *utc);
+
 extern time_t tm_to_epoch(struct tm *tm);
+
+extern const char *time_as_string(time_t ntp_time);
+
+extern void ntp_request(ntp_state_t *state);
+
+extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler);
+
+extern ntp_status_t ntp_get_time(ntp_state_t *ntp_state);
 
 #endif // _CLOCK_H

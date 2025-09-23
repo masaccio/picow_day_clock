@@ -31,7 +31,6 @@
 #include "clock.h"
 #include "config.h"
 #include "fb.h"
-#include "ntp.h"
 
 typedef struct
 {

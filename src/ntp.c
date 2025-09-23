@@ -11,7 +11,6 @@
 
 // Local includes
 #include "clock.h"
-#include "ntp.h"
 
 // Make an NTP request
 void ntp_request(ntp_state_t *state)
