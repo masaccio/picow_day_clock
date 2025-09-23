@@ -9,12 +9,10 @@
 typedef struct
 {
     uint8_t *data;
-    uint16_t width;
-    uint16_t height;
-    uint16_t width_memory;
-    uint16_t height_memory;
-    uint16_t width_byte;
-    uint16_t height_byte;
+    uint16_t short_edge_num_pixels;
+    uint16_t long_edge_num_pixels;
+    uint16_t short_edge_num_bytes;
+    uint16_t long_edge_num_bytes;
 } frame_buffer_t;
 
 typedef enum
@@ -28,7 +26,7 @@ typedef enum
 #define BGCOLOR BLACK
 #define FGCOLOR WHITE
 
-frame_buffer_t *fb_create(uint16_t width, uint16_t height);
+frame_buffer_t *fb_create(void);
 
 void fb_clear(frame_buffer_t *frame_buffer, color_t color);
 

@@ -67,7 +67,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
     st7789_init(state);
     lcd_set_backlight(state, 0);
 
-    state->fb = fb_create(LCD_WIDTH, LCD_HEIGHT);
+    state->fb = fb_create();
     fb_clear(state->fb, BGCOLOR);
 
     lcd_set_backlight(state, 100);
@@ -84,7 +84,7 @@ void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const 
 void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
 {
     const font_glyph_t entry = clock_digit_font.table[ascii_char - ' '];
-    uint16_t x_point = (state->fb->width - entry.width) / 2;
+    uint16_t x_point = (LCD_LONG_EDGE_PIXELS - entry.width) / 2;
     (void)fb_write_char(state->fb, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
 }
 
@@ -127,7 +127,7 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
 
     color_t color = is_error ? RED : GREEN;
     // Position last icon 5 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_HEIGHT - 5 + ICON_SIZE * offset;
+    uint16_t x_start = LCD_LONG_EDGE_PIXELS - 5 + ICON_SIZE * offset;
     fb_copy_image(state->fb, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
@@ -213,55 +213,55 @@ static void st7789_data_word(lcd_state_t *state, uint16_t data)
 
 static void st7789_init(lcd_state_t *state)
 {
-    state->height = LCD_HEIGHT;
-    state->width = LCD_WIDTH;
-
-    st7789_command(state, 0x36);
+    st7789_command(state, 0x36); // MADCTL (Memory Data Access Control)
     st7789_data_byte(state, 0x00);
-    st7789_command(state, 0x11);
+
+    st7789_command(state, 0x11); // SLPOUT (Sleep Out)
+
     sleep_ms(120);
-    st7789_command(state, 0x36);
+
+    st7789_command(state, 0x36); // MADCTL (Memory Data Access Control)
     st7789_data_byte(state, 0x70);
 
-    st7789_command(state, 0x3A);
+    st7789_command(state, 0x3A); // COLMOD (Interface Pixel Format)
     st7789_data_byte(state, 0x05);
 
-    st7789_command(state, 0xB2);
+    st7789_command(state, 0xB2); // PORCTRL (Porch Setting)
     st7789_data_byte(state, 0x0C);
     st7789_data_byte(state, 0x0C);
     st7789_data_byte(state, 0x00);
     st7789_data_byte(state, 0x33);
     st7789_data_byte(state, 0x33);
 
-    st7789_command(state, 0xB7);
+    st7789_command(state, 0xB7); // GCTRL (Gate Control)
     st7789_data_byte(state, 0x35);
 
-    st7789_command(state, 0xBB);
+    st7789_command(state, 0xBB); // VCOMS (VCOM Setting)
     st7789_data_byte(state, 0x35);
 
-    st7789_command(state, 0xC0);
+    st7789_command(state, 0xC0); // LCMCTRL (LCM Control)
     st7789_data_byte(state, 0x2C);
 
-    st7789_command(state, 0xC2);
+    st7789_command(state, 0xC2); // VDVVRHEN (VDV and VRH Command Enable)
     st7789_data_byte(state, 0x01);
 
-    st7789_command(state, 0xC3);
+    st7789_command(state, 0xC3); // VRHS (VRH Set)
     st7789_data_byte(state, 0x13);
 
-    st7789_command(state, 0xC4);
+    st7789_command(state, 0xC4); // VDVS (VDV Set)
     st7789_data_byte(state, 0x20);
 
-    st7789_command(state, 0xC6);
+    st7789_command(state, 0xC6); // FRCTRL2 (Frame Rate Control in Normal Mode)
     st7789_data_byte(state, 0x0F);
 
-    st7789_command(state, 0xD0);
+    st7789_command(state, 0xD0); // PWCTRL1 (Power Control 1)
     st7789_data_byte(state, 0xA4);
     st7789_data_byte(state, 0xA1);
 
-    st7789_command(state, 0xD6);
+    st7789_command(state, 0xD6); // !!! Non-standard command
     st7789_data_byte(state, 0xA1);
 
-    st7789_command(state, 0xE0);
+    st7789_command(state, 0xE0); // PVGAMCTRL (Positive Voltage Gamma Control)
     st7789_data_byte(state, 0xF0);
     st7789_data_byte(state, 0x00);
     st7789_data_byte(state, 0x04);
@@ -277,7 +277,7 @@ static void st7789_init(lcd_state_t *state)
     st7789_data_byte(state, 0x28);
     st7789_data_byte(state, 0x30);
 
-    st7789_command(state, 0xE1);
+    st7789_command(state, 0xE1); // NVGAMCTRL (Negative Voltage Gamma Control)
     st7789_data_byte(state, 0xF0);
     st7789_data_byte(state, 0x07);
     st7789_data_byte(state, 0x0A);
@@ -293,32 +293,35 @@ static void st7789_init(lcd_state_t *state)
     st7789_data_byte(state, 0x29);
     st7789_data_byte(state, 0x32);
 
-    st7789_command(state, 0x21);
+    st7789_command(state, 0x21); // INVON (Display Inversion On)
 
-    st7789_command(state, 0x11);
+    st7789_command(state, 0x11); // SLPOUT (Sleep Out)
+
     sleep_ms(120);
-    st7789_command(state, 0x29);
+
+    st7789_command(state, 0x29); // DISPON (Display On)
 }
 
-// Set the window address for the LCD update to be thw whole LCD
+// Set the window address for the LCD update to be the whole LCD
 void st7789_set_command_windows(lcd_state_t *state)
 {
 
     // X-cordinates are based on portrait mode
-    st7789_command(state, 0x2A);
+    st7789_command(state, 0x2A); // CASET (Column address set)
     st7789_data_byte(state, 0x00);
     st7789_data_byte(state, 0x00);
-    st7789_data_byte(state, 0x01);
-    st7789_data_byte(state, 0x3f);
+    st7789_data_byte(state, (LCD_SHORT_EDGE_PIXELS - 1) >> 8);
+    st7789_data_byte(state, (LCD_SHORT_EDGE_PIXELS - 1) & 0xff);
 
-    // set the Y coordinates
-    st7789_command(state, 0x2B);
+    // Set the Y coordinates
+    st7789_command(state, 0x2B); // RASET (Row address set)
     st7789_data_byte(state, 0x00);
+    // TODO: why + 0x22?
     st7789_data_byte(state, 0x22);
     st7789_data_byte(state, 0x00);
-    st7789_data_byte(state, 0xcd);
+    st7789_data_byte(state, LCD_LONG_EDGE_PIXELS + 0x22 - 1);
 
-    st7789_command(state, 0x2C);
+    st7789_command(state, 0x2C); // RAMWR (Memory Write)
 }
 
 /* Clear the screen with a temporary frame buffer.
@@ -327,19 +330,19 @@ void st7789_set_command_windows(lcd_state_t *state)
 static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
 {
     uint16_t j;
-    uint16_t Image[state->width * state->height];
+    uint16_t Image[LCD_LONG_EDGE_PIXELS * LCD_SHORT_EDGE_PIXELS];
 
     Color = ((Color << 8) & 0xff00) | (Color >> 8);
 
-    for (j = 0; j < state->height * state->width; j++) {
+    for (j = 0; j < LCD_SHORT_EDGE_PIXELS * LCD_LONG_EDGE_PIXELS; j++) {
         Image[j] = Color;
     }
 
     st7789_set_command_windows(state);
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_gpio, 0);
-    for (j = 0; j < state->height; j++) {
-        spi_write_blocking(spi1, (uint8_t *)&Image[j * state->width], state->width * 2);
+    for (j = 0; j < LCD_SHORT_EDGE_PIXELS; j++) {
+        spi_write_blocking(spi1, (uint8_t *)&Image[j * LCD_LONG_EDGE_PIXELS], LCD_LONG_EDGE_PIXELS * 2);
     }
     gpio_put(state->CS_gpio, 1);
 }
@@ -354,11 +357,11 @@ void lcd_update_screen(lcd_state_t *state)
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_gpio, 0);
 
-    uint8_t linebuf[state->width * 2];
+    uint8_t linebuf[LCD_LONG_EDGE_PIXELS * 2];
 
-    for (j = 0; j < state->height; j++) {
-        uint8_t *src = (uint8_t *)state->fb->data + (j * ((state->width + 3) / 4));
-        for (x = 0; x < state->width; x++) {
+    for (j = 0; j < LCD_SHORT_EDGE_PIXELS; j++) {
+        uint8_t *src = (uint8_t *)state->fb->data + (j * ((LCD_LONG_EDGE_PIXELS + 3) / 4));
+        for (x = 0; x < LCD_LONG_EDGE_PIXELS; x++) {
             int byte = x / 4;
             int shift = 6 - 2 * (x % 4);
             uint8_t val = (src[byte] >> shift) & 0x3;
@@ -367,8 +370,8 @@ void lcd_update_screen(lcd_state_t *state)
             linebuf[x * 2] = (color >> 8) & 0xFF;
             linebuf[x * 2 + 1] = color & 0xFF;
         }
-        spi_write_blocking(spi1, (uint8_t *)linebuf, state->width * 2);
+        spi_write_blocking(spi1, (uint8_t *)linebuf, LCD_LONG_EDGE_PIXELS * 2);
     }
     gpio_put(state->CS_gpio, 1);
-    st7789_command(state, 0x29);
+    st7789_command(state, 0x29); // DISPON (Display On)
 }
