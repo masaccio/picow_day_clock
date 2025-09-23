@@ -10,7 +10,7 @@
 * Improve the handling of errors:
   * Once the watchdog reboots, the watchdog icon permanently displays or displays for N hours
   * Provide feedback from within the Wi-Fi and NTP modules so that timeouts are clearer
-* Build the prototype into a more final layout that is more compact
+* Build the prototype into a final layout that is more compact
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
 * Get the Windows CI build working for the test and coverage build
 * Make the configuration cleaner with better CMake overrides of `config.h`
