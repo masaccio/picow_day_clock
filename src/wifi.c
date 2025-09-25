@@ -1,5 +1,6 @@
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/watchdog.h"
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 #else
@@ -21,6 +22,7 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
     absolute_time_t start_time_us = get_absolute_time();
     int bad_auth_count = 0;
     while (true) {
+        watchdog_update();
         int ret = cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, WIFI_CONNECT_TIMEOUT_MS);
 
         if (ret == 0) {

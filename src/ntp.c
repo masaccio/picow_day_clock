@@ -129,8 +129,10 @@ ntp_status_t ntp_get_time(ntp_state_t *state)
         return NTP_STATUS_DNS_ERROR;
     }
 
+    // Waitr for async NTP request to complete or timeout
     while (state->status == NTP_STATUS_PENDING) {
-        sleep_ms(500); // wait for background lwIP
+        watchdog_update();
+        sleep_ms(500);
 
         if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
             CLOCK_DEBUG("NTP: DNS timed out after %d seconds\r\n", NTP_TIMEOUT_MS / 1000);
