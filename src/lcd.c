@@ -142,7 +142,7 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
 
     color_t color = is_error ? RED : GREEN;
     // Position last icon 5 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_HEIGHT - 5 + ICON_SIZE * offset;
+    uint16_t x_start = LCD_WIDTH - 5 + ICON_SIZE * offset;
     lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
