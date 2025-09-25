@@ -414,43 +414,120 @@ int main(void)
     status |= run_test(test_ntp_time, "NTP time checks", NULL);
 
     static const char *test_wifi_init_errors_ref[] = {
+        // Wi-Fi init fails
+        "LCD: LCD init successful",
         "LCD: STATUS_WIFI_INIT=RED",
+        // Wi-Fi connect fails
+        "LCD: LCD init successful",
         "LCD: STATUS_WIFI_CONNECT=RED",
+        // Unknown Wi-Fi error
+        "LCD: LCD init successful",
         "LCD: STATUS_WIFI_ERROR=RED",
+        // Successful connection after a few timeouts
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: NTP time sync OK",
         "LCD: STATUS_NTP_OK=GREEN",
+        // Failed connection due to timeout
+        "LCD: LCD init successful",
         "LCD: STATUS_WIFI_TIMEOUT=RED",
         NULL,
     };
     status |= run_test(test_wifi_init_errors, "Wi-Fi init error", test_wifi_init_errors_ref);
 
     static const char *test_wifi_auth_errors_ref[] = {
+        // Wi-Fi auth retries succeed
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: NTP time sync OK",
         "LCD: STATUS_NTP_OK=GREEN",
+        // Wi-Fi auth retries too many
+        "LCD: LCD init successful",
         "LCD: STATUS_WIFI_AUTH=RED",
         NULL,
     };
     status |= run_test(test_wifi_auth_errors, "Wi-Fi auth", test_wifi_auth_errors_ref);
 
     static const char *test_dns_lookup_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_DNS=RED",   "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_DNS=RED",   "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_TIMEOUT=RED",
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN",  NULL,
+        // DNS lookup bad args
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_DNS=RED",
+        // DNS lookup failed
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_DNS=RED",
+        // DNS lookup times out
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_TIMEOUT=RED",
+        // DNS lookup OK after delays
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: NTP time sync OK",
+        "LCD: STATUS_NTP_OK=GREEN",
+        NULL,
     };
     status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
 
     static const char *test_ntp_errors_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_INVALID=RED", "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INIT=RED",    "LCD: STATUS_WIFI_OK=GREEN",
-        "LCD: STATUS_NTP_MEMORY=RED",  "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INVALID=RED",
-        "LCD: STATUS_WIFI_OK=GREEN",   "LCD: STATUS_NTP_INIT=RED",    NULL,
+        // UDL invalid packets
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        // UDP bad packet length
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        // NTP wrong port
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        // UDP bad IP type
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",
+        // UDP memory alloc fails
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_MEMORY=RED",
+        // UDP sendto() fails
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        // Last alloc fails
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INIT=RED",
+        NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
 
     static const char *test_watchdog_ref[] = {
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN", "LCD: STATUS_WATCHDOG_RESET=RED",
-        "LCD: STATUS_WIFI_OK=GREEN", "LCD: STATUS_NTP_OK=GREEN", NULL,
+        // Test boot counter
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: NTP time sync OK",
+        "LCD: STATUS_NTP_OK=GREEN",
+        // Test watchdog caused reset
+        "LCD: STATUS_WATCHDOG_RESET=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
+        NULL,
     };
     status |= run_test(test_watchdog, "Watchdog", test_watchdog_ref);
 

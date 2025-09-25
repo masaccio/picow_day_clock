@@ -350,11 +350,12 @@ int main(void)
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
-    bool cold_boot = (persistent_state.boot_count == 0);
+    bool cold_boot = (watchdog_caused_reboot() == false);
     if (cold_boot) {
         persistent_state.boot_count = 0;
         persistent_state.reset_error = STATUS_NONE;
         state->last_reset_error = STATUS_NONE;
+        lcd_print_line(state->lcd_states[0], 2, GREEN, "LCD init successful");
         CLOCK_DEBUG("Cold boot\r\n");
     } else {
         persistent_state.boot_count++;
@@ -364,14 +365,13 @@ int main(void)
         lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
         persistent_state.reset_error = STATUS_NONE;
     }
-    lcd_print_line(state->lcd_states[0], 1, GREEN, "LCD init successful");
     watchdog_update();
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     switch (wifi_status) {
         case WIFI_STATUS_SUCCESS:
             if (cold_boot) {
-                lcd_print_line(state->lcd_states[0], 2, GREEN, "Connected to WiFi");
+                lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
             }
             lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, false);
             break;
@@ -402,7 +402,7 @@ int main(void)
     switch (ntp_status) {
         case NTP_STATUS_SUCCESS:
             if (cold_boot) {
-                lcd_print_line(state->lcd_states[0], 3, GREEN, "NTP time sync OK");
+                lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");
             }
             lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, false);
             break;
