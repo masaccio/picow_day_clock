@@ -127,7 +127,7 @@ I chose the Waveshare LCD because it comes with a socket that has a wired plug w
 
 ## Credits
 
-GPIO, SPI and PCM driver code for the LCD and the framebuffer management is derived from the [Waveshare Sample Demo](https://www.waveshare.com/wiki/1.47inch_LCD_Module) code for the Waveshare 1.47inch LCD. The driver is [licensed](licenses/waveshare.txt) by the Waveshare team under an MIT license.
+ST7789 init and driver code is derived from the [Waveshare Sample Demo](https://www.waveshare.com/wiki/1.47inch_LCD_Module) for the Waveshare 1.47inch LCD. The driver is [licensed](licenses/waveshare.txt) by the Waveshare team under an MIT license.
 
 NTP driver code is derived from [pico_ntp_client](https://github.com/raspberrypi/pico-examples/tree/master/pico_w/wifi/ntp_client) in the [Raspberry Pi Pico SDK Examples](https://github.com/raspberrypi/pico-examples) which is [licensed](raspberry-pi.txt) under a BSD license.
 

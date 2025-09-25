@@ -8,8 +8,8 @@ set(TEXT_HEIGHT 20)
 set(TEXT_C_NAME text_font)
 set(TEXT_C_SRC ${GENERATED_DIR}/${TEXT_C_NAME}.c)
 
-set(LCD_LONG_EDGE_PIXELS 320)
-set(LCD_SHORT_EDGE_PIXELS 172)
+set(LCD_HEIGHT 320)
+set(LCD_WIDTH 172)
 set(CLOCK_C_NAME clock_digit_font)
 set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/BebasNeue-Regular.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
@@ -69,8 +69,8 @@ add_custom_command(
     COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT} 
             --clock
             --c-name=${CLOCK_C_NAME}
-            --height=${LCD_LONG_EDGE_PIXELS}
-            --width=${LCD_SHORT_EDGE_PIXELS}
+            --height=${LCD_HEIGHT}
+            --width=${LCD_WIDTH}
             ${CLOCK_TTF} ${CLOCK_C_SRC}
     COMMENT "Generating font file ${CLOCK_C_SRC}"
 )

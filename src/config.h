@@ -36,8 +36,12 @@
 #define NTP_TIMEOUT_MS (30 * 1000)           // How long to wait for a single NTP response
 #define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24) // Sync to NTP once per day
 
-#define LCD_LONG_EDGE_PIXELS 172  // Length of the short edge of the LCD in pixels
-#define LCD_SHORT_EDGE_PIXELS 320 // Length of the long edge of the LCD in pixels
-#define NUM_LCDS 7                // Number of LCDs (3 for day of week, 4 for time)
+#define LCD_COL_START 0  // ST7789 column shift for 1.47" LCD
+#define LCD_ROW_START 34 // ST7789 row shift for 1.47" LCD
+#define LCD_HEIGHT 320   // Length of the short edge of the LCD in pixels
+#define LCD_WIDTH 172    // Length of the long edge of the LCD in pixels
+#define NUM_LCDS 7       // Number of LCDs (3 for day of week, 4 for time)
+
+#define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
 #endif // _CONFIG_H

@@ -21,7 +21,6 @@ set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
 # Low-level LCD and frame buffer code is not covered by tests so we exclude from coverage
 # Testing is not performed as these are hardware specific and errors easily seen on the device
 set(NON_COVERED_CLOCK_SRC_FILES
-    ${CMAKE_SOURCE_DIR}/../src/fb.c
     ${CMAKE_SOURCE_DIR}/../src/lcd.c
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})

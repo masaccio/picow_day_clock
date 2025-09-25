@@ -30,16 +30,22 @@
 #include "bitmap.h"
 #include "clock.h"
 #include "config.h"
-#include "fb.h"
 
 // How the 2-bit colours map to 16-bit colour
-static uint16_t color_table[] = {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0xFFFF /* white */};
+static uint16_t color_table[] = LCD_COLOR_TABLE;
 
 // PWM slice attached to the backlight
 static uint slice_num;
 
-static void lcd_reset(lcd_state_t *state);
 static void st7789_init(lcd_state_t *state);
+
+static void lcd_reset(lcd_state_t *state);
+
+void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start, uint16_t image_width,
+                     uint16_t image_height, color_t fgcolor);
+
+int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
+                   color_t fgcolor, color_t bgcolor);
 
 lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                       uint16_t MOSI_gpio, bool reset)
@@ -66,10 +72,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
 
     st7789_init(state);
     lcd_set_backlight(state, 0);
-
-    state->fb = fb_create();
-    fb_clear(state->fb, BGCOLOR);
-
+    lcd_clear_screen(state, BGCOLOR);
     lcd_set_backlight(state, 100);
 
     return state;
@@ -77,21 +80,33 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
 
 void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer)
 {
-    uint16_t y_offset = (line_num * text_font.height) + 2;
-    fb_write_string(state->fb, 0, y_offset, buffer, &text_font, /* fgcolor */ color, /* bgcolor */ BLACK);
+    uint16_t y_start = (line_num * text_font.height) + 2;
+    uint16_t x_point = 0;
+    uint16_t y_point = y_start;
+    int width = 0;
+    while (*buffer != '\0') {
+        // Wrap end of line
+        if ((x_point + width) > LCD_WIDTH) {
+            x_point = 0;
+            y_point += text_font.height;
+        }
+
+        // Wrap end of screen
+        if ((y_point + text_font.height) > LCD_HEIGHT) {
+            x_point = 0;
+            y_point = 0;
+        }
+        width = lcd_write_char(state, x_point, y_point, *buffer, &text_font, color, BGCOLOR);
+        x_point += width;
+        buffer++;
+    }
 }
 
 void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
 {
     const font_glyph_t entry = clock_digit_font.table[ascii_char - ' '];
-    uint16_t x_point = (LCD_LONG_EDGE_PIXELS - entry.width) / 2;
-    (void)fb_write_char(state->fb, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
-}
-
-void lcd_clear_screen(lcd_state_t *state, color_t color)
-{
-    fb_clear(state->fb, color);
-    lcd_update_screen(state);
+    uint16_t x_point = (LCD_WIDTH - entry.width) / 2;
+    (void)lcd_write_char(state, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
 }
 
 #define ICON_CASE(STATUS, ICON, OFFSET)                                                                                \
@@ -127,8 +142,8 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
 
     color_t color = is_error ? RED : GREEN;
     // Position last icon 5 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_LONG_EDGE_PIXELS - 5 + ICON_SIZE * offset;
-    fb_copy_image(state->fb, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
+    uint16_t x_start = LCD_HEIGHT - 5 + ICON_SIZE * offset;
+    lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
 // Initialise the Pico peripeherals we will use (SPI, GPIO, PWM)
@@ -200,28 +215,15 @@ static void st7789_data_byte(lcd_state_t *state, uint8_t data)
     gpio_put(state->CS_gpio, 1);
 }
 
-#if 0
-// Select an LCD and send a data word (2 bytes)
-static void st7789_data_word(lcd_state_t *state, uint16_t data)
-{
-    gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
-    spi_write_blocking(spi1, (uint8_t *)&data, 2);
-    gpio_put(state->CS_gpio, 1);
-}
-#endif
-
 static void st7789_init(lcd_state_t *state)
 {
-    st7789_command(state, 0x36); // MADCTL (Memory Data Access Control)
-    st7789_data_byte(state, 0x00);
 
     st7789_command(state, 0x11); // SLPOUT (Sleep Out)
 
     sleep_ms(120);
 
     st7789_command(state, 0x36); // MADCTL (Memory Data Access Control)
-    st7789_data_byte(state, 0x70);
+    st7789_data_byte(state, /* MADCTL_MX */ 0x40 | /* MADCTL_MY */ 0x80);
 
     st7789_command(state, 0x3A); // COLMOD (Interface Pixel Format)
     st7789_data_byte(state, 0x05);
@@ -302,75 +304,108 @@ static void st7789_init(lcd_state_t *state)
     st7789_command(state, 0x29); // DISPON (Display On)
 }
 
-// Set the window address for the LCD update to be the whole LCD
-void st7789_set_command_windows(lcd_state_t *state)
+void st7789_set_command_windows(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height)
 {
 
     // X-cordinates are based on portrait mode
     st7789_command(state, 0x2A); // CASET (Column address set)
-    st7789_data_byte(state, 0x00);
-    st7789_data_byte(state, 0x00);
-    st7789_data_byte(state, (LCD_SHORT_EDGE_PIXELS - 1) >> 8);
-    st7789_data_byte(state, (LCD_SHORT_EDGE_PIXELS - 1) & 0xff);
+    st7789_data_byte(state, (x_start + LCD_ROW_START) >> 8);
+    st7789_data_byte(state, (x_start + LCD_ROW_START) & 0xff);
+    st7789_data_byte(state, (x_start + width + LCD_ROW_START - 1) >> 8);
+    st7789_data_byte(state, (x_start + width + LCD_ROW_START - 1) & 0xff);
 
     // Set the Y coordinates
     st7789_command(state, 0x2B); // RASET (Row address set)
-    st7789_data_byte(state, 0x00);
-    // TODO: why + 0x22?
-    st7789_data_byte(state, 0x22);
-    st7789_data_byte(state, 0x00);
-    st7789_data_byte(state, LCD_LONG_EDGE_PIXELS + 0x22 - 1);
+    st7789_data_byte(state, (y_start + LCD_COL_START) >> 8);
+    st7789_data_byte(state, (y_start + LCD_COL_START) & 0xff);
+    st7789_data_byte(state, (y_start + height + LCD_COL_START - 1) >> 8);
+    st7789_data_byte(state, (y_start + height + LCD_COL_START - 1) & 0xff);
 
     st7789_command(state, 0x2C); // RAMWR (Memory Write)
 }
 
-/* Clear the screen with a temporary frame buffer.
-   TODO: this is a future frame-buffer-free way of driving the LCD */
-#if 0
-static void LCD_1IN47_Clear(lcd_state_t *state, uint16_t Color)
+void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height,
+                        uint16_t color)
 {
-    uint16_t j;
-    uint16_t Image[LCD_LONG_EDGE_PIXELS * LCD_SHORT_EDGE_PIXELS];
-
-    Color = ((Color << 8) & 0xff00) | (Color >> 8);
-
-    for (j = 0; j < LCD_SHORT_EDGE_PIXELS * LCD_LONG_EDGE_PIXELS; j++) {
-        Image[j] = Color;
-    }
-
-    st7789_set_command_windows(state);
+    st7789_set_command_windows(state, x_start, y_start, width, height);
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_gpio, 0);
-    for (j = 0; j < LCD_SHORT_EDGE_PIXELS; j++) {
-        spi_write_blocking(spi1, (uint8_t *)&Image[j * LCD_LONG_EDGE_PIXELS], LCD_LONG_EDGE_PIXELS * 2);
+
+    uint8_t linebuf[width * 2];
+    for (uint16_t x = 0; x < width; x++) {
+        linebuf[x * 2] = color_table[color % 4] >> 8;
+        linebuf[x * 2 + 1] = color_table[color % 4] & 0xFF;
+    }
+
+    for (uint16_t j = 0; j < height; j++) {
+        spi_write_blocking(spi1, (uint8_t *)linebuf, width * 2);
     }
     gpio_put(state->CS_gpio, 1);
+    st7789_command(state, 0x29); // DISPON (Display On)
 }
-#endif
 
-/* Copy the frame buffer to the LCD a line at a time converting the 2-bit
-   frame buffer colour into the native 16-bit colour */
-void lcd_update_screen(lcd_state_t *state)
+void lcd_clear_screen(lcd_state_t *state, uint16_t color)
 {
-    uint16_t j, x;
-    st7789_set_command_windows(state);
+    lcd_draw_rectangle(state, 0, 0, LCD_WIDTH, LCD_HEIGHT, color);
+}
+
+int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
+                   color_t fgcolor, color_t bgcolor)
+{
+    uint8_t linebuf[LCD_WIDTH * 2];
+    const font_glyph_t *entry = &font->table[ascii_char - ' '];
+    const uint8_t *ptr = entry->table;
+    uint16_t font_width = entry->width;
+
+    st7789_set_command_windows(state, x_point, y_point, font_width, font->height);
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_gpio, 0);
 
-    uint8_t linebuf[LCD_LONG_EDGE_PIXELS * 2];
-
-    for (j = 0; j < LCD_SHORT_EDGE_PIXELS; j++) {
-        uint8_t *src = (uint8_t *)state->fb->data + (j * ((LCD_LONG_EDGE_PIXELS + 3) / 4));
-        for (x = 0; x < LCD_LONG_EDGE_PIXELS; x++) {
-            int byte = x / 4;
-            int shift = 6 - 2 * (x % 4);
-            uint8_t val = (src[byte] >> shift) & 0x3;
-            uint16_t color = color_table[val];
-
-            linebuf[x * 2] = (color >> 8) & 0xFF;
-            linebuf[x * 2 + 1] = color & 0xFF;
+    for (uint16_t glyph_row = 0; glyph_row < font->height; glyph_row++) {
+        for (uint16_t glyph_column = 0; glyph_column < font_width; glyph_column++) {
+            char glyph_pixels = *(ptr + (glyph_column / 8));
+            if (glyph_pixels & (0x80 >> (glyph_column % 8))) {
+                linebuf[glyph_column * 2] = color_table[fgcolor % 4] >> 8;
+                linebuf[glyph_column * 2 + 1] = color_table[fgcolor % 4] & 0xFF;
+            } else {
+                linebuf[glyph_column * 2] = color_table[bgcolor % 4] >> 8;
+                linebuf[glyph_column * 2 + 1] = color_table[bgcolor % 4] & 0xFF;
+            }
         }
-        spi_write_blocking(spi1, (uint8_t *)linebuf, LCD_LONG_EDGE_PIXELS * 2);
+        spi_write_blocking(spi1, (uint8_t *)linebuf, font_width * 2);
+        ptr += font->byte_width;
+    }
+
+    gpio_put(state->CS_gpio, 1);
+    st7789_command(state, 0x29); // DISPON (Display On)
+
+    return font_width;
+}
+
+void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start, uint16_t image_width,
+                     uint16_t image_height, color_t fgcolor)
+{
+    uint8_t linebuf[LCD_WIDTH * 2];
+
+    st7789_set_command_windows(state, x_start, y_start, image_width, image_height);
+    gpio_put(state->DC_gpio, 1);
+    gpio_put(state->CS_gpio, 0);
+
+    int bytes_per_row = (image_width + 7) / 8;
+
+    for (int yy = 0; yy < image_height; yy++) {
+        for (int byte_idx = 0; byte_idx < bytes_per_row; byte_idx++) {
+            uint8_t byte = *image++;
+            for (int bit = 0; bit < 8; bit++) {
+                int x = x_start + (byte_idx * 8) + bit;
+                if (x < x_start + image_width) {
+                    // Most significant bit is left-most pixel
+                    linebuf[(x - x_start) * 2] = color_table[(byte & (1 << (7 - bit))) ? fgcolor : 0] >> 8;
+                    linebuf[(x - x_start) * 2 + 1] = color_table[(byte & (1 << (7 - bit))) ? fgcolor : 0] & 0xFF;
+                }
+            }
+        }
+        spi_write_blocking(spi1, (uint8_t *)linebuf, image_width * 2);
     }
     gpio_put(state->CS_gpio, 1);
     st7789_command(state, 0x29); // DISPON (Display On)

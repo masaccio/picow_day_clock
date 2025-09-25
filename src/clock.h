@@ -12,7 +12,6 @@
 #endif
 
 #include "config.h"
-#include "fb.h"
 
 #ifdef CLOCK_DEBUG_ENABLED
 #ifdef TEST_MODE
@@ -24,6 +23,17 @@ extern int test_printf(const char *format, ...);
 #else
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
+
+typedef enum
+{
+    BLACK = 0x00,
+    RED = 0x01,
+    GREEN = 0x02,
+    CYAN = 0x03
+} color_t;
+
+#define BGCOLOR BLACK
+#define FGCOLOR GREEN
 
 typedef enum
 {
@@ -82,8 +92,6 @@ typedef struct lcd_state_t
     // Additional config
     uint16_t width;
     uint16_t height;
-    // Frame buffer
-    frame_buffer_t *fb;
 } lcd_state_t;
 
 typedef void (*ntp_time_handler_t)(void *state, time_t *time);
@@ -130,9 +138,10 @@ extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color,
 
 extern void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char);
 
-extern void lcd_clear_screen(lcd_state_t *state, color_t color);
+extern void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height,
+                               uint16_t color);
 
-void lcd_update_screen(lcd_state_t *state);
+void lcd_clear_screen(lcd_state_t *state, uint16_t color);
 
 extern bool time_is_dst(struct tm *utc);
 

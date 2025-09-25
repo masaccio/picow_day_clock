@@ -30,7 +30,6 @@
 #include "bitmap.h"
 #include "clock.h"
 #include "config.h"
-#include "fb.h"
 
 typedef struct
 {
@@ -84,8 +83,8 @@ persistent_state_t persistent_state;
 
 static void fatal_reset(clock_state_t *state, clock_status_t status)
 {
+    (void)state;
     mock_printf("LCD: %s=RED", status_to_string(status));
-    lcd_update_screen(state->lcd_states[0]);
     persistent_state.reset_error = status;
     watchdog_reboot(0, SRAM_END, 0);
     // Returns into main() which will then exit with status=1
@@ -110,7 +109,6 @@ persistent_state_t persistent_state __attribute__((section(".uninitialized_data"
 static void fatal_reset(clock_state_t *state, clock_status_t status)
 {
     lcd_update_icon(state->lcd_states[0], status, true);
-    lcd_update_screen(state->lcd_states[0]);
     persistent_state.reset_error = status;
     watchdog_reboot(0, SRAM_END, 0);
     while (1)
@@ -268,7 +266,7 @@ bool clock_timer_callback(struct repeating_timer *t)
                 // stubbed calls to GPIO consume a lot of unncessary CPU over the tests
 #ifndef TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
-                lcd_print_clock_digit(state->lcd_states[ii], GREEN, lcd_digits[ii]);
+                lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
 #endif
             }
 
@@ -287,9 +285,6 @@ bool clock_timer_callback(struct repeating_timer *t)
 #endif
                 }
             }
-#ifndef TEST_MODE
-            lcd_update_screen(state->lcd_states[ii]);
-#endif
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
 
@@ -355,26 +350,30 @@ int main(void)
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
-    if (watchdog_caused_reboot()) {
+    bool cold_boot = (persistent_state.boot_count == 0);
+    if (cold_boot) {
+        persistent_state.boot_count = 0;
+        persistent_state.reset_error = STATUS_NONE;
+        state->last_reset_error = STATUS_NONE;
+        CLOCK_DEBUG("Cold boot\r\n");
+    } else {
         persistent_state.boot_count++;
         state->last_reset_error = persistent_state.reset_error;
         CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
                     persistent_state.reset_error);
         lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
         persistent_state.reset_error = STATUS_NONE;
-    } else {
-        persistent_state.boot_count = 0;
-        persistent_state.reset_error = STATUS_NONE;
-        state->last_reset_error = STATUS_NONE;
-        CLOCK_DEBUG("Cold boot\r\n");
     }
+    lcd_print_line(state->lcd_states[0], 1, GREEN, "LCD init successful");
     watchdog_update();
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     switch (wifi_status) {
         case WIFI_STATUS_SUCCESS:
+            if (cold_boot) {
+                lcd_print_line(state->lcd_states[0], 2, GREEN, "Connected to WiFi");
+            }
             lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, false);
-            lcd_update_screen(state->lcd_states[0]);
             break;
         case WIFI_STATUS_INIT_FAIL:
             fatal_reset(state, STATUS_WIFI_INIT);
@@ -402,8 +401,10 @@ int main(void)
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
         case NTP_STATUS_SUCCESS:
+            if (cold_boot) {
+                lcd_print_line(state->lcd_states[0], 3, GREEN, "NTP time sync OK");
+            }
             lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, false);
-            lcd_update_screen(state->lcd_states[0]);
             break;
         case NTP_STATUS_DNS_ERROR:
             fatal_reset(state, STATUS_NTP_DNS);
@@ -430,7 +431,8 @@ int main(void)
     // Call the timer every second to enable us to slowly change the clock if
     // the system clock drifts from NTP time. Let the watchdog reset the clock
     // if the timer callback has not happened in a few ticks.
-    watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ true);
+    watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ false);
+    sleep_ms(500);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 
 #ifndef TEST_MODE
