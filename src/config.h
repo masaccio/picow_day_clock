@@ -20,11 +20,11 @@
 #define LCD_GPIO_CLK 10
 #define LCD_GPIO_MOSI 11
 
-#define WATCHDOG_TIMEOUT_MS 3000            // Watchdog timeout in milliseconds
-#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) // Time to allow Wi-Fi driver to connect
-#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) // How long to keep retrying connection
+#define WATCHDOG_TIMEOUT_MS (20 * 1000)     // Watchdog timeout in milliseconds (needs to be longer than timeouts)
+#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) // Time to allow Wi-Fi driver to connect in milliseconds
+#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) // How long to keep retrying connection in milliseconds
 #define WIFI_BAD_AUTH_RETRY_COUNT 3         // How many bad auth errors to tolerate
-#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    // Time to wait before retrying after auth error
+#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    // Time to wait before retrying after auth error in milliseconds
 
 #ifndef NTP_SERVER
 #define NTP_SERVER "pool.ntp.org" // Default NTP server
@@ -33,7 +33,7 @@
 #define NTP_MSG_LEN 48                       // NTP message size (fixed by lwIP)
 #define NTP_PORT 123                         // Default NTP port
 #define NTP_DELTA 2208988800                 // Seconds between 1 Jan 1900 and 1 Jan 1970
-#define NTP_TIMEOUT_MS (30 * 1000)           // How long to wait for a single NTP response
+#define NTP_TIMEOUT_MS (10 * 1000)           // How long to wait for a single NTP response
 #define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24) // Sync to NTP once per day
 
 #define LCD_COL_START 0  // ST7789 column shift for 1.47" LCD
