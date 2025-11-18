@@ -113,7 +113,7 @@ The LCD module expects a 3.3V supply and the [datasheet for the Waveshare 1.47in
 * VOUT: LCD VCC, shared across all LCD modules
 * GND: any GND pin on the Pico
 
-The BL backlight pin of the LCD module is not the actual LCD backlight; it is a control pin to the LCD module's TXB0108PWR level shifter so can also be shared across all LCDs and, like the other control signals, driven directly from the Pico.
+The BL backlight pin of the LCD module is not the actual  LCD backlight; it is a control pin to the LCD module's TXB0108PWR level shifter so can also be shared across all LCDs and, like the other control signals, driven directly from the Pico.
 
 ![Clock schematic diagram](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/schematic.jpeg)
 
@@ -133,7 +133,7 @@ NTP driver code is derived from [pico_ntp_client](https://github.com/raspberrypi
 
 Variable width fonts replace the fixed-width fonts in the Waveshare examples, but the C data structures are ultimately derived from work by STMicroelectronics [licensed](licenses/stm.txt) under the 3-clause BSD license.
 
-The digit font is [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is [licensed](licenses/BebasNeue-OFL.txt) under the Open Font License.
+The digit fonts included in the repository are [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is [licensed](licenses/BebasNeue-OFL.txt) under the Open Font License, and [Oswald](https://fonts.google.com/specimen/Oswald) which is also [licensed](licenses/Oswald-OFL.txt) under the Open Font License.
 
 The text font used in display diagnostics during boot is [Roboto Medium](https://fonts.google.com/specimen/Roboto) which is [licensed](licenses/Roboto-OFL.txt) under the Open Font License.
 
