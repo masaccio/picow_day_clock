@@ -11,7 +11,7 @@ set(TEXT_C_SRC ${GENERATED_DIR}/${TEXT_C_NAME}.c)
 set(LCD_HEIGHT 320)
 set(LCD_WIDTH 172)
 set(CLOCK_C_NAME clock_digit_font)
-set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/BebasNeue-Regular.ttf)
+set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/Oswald.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
 set(ICONS_LIST watchdog memory
