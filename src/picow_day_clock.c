@@ -116,7 +116,7 @@ static void fatal_reset(clock_state_t *state, clock_status_t status)
 }
 #endif
 
-static char day_of_week[][4] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+static char day_of_week[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 // Callback from NTP called when an NTP request is successful
 void ntp_timer_callback(void *state, time_t *ntp_time)
@@ -431,7 +431,7 @@ int main(void)
     // Call the timer every second to enable us to slowly change the clock if
     // the system clock drifts from NTP time. Let the watchdog reset the clock
     // if the timer callback has not happened in a few ticks.
-    watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ false);
+    watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ true);
     sleep_ms(500);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
 

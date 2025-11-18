@@ -6,7 +6,7 @@ from typing import TextIO
 
 from PIL import Image, ImageDraw, ImageFont  # pyright: ignore[reportMissingImports]
 
-DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 CLOCK_CHAR_RANGE = sorted(set("".join(DAYS_OF_WEEK))) + [str(x) for x in range(0, 10)]
 ASCII_CHAR_RANGE = [chr(i) for i in range(32, 127)]
 

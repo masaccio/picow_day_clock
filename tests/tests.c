@@ -242,7 +242,7 @@ int test_dst(void)
     set_localtime(2001, 2, 25, 0, 22, 0);
     clock_state->ntp_last_sync = mock_time(NULL);
     (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "SUN0022", 7) != 0) {
+    if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0) {
         return 1;
     }
     time_t now = mock_time(NULL);
@@ -253,7 +253,7 @@ int test_dst(void)
     // Sun March 25, 2001 at 01:22 (just after clocks change)
     set_localtime(2001, 2, 25, 1, 22, 0);
     (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "SUN0222", 7) != 0) {
+    if (strncmp(clock_state->current_lcd_digits, "Sun0222", 7) != 0) {
         return 1;
     }
     now = mock_time(NULL);
@@ -265,7 +265,7 @@ int test_dst(void)
     set_localtime(2001, 7, 23, 23, 55, 0);
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
     (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "FRI0055", 7) != 0) {
+    if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0) {
         return 1;
     }
     now = mock_time(NULL);
