@@ -1,6 +1,6 @@
 # Raspberry Pi Pico Day of Week Clock
 
-**THIS PROJECT IS A WORK IN PROGRESS**
+Please note: **THIS PROJECT IS A WORK IN PROGRESS**
 
 ![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
 
@@ -14,6 +14,8 @@
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
 * Get the Windows CI build working for the test and coverage build
 * Make the configuration cleaner with better CMake overrides of `config.h`
+  * Switching between the upper and lower case weekday fonts
+* Allow configuration of the clock using a web interface to provide the wireless password and then store this in flash
 * And probably more...
 
 ## Introduction
@@ -24,10 +26,10 @@ The project is *not* compatible with earlier versions of the Pico and requires t
 
 ## Software Operation
 
-The pin-out and Wi-Fi settings are hard-coded into the project at buuld time. After the Pico firmware boots, the software will:
+The pin-out and Wi-Fi settings are hard-coded into the project at build time. After the Pico firmware boots, the software will:
 
-* Initialise all 7 LCD modules writing to the UART and exiting if this fails
-* Create a Wi-Fi connection to the hard-coded Wi-Fi networt
+* Initialize all 7 LCD modules writing to the UART and exiting if this fails
+* Create a Wi-Fi connection to the hard-coded Wi-Fi network
 * Get the current time from public NTP servers
 * Display the abbreviated day of week on the first three LCDs and the current time in hours in minutes on the remaining 4 displays
 
@@ -37,15 +39,15 @@ NTP syncs start at once per day and respect back-off requests from the server if
 
 A watchdog timer runs on the clock and reboots the Pico if there is no activity for `WATCHDOG_TIMEOUT_MS` which is 3 seconds by default. On reboot, the clock reconnects to Wi-Fi and resyncs with NTP.
 
-The clock displays icons along the top edge of LCD1 when errors occur. The icons indocate watchdog status, NTP status and Wi-Fi status. They are coloured red for errors and green for normal status and indicate the nature of the error that occured such as a Wi-Fi authentication provblem or network timeout.
+The clock displays icons along the top edge of LCD1 when errors occur. The icons indicate watchdog status, NTP status and Wi-Fi status. They are coloured red for errors and green for normal status and indicate the nature of the error that occurred such as a Wi-Fi authentication problem or network timeout.
 
 ![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/icons-on-display.jpeg)
 
-If the LCD cannot be initialises, the clock prints diagnostics to `stdout` as a last resort.
+If the LCD cannot be initializes, the clock prints diagnostics to `stdout` as a last resort.
 
 ### Timezones
 
-The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom. 
+The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom.
 
 The default time is also set to UTC with daylight savings time, which is the configuration for the United Kingdom.
 
@@ -53,7 +55,7 @@ Should the clock be useful to others, and pull requests are always appreciated, 
 
 ## Configuration
 
-Before CMake configuration, the Wi-Fi credentials must be set in `config.cmake` which is not part of the git repository. The project will fail to build without these. The configuration file is also a good place to set the domain name of the NTP server which otherwise defaults to `pool.ntp.org`. An example configuraion is:
+Before CMake configuration, the Wi-Fi credentials must be set in `config.cmake` which is not part of the git repository. The project will fail to build without these. The configuration file is also a good place to set the domain name of the NTP server which otherwise defaults to `pool.ntp.org`. An example configuration is:
 
 ``` cmake
 set(WIFI_SSID "My SSID)
@@ -71,7 +73,7 @@ The tests run on the host and assume Clang is available. Automated CI is provide
 
 ## Debug
 
-On boot, all LCDs are initialised first and diagnostic messages are displayed on the LCD1 as Wi-Fi and then NTP is initialised. On success, the clock starts. If any error is unrecoverable, signaled by a status message in red, the clock will not start and the diagnostics will remain. If the diagnostics do not appear at all, there is a problem with the LCD connections or the LCD driver. The following CMake configuration is available for debug to the UART:
+On boot, all LCDs are initialized first and diagnostic messages are displayed on the LCD1 as Wi-Fi and then NTP is initialized. On success, the clock starts. If any error is unrecoverable, signaled by a status message in red, the clock will not start and the diagnostics will remain. If the diagnostics do not appear at all, there is a problem with the LCD connections or the LCD driver. The following CMake configuration is available for debug to the UART:
 
 * `CLOCK_DEBUG_ENABLED`: debug messages from the day of week clock itself
 * `PICO_CYW43_ARCH_DEBUG_ENABLED`: SDK built-in debug of Wi-FI connections
@@ -121,7 +123,7 @@ The Pico has insufficient drive strength to drive the control signals of 7 LCDs 
 
 ## Mechanical design
 
-I chose the Waveshare LCD because it comes with a socket that has a wired plug with 2.54mm pin connectors for easy protoyping. For the final clock, this connector gets in the way of the wires hiding neatly behind the LCD. There are 172x320 LCD displays that are based on the ST7789 that come with an FPC connector which is neatly conencted on the narrow edge of the display. The bare LCD with the FPC connector has the disadvantage for the hobbyist that you need to add a ZIF socket and then break that out into something with a wider pitch to solder. The connector on the Waveshare board can be desoldered using solder braid and the connector carefully snipped off using flush snippers. The Waveshare module also has 2mm brass mounting holes which makes mounting the LCDs securely simpler. The main drawback of the approach is that the read of the LCD is quite messy, but the intended use is for a wall-mounted clock. The soldered connections look like this (please forgive the terrible soldering skills; I am out of practice):
+I chose the Waveshare LCD because it comes with a socket that has a wired plug with 2.54mm pin connectors for easy prototyping. For the final clock, this connector gets in the way of the wires hiding neatly behind the LCD. There are 172x320 LCD displays that are based on the ST7789 that come with an FPC connector which is neatly connected on the narrow edge of the display. The bare LCD with the FPC connector has the disadvantage for the hobbyist that you need to add a ZIF socket and then break that out into something with a wider pitch to solder. The connector on the Waveshare board can be desoldered using solder braid and the connector carefully snipped off using flush snippers. The Waveshare module also has 2mm brass mounting holes which makes mounting the LCDs securely simpler. The main drawback of the approach is that the read of the LCD is quite messy, but the intended use is for a wall-mounted clock. The soldered connections look like this (please forgive the terrible soldering skills; I am out of practice):
 
 ![Soldered connections to LCD module](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/module-connections.jpeg)
 
