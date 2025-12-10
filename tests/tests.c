@@ -26,6 +26,8 @@ unsigned int pbuf_alloc_fail_at = 0;
 bool watchdog_reboot_called = false;
 char **log_buffer;
 
+#define LOG_ERROR_WIDTH 40
+
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
     log_buffer = calloc(sizeof(char *), LOG_BUFFER_SIZE);
@@ -48,19 +50,10 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     }
 
     bool log_mismatch = false;
-    uint32_t max_log_width = 0;
     uint32_t expected_log_size = 0;
-    for (unsigned int ii = 0; ii < log_buffer_size; ii++) {
-        if (strlen(log_buffer[ii]) > max_log_width) {
-            max_log_width = strlen(log_buffer[ii]);
-        }
-    }
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
         if (ii > expected_log_size) {
             expected_log_size = ii;
-        }
-        if (strlen(expected_log[ii]) > expected_log_size) {
-            max_log_width = strlen(expected_log[ii]);
         }
     }
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
@@ -83,12 +76,14 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     }
 
     if (log_mismatch) {
-        printf("===== [REF] ======= %s ===== [TEST] =======\n", test_name);
+        uint32_t heading_width = ((LOG_ERROR_WIDTH * 2) - strlen(test_name) - 12) / 4;
+        printf("%.*s [REF] %.*s %s %.*s [TEST] %.*s\n", heading_width, "================", heading_width,
+               "================", test_name, heading_width, "================", heading_width, "================");
         for (unsigned int ii = 0; ii < expected_log_size; ii++) {
-            printf("  %-*s | %s\n", max_log_width, expected_log[ii], (log_buffer_size >= ii) ? log_buffer[ii] : "");
+            printf("  %-*s | %s\n", LOG_ERROR_WIDTH, expected_log[ii], (log_buffer_size >= ii) ? log_buffer[ii] : "");
         }
         for (unsigned int ii = expected_log_size; ii < log_buffer_size; ii++) {
-            printf("  %-*s | %s\n", max_log_width, "", log_buffer[ii]);
+            printf("  %-*s | %s\n", LOG_ERROR_WIDTH, "", log_buffer[ii]);
         }
     }
     for (unsigned int ii = 0; ii <= log_buffer_size; ii++) {
@@ -136,14 +131,14 @@ int test_dns_lookups(void)
     if (test_main() != 1) {
         return 1;
     }
-    // DNS poll loops every 500ms for 30s
-    test_config.dns_lookup_delay = 61;
+    // DNS poll loops every 500ms for 10s
+    test_config.dns_lookup_delay = 21;
     test_config.dns_lookup_fail = false;
     if (test_main() != 1) {
         return 1;
     }
-    // DNS poll loops every 500ms for 30s
-    test_config.dns_lookup_delay = 59;
+    // DNS poll loops every 500ms for 10s
+    test_config.dns_lookup_delay = 20;
     if (test_main() != 0) {
         return 1;
     }
