@@ -42,10 +42,10 @@ static void st7789_init(lcd_state_t *state);
 static void lcd_reset(lcd_state_t *state);
 
 void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start, uint16_t image_width,
-                     uint16_t image_height, color_t fgcolor);
+                     uint16_t image_height, color_t fg_color);
 
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
-                   color_t fgcolor, color_t bgcolor);
+                   color_t fg_color, color_t bg_color);
 
 lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                       uint16_t MOSI_gpio, bool reset)
@@ -72,7 +72,7 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
 
     st7789_init(state);
     lcd_set_backlight(state, 0);
-    lcd_clear_screen(state, BGCOLOR);
+    lcd_clear_screen(state, BG_COLOR);
     lcd_set_backlight(state, 100);
 
     return state;
@@ -96,7 +96,7 @@ void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const 
             x_point = 0;
             y_point = 0;
         }
-        width = lcd_write_char(state, x_point, y_point, *buffer, &text_font, color, BGCOLOR);
+        width = lcd_write_char(state, x_point, y_point, *buffer, &text_font, color, BG_COLOR);
         x_point += width;
         buffer++;
     }
@@ -146,7 +146,7 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
     lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
-// Initialise the Pico peripeherals we will use (SPI, GPIO, PWM)
+// Initialise the Pico peripherals we will use (SPI, GPIO, PWM)
 void lcd_init_peripherals(lcd_state_t *state, bool reset)
 {
     spi_init(spi1, 10000 * 1000);
@@ -307,7 +307,7 @@ static void st7789_init(lcd_state_t *state)
 void st7789_set_command_windows(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height)
 {
 
-    // X-cordinates are based on portrait mode
+    // X-coordinates are based on portrait mode
     st7789_command(state, 0x2A); // CASET (Column address set)
     st7789_data_byte(state, (x_start + LCD_ROW_START) >> 8);
     st7789_data_byte(state, (x_start + LCD_ROW_START) & 0xff);
@@ -350,7 +350,7 @@ void lcd_clear_screen(lcd_state_t *state, uint16_t color)
 }
 
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
-                   color_t fgcolor, color_t bgcolor)
+                   color_t fg_color, color_t bg_color)
 {
     uint8_t linebuf[LCD_WIDTH * 2];
     const font_glyph_t *entry = &font->table[ascii_char - ' '];
@@ -365,11 +365,11 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
         for (uint16_t glyph_column = 0; glyph_column < font_width; glyph_column++) {
             char glyph_pixels = *(ptr + (glyph_column / 8));
             if (glyph_pixels & (0x80 >> (glyph_column % 8))) {
-                linebuf[glyph_column * 2] = color_table[fgcolor % 4] >> 8;
-                linebuf[glyph_column * 2 + 1] = color_table[fgcolor % 4] & 0xFF;
+                linebuf[glyph_column * 2] = color_table[fg_color % 4] >> 8;
+                linebuf[glyph_column * 2 + 1] = color_table[fg_color % 4] & 0xFF;
             } else {
-                linebuf[glyph_column * 2] = color_table[bgcolor % 4] >> 8;
-                linebuf[glyph_column * 2 + 1] = color_table[bgcolor % 4] & 0xFF;
+                linebuf[glyph_column * 2] = color_table[bg_color % 4] >> 8;
+                linebuf[glyph_column * 2 + 1] = color_table[bg_color % 4] & 0xFF;
             }
         }
         spi_write_blocking(spi1, (uint8_t *)linebuf, font_width * 2);
@@ -383,7 +383,7 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
 }
 
 void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start, uint16_t image_width,
-                     uint16_t image_height, color_t fgcolor)
+                     uint16_t image_height, color_t fg_color)
 {
     uint8_t linebuf[LCD_WIDTH * 2];
 
@@ -400,8 +400,8 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
                 int x = x_start + (byte_idx * 8) + bit;
                 if (x < x_start + image_width) {
                     // Most significant bit is left-most pixel
-                    linebuf[(x - x_start) * 2] = color_table[(byte & (1 << (7 - bit))) ? fgcolor : 0] >> 8;
-                    linebuf[(x - x_start) * 2 + 1] = color_table[(byte & (1 << (7 - bit))) ? fgcolor : 0] & 0xFF;
+                    linebuf[(x - x_start) * 2] = color_table[(byte & (1 << (7 - bit))) ? fg_color : 0] >> 8;
+                    linebuf[(x - x_start) * 2 + 1] = color_table[(byte & (1 << (7 - bit))) ? fg_color : 0] & 0xFF;
                 }
             }
         }

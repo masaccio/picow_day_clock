@@ -32,8 +32,8 @@ typedef enum
     CYAN = 0x03
 } color_t;
 
-#define BGCOLOR BLACK
-#define FGCOLOR GREEN
+#define BG_COLOR BLACK
+#define FG_COLOR GREEN
 
 typedef enum
 {

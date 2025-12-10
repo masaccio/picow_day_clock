@@ -74,7 +74,7 @@ const char *status_to_string(clock_status_t status)
 }
 
 #ifdef TEST_MODE
-// In test mode, we want to return from main() but fatal_error() cannor return
+// In test mode, we want to return from main() but fatal_error() cannot return
 // so we use setjmp/longjmp to break out
 #include <setjmp.h>
 
@@ -263,7 +263,7 @@ bool clock_timer_callback(struct repeating_timer *t)
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
                 // Skip updates in test mode for performance reasons; all the subsequent
-                // stubbed calls to GPIO consume a lot of unncessary CPU over the tests
+                // stubbed calls to GPIO consume a lot of unnecessary CPU over the tests
 #ifndef TEST_MODE
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
@@ -387,7 +387,7 @@ int main(void)
         case WIFI_STATUS_CONNECT_FAILED:
             fatal_reset(state, STATUS_WIFI_CONNECT);
             // Never reached: reset happens
-        default: // whould be WIFI_STATUS_UNKNOWN_ERROR
+        default: // Should be WIFI_STATUS_UNKNOWN_ERROR
             fatal_reset(state, STATUS_WIFI_ERROR);
             // Never reached: reset happens
     }
