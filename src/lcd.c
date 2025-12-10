@@ -135,6 +135,8 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
         ICON_CASE(STATUS_NTP_INVALID, ntp_error_icon, -2)
 
         ICON_CASE(STATUS_WATCHDOG_RESET, watchdog_icon, -3)
+        ICON_CASE(STATUS_WATCHDOG_RESET_FOR_WIFI, watchdog_wifi_icon, -3)
+        ICON_CASE(STATUS_WATCHDOG_RESET_FOR_NTP, watchdog_ntp_icon, -3)
 
         default:
             return;

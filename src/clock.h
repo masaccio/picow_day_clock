@@ -60,6 +60,8 @@ typedef enum
     STATUS_NTP_MEMORY = -9,
     STATUS_NTP_INVALID = -10,
     STATUS_WATCHDOG_RESET = -11,
+    STATUS_WATCHDOG_RESET_FOR_WIFI = -12,
+    STATUS_WATCHDOG_RESET_FOR_NTP = -13,
     STATUS_NONE = 0xff,
 } clock_status_t;
 

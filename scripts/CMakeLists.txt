@@ -14,7 +14,7 @@ set(CLOCK_C_NAME clock_digit_font)
 set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/Oswald.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
-set(ICONS_LIST watchdog memory
+set(ICONS_LIST watchdog watchdog_ntp watchdog_wifi memory
                wifi wifi_init wifi_timeout wifi_password wifi_connect wifi_error 
                ntp ntp_init ntp_dns ntp_timeout ntp_memory ntp_error)
 set(ICON_SIZE 36)

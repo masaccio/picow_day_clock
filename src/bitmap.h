@@ -24,6 +24,8 @@ extern font_t clock_digit_font;
 #define ICON_BYTES (BYTES_PER_ROW * ICON_SIZE)
 
 extern const uint8_t watchdog_icon[ICON_BYTES];
+extern const uint8_t watchdog_wifi_icon[ICON_BYTES];
+extern const uint8_t watchdog_ntp_icon[ICON_BYTES];
 extern const uint8_t wifi_icon[ICON_BYTES];
 extern const uint8_t ntp_icon[ICON_BYTES];
 extern const uint8_t wifi_init_icon[ICON_BYTES];
