@@ -381,6 +381,15 @@ int test_watchdog(void)
     }
     watchdog_reboot_called = false;
     test_config.cyw43_arch_init_fail = false;
+    test_config.dns_lookup_fail = true;
+    if (test_main() != 1 || !watchdog_reboot_called) {
+        return 1;
+    }
+    test_config.watchdog_caused_reboot = true;
+    test_config.dns_lookup_fail = false;
+    if (test_main() != 0) {
+        return 1;
+    }
 
     // Coverage on otherwise unused status debug values
     if ((strcmp(status_to_string(STATUS_WIFI_OK), "STATUS_WIFI_OK") != 0) ||
@@ -520,6 +529,21 @@ int main(void)
         "LCD: STATUS_NTP_OK=GREEN",
         // Test watchdog caused reset
         "LCD: STATUS_WATCHDOG_RESET=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
+        // Restart clock after watchdog
+        "LCD: STATUS_WATCHDOG_RESET=RED",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_OK=GREEN",
+        // Normal start with Wi-Fi error
+        "LCD: LCD init successful",
+        "LCD: STATUS_WIFI_INIT=RED",
+        // Restart clock after watchdog for NTP error
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_DNS=RED",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_OK=GREEN",
         NULL,

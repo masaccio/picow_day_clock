@@ -362,7 +362,24 @@ int main(void)
         state->last_reset_error = persistent_state.reset_error;
         CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
                     persistent_state.reset_error);
-        lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
+        switch (persistent_state.reset_error) {
+            case STATUS_WIFI_INIT:
+            case STATUS_WIFI_TIMEOUT:
+            case STATUS_WIFI_AUTH:
+            case STATUS_WIFI_CONNECT:
+            case STATUS_WIFI_ERROR:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
+                break;
+            case STATUS_NTP_INIT:
+            case STATUS_NTP_DNS:
+            case STATUS_NTP_TIMEOUT:
+            case STATUS_NTP_MEMORY:
+            case STATUS_NTP_INVALID:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
+                break;
+            default:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, true);
+        }
         persistent_state.reset_error = STATUS_NONE;
     }
     watchdog_update();
