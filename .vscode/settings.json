@@ -68,5 +68,14 @@
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
     "ruff.lineLength": 120,
-    "ruff.enable": true
+    "ruff.enable": true,
+    "cSpell.dictionaryDefinitions": [
+        {
+            "name": "custom",
+            "path": "${workspaceFolder}/.vscode/dictionary.txt"
+        },
+    ],
+    "cSpell.dictionaries": [
+        "custom"
+    ],
 }
