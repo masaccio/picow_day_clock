@@ -73,10 +73,12 @@ target_compile_definitions(picow_day_clock PRIVATE
     LWIP_MALLOC_DEBUG=0                 # Enable debug of memory allocations
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
 )
-set(EXTRA_COMPILE_WARNINGS "-Wall;-Wextra;-Wpedantic;-Werror")
-if(CLOCK_SRC_FILES)
-    set_source_files_properties(${CLOCK_SRC_FILES} PROPERTIES COMPILE_OPTIONS "${EXTRA_COMPILE_WARNINGS}")
-endif()
+
+set_source_files_properties(${CLOCK_SRC_FILES}
+    PROPERTIES
+    COMPILE_OPTIONS
+    "-Wall;-Wextra;-Wpedantic;-Werror;-Wno-\#pragma-messages"
+)
 
 pico_set_program_name(picow_day_clock "picow_day_clock")
 pico_set_program_version(picow_day_clock "0.1")
