@@ -238,7 +238,7 @@ bool clock_timer_callback(struct repeating_timer *t)
     gmtime_r(&now, &current_time);
 
     if (state->init_done == false || current_time.tm_sec == 0) {
-        CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%d, last_reset_error=%s, NTP=%s\r\n", time_as_string(now), now,
+        CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, last_reset_error=%s, NTP=%s\r\n", time_as_string(now), now,
                     persistent_state.boot_count, status_to_string(state->last_reset_error),
                     (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
 
@@ -360,20 +360,36 @@ int main(void)
     } else {
         persistent_state.boot_count++;
         state->last_reset_error = persistent_state.reset_error;
-        CLOCK_DEBUG("Watchdog reboot, count=%u, reason=%d\r\n", persistent_state.boot_count,
+        CLOCK_DEBUG("Watchdog reboot, count=%lu, reason=%d\r\n", persistent_state.boot_count,
                     persistent_state.reset_error);
         switch (persistent_state.reset_error) {
             case STATUS_WIFI_INIT:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
+                break;
             case STATUS_WIFI_TIMEOUT:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
+                break;
             case STATUS_WIFI_AUTH:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
+                break;
             case STATUS_WIFI_CONNECT:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
+                break;
             case STATUS_WIFI_ERROR:
                 lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, true);
                 break;
             case STATUS_NTP_INIT:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
+                break;
             case STATUS_NTP_DNS:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
+                break;
             case STATUS_NTP_TIMEOUT:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
+                break;
             case STATUS_NTP_MEMORY:
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
+                break;
             case STATUS_NTP_INVALID:
                 lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, true);
                 break;
@@ -395,18 +411,23 @@ int main(void)
         case WIFI_STATUS_INIT_FAIL:
             fatal_reset(state, STATUS_WIFI_INIT);
             // Never reached: reset happens
+            break;
         case WIFI_STATUS_TIMEOUT:
             fatal_reset(state, STATUS_WIFI_TIMEOUT);
             // Never reached: reset happens
+            break;
         case WIFI_STATUS_BAD_AUTH:
             fatal_reset(state, STATUS_WIFI_AUTH);
             // Never reached: reset happens
+            break;
         case WIFI_STATUS_CONNECT_FAILED:
             fatal_reset(state, STATUS_WIFI_CONNECT);
             // Never reached: reset happens
+            break;
         default: // Should be WIFI_STATUS_UNKNOWN_ERROR
             fatal_reset(state, STATUS_WIFI_ERROR);
             // Never reached: reset happens
+            break;
     }
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
@@ -426,15 +447,19 @@ int main(void)
         case NTP_STATUS_DNS_ERROR:
             fatal_reset(state, STATUS_NTP_DNS);
             // Never reached: reset happens
+            break;
         case NTP_STATUS_TIMEOUT:
             fatal_reset(state, STATUS_NTP_TIMEOUT);
             // Never reached: reset happens
+            break;
         case NTP_STATUS_MEMORY_ERROR:
             fatal_reset(state, STATUS_NTP_MEMORY);
             // Never reached: reset happens
+            break;
         default: // Should be NTP_STATUS_INVALID_RESPONSE
             fatal_reset(state, STATUS_NTP_INVALID);
             // Never reached: reset happens
+            break;
     }
 
     state->ntp_drift = 0;

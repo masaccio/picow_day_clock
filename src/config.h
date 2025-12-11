@@ -1,5 +1,5 @@
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #define LCD1_GPIO_DC 6
 #define LCD1_GPIO_CS 7
@@ -44,4 +44,4 @@
 
 #define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
-#endif // _CONFIG_H
+#endif // CONFIG_H

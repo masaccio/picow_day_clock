@@ -1,5 +1,5 @@
-#ifndef _TEST_H
-#define _TEST_H
+#ifndef TEST_H
+#define TEST_H
 
 #include <stdbool.h>
 
@@ -36,4 +36,4 @@ typedef struct
 extern int test_main(void);
 extern test_config_t test_config;
 
-#endif // _TEST_H
+#endif // TEST_H

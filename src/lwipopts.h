@@ -1,5 +1,5 @@
-#ifndef __LWIPOPTS_H__
-#define __LWIPOPTS_H__
+#ifndef LWIPOPTS_H
+#define LWIPOPTS_H
 
 // clang-format off
 
@@ -110,4 +110,4 @@
 #endif // LWIP_PROTOCOL_DEBUG
 
 // clang-format on
-#endif // __LWIPOPTS_H__
+#endif // LWIPOPTS_H

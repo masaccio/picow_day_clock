@@ -1,5 +1,5 @@
-#ifndef _CLOCK_H
-#define _CLOCK_H
+#ifndef CLOCK_H
+#define CLOCK_H
 
 #include <stdlib.h>
 
@@ -157,4 +157,4 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
 
 extern ntp_status_t ntp_get_time(ntp_state_t *ntp_state);
 
-#endif // _CLOCK_H
+#endif // CLOCK_H

@@ -39,7 +39,7 @@ else()
     message(FATAL_ERROR "Missing config.cmake for Wi-Fi configuration! Expected contents:\nset(WIFI_SSID \"yourSSID\" CACHE STRING \"\")\nset(WIFI_PASSWORD \"yourPassword\" CACHE STRING \"\")")
 endif()
 
-# Initialise the Raspberry Pi Pico SDK
+# Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 set(CMAKE_BUILD_TYPE Debug)
@@ -73,6 +73,10 @@ target_compile_definitions(picow_day_clock PRIVATE
     LWIP_MALLOC_DEBUG=0                 # Enable debug of memory allocations
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
 )
+set(EXTRA_COMPILE_WARNINGS "-Wall;-Wextra;-Wpedantic;-Werror")
+if(CLOCK_SRC_FILES)
+    set_source_files_properties(${CLOCK_SRC_FILES} PROPERTIES COMPILE_OPTIONS "${EXTRA_COMPILE_WARNINGS}")
+endif()
 
 pico_set_program_name(picow_day_clock "picow_day_clock")
 pico_set_program_version(picow_day_clock "0.1")
