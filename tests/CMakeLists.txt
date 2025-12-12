@@ -41,7 +41,17 @@ add_executable(test_picow_day_clock
     ${TEST_SRC_FILES}
 )
 
-target_compile_options(test_picow_day_clock PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-\#pragma-messages)
+target_compile_options(test_picow_day_clock
+    PRIVATE
+    -Werror
+    -Weverything
+    # Disable unacceptable warnings for host build
+    -Wno-switch-default                 # Conflicts with -Wswitch-enum
+    -Wno-declaration-after-statement    # Pointless limitation when using modern C
+    -Wno-poison-system-directories      # Host build requires system directories
+    -Wno-padded                         # Padding is harmless
+    -Wno-unsafe-buffer-usage            # No sensible way to manage buffers with this
+)
 
 target_compile_definitions(test_picow_day_clock PRIVATE
     WIFI_SSID="my-test-ssid"

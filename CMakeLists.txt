@@ -74,12 +74,6 @@ target_compile_definitions(picow_day_clock PRIVATE
     LWIP_PROTOCOL_DEBUG=0               # Enable debug of UDP and NTP
 )
 
-set_source_files_properties(${CLOCK_SRC_FILES}
-    PROPERTIES
-    COMPILE_OPTIONS
-    "-Wall;-Wextra;-Wpedantic;-Werror;-Wno-\#pragma-messages"
-)
-
 pico_set_program_name(picow_day_clock "picow_day_clock")
 pico_set_program_version(picow_day_clock "0.1")
 
@@ -114,7 +108,7 @@ ExternalProject_Add(
         -DCMAKE_C_STANDARD=11
         -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${TEST_C_COMPILER}
-    BUILD_ALWAYS 1
+        BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
 
