@@ -8,6 +8,7 @@ CMCTRL
 Connell
 CTRL
 datasheet
+DCMAKE
 desoldered
 DISPON
 DollaTek
@@ -20,6 +21,7 @@ ISPON
 LCDS
 LCMCTRL
 lkdiv
+LWIP
 MADCTL
 MALLOC
 MOSI
@@ -30,12 +32,15 @@ Pico
 picow
 pinout
 PORCTRL
+profdata
 PVGAMCTRL
 PWCTRL
 RAMWR
 RASET
 RCTRL
 SLPOUT
+STREQUAL
+threadsafe
 TRACEFILE
 UART
 USERHOME
