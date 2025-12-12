@@ -182,7 +182,7 @@ int mock_printf(const char *format, ...)
         return 1;
     } else {
         log_buffer[log_buffer_size] = (char *)calloc(1, (size_t)buffer_len + 1);
-        strncpy(log_buffer[log_buffer_size], buffer, buffer_len);
+        strncpy(log_buffer[log_buffer_size], buffer, (size_t)buffer_len);
         log_buffer_size += 1;
         return 0;
     }

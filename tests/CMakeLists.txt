@@ -51,6 +51,7 @@ target_compile_options(test_picow_day_clock
     -Wno-poison-system-directories      # Host build requires system directories
     -Wno-padded                         # Padding is harmless
     -Wno-unsafe-buffer-usage            # No sensible way to manage buffers with this
+    -Wno-unused-command-line-argument   # Windows build fails due to -O0
 )
 
 target_compile_definitions(test_picow_day_clock PRIVATE
