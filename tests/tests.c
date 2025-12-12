@@ -306,11 +306,12 @@ static int test_ntp_time(void)
         if (tick == (2 * 24 * 60 * 60)) {
             test_config.udp_response_type = UDP_NTP_KOD;
         }
+        // Test that the interval as doubled as a result of a KoD
         if (tick == (3 * 24 * 60 * 60) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
             return 1;
         }
         if (tick > 0 && (tick % (24 * 60 * 60)) == 0) {
-            mock_ntp_seconds += (unsigned long long)((long long)mock_ntp_seconds + drift);
+            mock_ntp_seconds = (unsigned long long)((long long)mock_ntp_seconds + drift);
             drift = -drift;
         } else {
             mock_ntp_seconds++;
