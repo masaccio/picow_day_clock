@@ -42,7 +42,9 @@ endif()
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-set(CMAKE_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
 
 add_subdirectory(scripts)
 set_source_files_properties(${GENERATED_FONT_SRC_FILES} PROPERTIES GENERATED TRUE)
@@ -88,6 +90,12 @@ target_link_libraries(picow_day_clock
 
 pico_add_extra_outputs(picow_day_clock)
 add_dependencies(picow_day_clock generate_fonts generate_icons)
+
+# The Release build is expected to be used without the CMSIS-DAP debugger
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "Enabling USB stdio for Release build")
+    pico_enable_stdio_usb(picow_day_clock 1)
+endif()
 
 # ====================================================================================
 # Host test build
