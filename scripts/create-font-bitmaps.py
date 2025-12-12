@@ -179,9 +179,9 @@ def generate_variable_width_font(
     target.write("};\n\n")
 
     target.write(f"font_t {font_struct_name} = {{\n")
-    target.write(f"  {table_name},\n")
     target.write(f"  {bytes_per_row},\n")
-    target.write(f"  {char_height}\n")
+    target.write(f"  {char_height},\n")
+    target.write(f"  {table_name}\n")
     target.write("};\n")
 
 

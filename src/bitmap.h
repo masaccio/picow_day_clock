@@ -11,9 +11,9 @@ typedef struct
 
 typedef struct
 {
-    const font_glyph_t *table;
     uint16_t byte_width;
     uint16_t height;
+    const font_glyph_t *table;
 } font_t;
 
 extern font_t text_font;
@@ -23,6 +23,7 @@ extern font_t clock_digit_font;
 #define BYTES_PER_ROW (ICON_SIZE + 7) / 8
 #define ICON_BYTES (BYTES_PER_ROW * ICON_SIZE)
 
+extern const uint8_t memory_icon[ICON_BYTES];
 extern const uint8_t watchdog_icon[ICON_BYTES];
 extern const uint8_t watchdog_wifi_icon[ICON_BYTES];
 extern const uint8_t watchdog_ntp_icon[ICON_BYTES];
