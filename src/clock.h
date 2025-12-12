@@ -13,9 +13,12 @@
 
 #include "config.h"
 
+#ifdef TEST_MODE
+extern int test_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
+#endif
+
 #ifdef CLOCK_DEBUG_ENABLED
 #ifdef TEST_MODE
-extern int test_printf(const char *format, ...);
 #define CLOCK_DEBUG(...) test_printf(__VA_ARGS__)
 #else
 #define CLOCK_DEBUG(format, ...) printf("CLOCK: " format, ##__VA_ARGS__)
@@ -37,43 +40,43 @@ typedef enum
 
 typedef enum
 {
-    WIFI_STATUS_SUCCESS = 0,
-    WIFI_STATUS_INIT_FAIL = -1,
-    WIFI_STATUS_TIMEOUT = -2,
-    WIFI_STATUS_BAD_AUTH = -3,
-    WIFI_STATUS_CONNECT_FAILED = -4,
-    WIFI_STATUS_UNKNOWN_ERROR = -5,
+    WIFI_STATUS_SUCCESS,
+    WIFI_STATUS_INIT_FAIL,
+    WIFI_STATUS_TIMEOUT,
+    WIFI_STATUS_BAD_AUTH,
+    WIFI_STATUS_CONNECT_FAILED,
+    WIFI_STATUS_UNKNOWN_ERROR,
 } wifi_status_t;
 
 typedef enum
 {
-    STATUS_WIFI_OK = 0,
-    STATUS_NTP_OK = 1,
-    STATUS_WIFI_INIT = -1,
-    STATUS_WIFI_TIMEOUT = -2,
-    STATUS_WIFI_AUTH = -3,
-    STATUS_WIFI_CONNECT = -4,
-    STATUS_WIFI_ERROR = -5,
-    STATUS_NTP_INIT = -6,
-    STATUS_NTP_DNS = -7,
-    STATUS_NTP_TIMEOUT = -8,
-    STATUS_NTP_MEMORY = -9,
-    STATUS_NTP_INVALID = -10,
-    STATUS_WATCHDOG_RESET = -11,
-    STATUS_WATCHDOG_RESET_FOR_WIFI = -12,
-    STATUS_WATCHDOG_RESET_FOR_NTP = -13,
-    STATUS_NONE = 0xff,
+    STATUS_NONE,
+    STATUS_WIFI_OK,
+    STATUS_NTP_OK,
+    STATUS_WIFI_INIT,
+    STATUS_WIFI_TIMEOUT,
+    STATUS_WIFI_AUTH,
+    STATUS_WIFI_CONNECT,
+    STATUS_WIFI_ERROR,
+    STATUS_NTP_INIT,
+    STATUS_NTP_DNS,
+    STATUS_NTP_TIMEOUT,
+    STATUS_NTP_MEMORY,
+    STATUS_NTP_INVALID,
+    STATUS_WATCHDOG_RESET,
+    STATUS_WATCHDOG_RESET_FOR_WIFI,
+    STATUS_WATCHDOG_RESET_FOR_NTP,
 } clock_status_t;
 
 typedef enum
 {
-    NTP_STATUS_PENDING = 0,
-    NTP_STATUS_SUCCESS = 1,
-    NTP_STATUS_DNS_ERROR = -1,
-    NTP_STATUS_TIMEOUT = -2,
-    NTP_STATUS_INVALID_RESPONSE = -3,
-    NTP_STATUS_MEMORY_ERROR = -4,
-    NTP_STATUS_KOD = -5,
+    NTP_STATUS_PENDING,
+    NTP_STATUS_SUCCESS,
+    NTP_STATUS_DNS_ERROR,
+    NTP_STATUS_TIMEOUT,
+    NTP_STATUS_INVALID_RESPONSE,
+    NTP_STATUS_MEMORY_ERROR,
+    NTP_STATUS_KOD,
 } ntp_status_t;
 
 typedef struct
@@ -100,12 +103,12 @@ typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 
 typedef struct ntp_state_t
 {
+    ntp_time_handler_t time_handler;
     ip_addr_t ntp_server_address;
-    bool dns_request_sent;
     struct udp_pcb *ntp_pcb;
     void *parent_state;
+    int dns_request_sent;
     ntp_status_t status;
-    ntp_time_handler_t time_handler;
 } ntp_state_t;
 
 typedef struct clock_state_t
@@ -120,21 +123,29 @@ typedef struct clock_state_t
     lcd_state_t *lcd_states[NUM_LCDS];
     char current_lcd_digits[NUM_LCDS + 1];
     // Timer state
-    bool init_done;
     repeating_timer_t timer;
     clock_status_t last_reset_error;
+    int init_done;
 } clock_state_t;
 
+// Clock functions and state that are shared with the test harness
+extern const char *status_to_string(clock_status_t status);
+extern persistent_state_t persistent_state;
+extern int last_day_of_month(int day, int month, int year);
+extern bool clock_timer_callback(repeating_timer_t *);
+extern void ntp_timer_callback(void *state, time_t *ntp_time);
+
+// Cross-module functions
 extern wifi_status_t connect_to_wifi(const char ssid[], const char password[]);
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                             uint16_t MOSI_gpio, bool reset);
+                             uint16_t MOSI_gpio, int reset);
 
 extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
-extern void lcd_init_peripherals(lcd_state_t *state, bool reset);
+extern void lcd_init_peripherals(lcd_state_t *state, int reset);
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error);
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, int is_error);
 
 extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 
@@ -145,7 +156,7 @@ extern void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_
 
 void lcd_clear_screen(lcd_state_t *state, uint16_t color);
 
-extern bool time_is_dst(struct tm *utc);
+extern int time_is_dst(struct tm *utc);
 
 extern time_t tm_to_epoch(struct tm *tm);
 

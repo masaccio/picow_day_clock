@@ -65,7 +65,7 @@ typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, cons
 
 // Standard library functions
 #define printf(...) mock_printf(__VA_ARGS__)
-extern int mock_printf(const char *format, ...);
+extern int mock_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
 extern void *mock_calloc(size_t, size_t);
 #define calloc(num, size) mock_calloc(num, size)
@@ -112,7 +112,7 @@ int spi_write_blocking(spi_inst_t *spi, const uint8_t *src, size_t len);
 // GPIO functions
 void gpio_set_function(uint gpio, uint func);
 void gpio_init(uint gpio);
-void gpio_set_dir(uint gpio, bool out);
+void gpio_set_dir(uint gpio, int out);
 void gpio_put(uint gpio, int value);
 
 // PWM functions
@@ -120,7 +120,7 @@ int pwm_gpio_to_slice_num(uint gpio);
 void pwm_set_wrap(uint slice_num, uint32_t wrap);
 void pwm_set_chan_level(uint slice_num, uint chan, uint32_t level);
 void pwm_set_clkdiv(uint slice_num, float divider);
-void pwm_set_enabled(uint slice_num, bool enabled);
+void pwm_set_enabled(uint slice_num, int enabled);
 
 // Wi-Fi functions
 int cyw43_arch_init(void);
@@ -148,13 +148,13 @@ int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);
 // Timer functions
 absolute_time_t get_absolute_time(void);
 int64_t absolute_time_diff_us(absolute_time_t t1, absolute_time_t t2);
-int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
-                           repeating_timer_t *out_timer);
+bool add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
+                            repeating_timer_t *out_timer);
 
 // Watchdog
-#define SRAM_END -1
-bool watchdog_caused_reboot(void);
-void watchdog_enable(uint32_t delay_ms, bool pause_on_debug);
+#define SRAM_END (uint32_t)-1
+int watchdog_caused_reboot(void);
+void watchdog_enable(uint32_t delay_ms, int pause_on_debug);
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms);
 void watchdog_update(void);
 

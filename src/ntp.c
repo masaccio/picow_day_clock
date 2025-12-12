@@ -40,7 +40,7 @@ void ntp_request(ntp_state_t *state)
 
 // Called by dns_gethostbyname() after a DNS request completes
 // having previously returned ERR_INPROGRESS to ntp_get_time()
-void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
+static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
     (void)hostname;
@@ -64,13 +64,13 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
 
-    bool addrs_valid = ip_addr_cmp(addr, &state->ntp_server_address);
-    bool response_valid = port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4;
+    int addrs_valid = ip_addr_cmp(addr, &state->ntp_server_address);
+    int response_valid = port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4;
     if (addrs_valid && response_valid && stratum != 0) {
         uint8_t seconds_buf[4] = {0};
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
-        uint32_t seconds_since_1900 =
-            seconds_buf[0] << 24 | seconds_buf[1] << 16 | seconds_buf[2] << 8 | seconds_buf[3];
+        uint32_t seconds_since_1900 = (uint32_t)(((uint32_t)seconds_buf[0] << 24) | ((uint32_t)seconds_buf[1] << 16) |
+                                                 ((uint32_t)seconds_buf[2] << 8) | ((uint32_t)seconds_buf[3]));
         time_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
 
         state->status = NTP_STATUS_SUCCESS;

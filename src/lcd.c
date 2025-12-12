@@ -48,7 +48,7 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
                    color_t fg_color, color_t bg_color);
 
 lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                      uint16_t MOSI_gpio, bool reset)
+                      uint16_t MOSI_gpio, int reset)
 
 {
     lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
@@ -115,10 +115,10 @@ void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_c
         offset = OFFSET;                                                                                               \
         break;
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, int is_error)
 {
-    const uint8_t *icon;
-    int offset;
+    const uint8_t *icon = (const uint8_t *)0;
+    int offset = 0;
     switch (status) {
         ICON_CASE(STATUS_WIFI_OK, wifi_icon, -1)
         ICON_CASE(STATUS_WIFI_INIT, wifi_init_icon, -1)
@@ -126,30 +126,27 @@ void lcd_update_icon(lcd_state_t *state, clock_status_t status, bool is_error)
         ICON_CASE(STATUS_WIFI_AUTH, wifi_password_icon, -1)
         ICON_CASE(STATUS_WIFI_CONNECT, wifi_connect_icon, -1)
         ICON_CASE(STATUS_WIFI_ERROR, wifi_error_icon, -1)
-
         ICON_CASE(STATUS_NTP_OK, ntp_icon, -2)
         ICON_CASE(STATUS_NTP_INIT, ntp_init_icon, -2)
         ICON_CASE(STATUS_NTP_DNS, ntp_dns_icon, -2)
         ICON_CASE(STATUS_NTP_TIMEOUT, ntp_timeout_icon, -2)
         ICON_CASE(STATUS_NTP_MEMORY, ntp_memory_icon, -2)
         ICON_CASE(STATUS_NTP_INVALID, ntp_error_icon, -2)
-
         ICON_CASE(STATUS_WATCHDOG_RESET, watchdog_icon, -3)
         ICON_CASE(STATUS_WATCHDOG_RESET_FOR_WIFI, watchdog_wifi_icon, -3)
         ICON_CASE(STATUS_WATCHDOG_RESET_FOR_NTP, watchdog_ntp_icon, -3)
-
-        default:
+        case STATUS_NONE:
             return;
     }
 
     color_t color = is_error ? RED : GREEN;
     // Position last icon 5 pixels from edge to handle rounded corner
-    uint16_t x_start = LCD_WIDTH - 5 + ICON_SIZE * offset;
+    uint16_t x_start = (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * offset);
     lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
 }
 
 // Initialise the Pico peripherals we will use (SPI, GPIO, PWM)
-void lcd_init_peripherals(lcd_state_t *state, bool reset)
+void lcd_init_peripherals(lcd_state_t *state, int reset)
 {
     spi_init(spi1, 10000 * 1000);
     gpio_set_function(state->CLK_gpio, GPIO_FUNC_SPI);
@@ -171,11 +168,11 @@ void lcd_init_peripherals(lcd_state_t *state, bool reset)
     gpio_put(state->BL_gpio, 1);
 
     gpio_set_function(state->BL_gpio, GPIO_FUNC_PWM);
-    slice_num = pwm_gpio_to_slice_num(state->BL_gpio);
+    slice_num = (uint)pwm_gpio_to_slice_num(state->BL_gpio);
     pwm_set_wrap(slice_num, 100);
     pwm_set_chan_level(slice_num, PWM_CHAN_B, 1);
     pwm_set_clkdiv(slice_num, 50);
-    pwm_set_enabled(slice_num, true);
+    pwm_set_enabled(slice_num, 1);
 }
 
 // Use the PWM to set the backlight level for all displays
@@ -306,7 +303,8 @@ static void st7789_init(lcd_state_t *state)
     st7789_command(state, 0x29); // DISPON (Display On)
 }
 
-void st7789_set_command_windows(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height)
+static void st7789_set_command_windows(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width,
+                                       uint16_t height)
 {
 
     // X-coordinates are based on portrait mode
@@ -333,7 +331,7 @@ void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, 
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_gpio, 0);
 
-    uint8_t linebuf[width * 2];
+    uint8_t linebuf[LCD_WIDTH * 2];
     for (uint16_t x = 0; x < width; x++) {
         linebuf[x * 2] = color_table[color % 4] >> 8;
         linebuf[x * 2 + 1] = color_table[color % 4] & 0xFF;
@@ -365,7 +363,7 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
 
     for (uint16_t glyph_row = 0; glyph_row < font->height; glyph_row++) {
         for (uint16_t glyph_column = 0; glyph_column < font_width; glyph_column++) {
-            char glyph_pixels = *(ptr + (glyph_column / 8));
+            uint8_t glyph_pixels = *(ptr + (glyph_column / 8));
             if (glyph_pixels & (0x80 >> (glyph_column % 8))) {
                 linebuf[glyph_column * 2] = color_table[fg_color % 4] >> 8;
                 linebuf[glyph_column * 2 + 1] = color_table[fg_color % 4] & 0xFF;

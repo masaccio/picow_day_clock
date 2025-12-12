@@ -23,14 +23,14 @@ unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
 unsigned int calloc_counter = 0;
 unsigned int pbuf_alloc_fail_at = 0;
-bool watchdog_reboot_called = false;
+int watchdog_reboot_called = 0;
 char **log_buffer;
 
 #define LOG_ERROR_WIDTH 40
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
-    log_buffer = calloc(sizeof(char *), LOG_BUFFER_SIZE);
+    log_buffer = (char **)calloc(sizeof(char *), LOG_BUFFER_SIZE);
 
     // Always init the test config
     memset(&test_config, 0, sizeof(test_config_t));
@@ -49,7 +49,7 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         return status;
     }
 
-    bool log_mismatch = false;
+    int log_mismatch = 0;
     uint32_t expected_log_size = 0;
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
         if (ii > expected_log_size) {
@@ -58,29 +58,34 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     }
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
         if (ii >= log_buffer_size) {
-            log_mismatch = true;
+            log_mismatch = 1;
             break;
         }
-        unsigned int test_len = strlen(log_buffer[ii]);
-        unsigned int ref_len = strlen(expected_log[ii]);
-        unsigned int max_len = (ref_len > test_len) ? test_len : ref_len;
-        for (int jj = test_len - 1; jj >= 0; jj--) {
+        size_t test_len = strlen(log_buffer[ii]);
+        size_t ref_len = strlen(expected_log[ii]);
+        size_t max_len = (ref_len > test_len) ? test_len : ref_len;
+        for (size_t jj = test_len - 1; jj > 0; jj--) {
             if (log_buffer[ii][jj] == '\r' || log_buffer[ii][jj] == '\n') {
                 log_buffer[ii][jj] = (char)0;
                 test_len--;
             }
         }
         if (test_len != ref_len || strncmp(log_buffer[ii], expected_log[ii], max_len) != 0) {
-            log_mismatch = true;
+            log_mismatch = 1;
         }
     }
 
     if (log_mismatch) {
-        uint32_t heading_width = ((LOG_ERROR_WIDTH * 2) - strlen(test_name) - 12) / 4;
+        uint32_t heading_width = ((LOG_ERROR_WIDTH * 2) - (uint32_t)strlen(test_name) - 12) / 4;
         printf("%.*s [REF] %.*s %s %.*s [TEST] %.*s\n", heading_width, "================", heading_width,
                "================", test_name, heading_width, "================", heading_width, "================");
         for (unsigned int ii = 0; ii < expected_log_size; ii++) {
-            printf("  %-*s | %s\n", LOG_ERROR_WIDTH, expected_log[ii], (log_buffer_size >= ii) ? log_buffer[ii] : "");
+            size_t test_len = strlen(log_buffer[ii]);
+            size_t ref_len = strlen(expected_log[ii]);
+            size_t max_len = (ref_len > test_len) ? test_len : ref_len;
+            int match = strncmp(log_buffer[ii], expected_log[ii], max_len) == 0 && test_len == max_len;
+            printf("  %-*s %c %s\n", LOG_ERROR_WIDTH, expected_log[ii], match ? '|' : 'x',
+                   (log_buffer_size >= ii) ? log_buffer[ii] : "");
         }
         for (unsigned int ii = expected_log_size; ii < log_buffer_size; ii++) {
             printf("  %-*s | %s\n", LOG_ERROR_WIDTH, "", log_buffer[ii]);
@@ -97,15 +102,15 @@ test_config_t test_config = {
     .cyw43_auth_error_count = 0,
     .cyw43_arch_wifi_connect_status = 0,
     .cyw43_auth_timeout_count = 0,
-    .cyw43_arch_init_fail = false,
-    .udp_new_ip_type_fail = false,
-    .udp_sendto_fail = false,
+    .cyw43_arch_init_fail = 0,
+    .udp_new_ip_type_fail = 0,
+    .udp_sendto_fail = 0,
     .dns_lookup_delay = 0,
-    .dns_lookup_fail = false,
-    .watchdog_caused_reboot = false,
+    .dns_lookup_fail = 0,
+    .watchdog_caused_reboot = 0,
 };
 
-int test_bad_lcd1(void)
+static int test_bad_lcd1(void)
 {
     calloc_counter = 0;
     calloc_fail_at = 1;
@@ -121,19 +126,19 @@ int test_bad_lcd1(void)
     return 0;
 }
 
-int test_dns_lookups(void)
+static int test_dns_lookups(void)
 {
-    test_config.dns_bad_arg = true;
+    test_config.dns_bad_arg = 1;
     if (test_main() != 1) {
         return 1;
     }
-    test_config.dns_lookup_fail = true;
+    test_config.dns_lookup_fail = 1;
     if (test_main() != 1) {
         return 1;
     }
     // DNS poll loops every 500ms for 10s
     test_config.dns_lookup_delay = 21;
-    test_config.dns_lookup_fail = false;
+    test_config.dns_lookup_fail = 0;
     if (test_main() != 1) {
         return 1;
     }
@@ -145,13 +150,13 @@ int test_dns_lookups(void)
     return 0;
 }
 
-int test_wifi_init_errors(void)
+static int test_wifi_init_errors(void)
 {
-    test_config.cyw43_arch_init_fail = true;
+    test_config.cyw43_arch_init_fail = 1;
     if (test_main() != 1) {
         return 1;
     }
-    test_config.cyw43_arch_init_fail = false;
+    test_config.cyw43_arch_init_fail = 0;
     test_config.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
     if (test_main() != 1) {
         return 1;
@@ -174,7 +179,7 @@ int test_wifi_init_errors(void)
     return 0;
 }
 
-int test_wifi_auth_errors(void)
+static int test_wifi_auth_errors(void)
 {
     test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
     if (test_main() != 0) {
@@ -188,9 +193,6 @@ int test_wifi_auth_errors(void)
     return 0;
 }
 
-extern bool clock_timer_callback(repeating_timer_t *);
-extern unsigned long long mock_system_time_ms;
-
 static void set_localtime(int year, int mon, int mday, int hour, int min, int sec)
 {
     struct tm tm_val = {0};
@@ -202,30 +204,25 @@ static void set_localtime(int year, int mon, int mday, int hour, int min, int se
     tm_val.tm_sec = sec;
     tm_val.tm_isdst = 0;
     time_t t = tm_to_epoch(&tm_val);
-    mock_system_time_ms = t * 1000;
+    mock_system_time_ms = (unsigned long long)t * 1000;
 }
-
-extern void ntp_timer_callback(void *state, time_t *ntp_time);
-extern unsigned mock_ntp_seconds;
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        clock_state->lcd_states[ii] = lcd_init(0, 0, 0, 0, 0, 0, false);
+        clock_state->lcd_states[ii] = lcd_init(0, 0, 0, 0, 0, 0, 0);
     }
     clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
     clock_state->ntp_last_sync = mock_time(NULL);
-    clock_state->init_done = false;
+    clock_state->init_done = 0;
     timer->user_data = clock_state;
     return clock_state;
 }
 
-extern int last_day_of_month(int day, int month, int year);
-
-int test_dst(void)
+static int test_dst(void)
 {
-    repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
+    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = create_test_clock_state(timer);
 
     // Coverage test for Zeller's congruence
@@ -270,14 +267,14 @@ int test_dst(void)
     return 0;
 }
 
-int lcd_digits_to_int(const char *digits)
+static int lcd_digits_to_int(const char *digits)
 {
     return ((*digits - '0') * 10) + (*(digits + 1) - '0');
 }
 
-int test_ntp_time(void)
+static int test_ntp_time(void)
 {
-    repeating_timer_t *timer = calloc(1, sizeof(repeating_timer_t));
+    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = create_test_clock_state(timer);
 
     // Tue January 9, 2001 at 09:28:32
@@ -313,7 +310,7 @@ int test_ntp_time(void)
             return 1;
         }
         if (tick > 0 && (tick % (24 * 60 * 60)) == 0) {
-            mock_ntp_seconds += drift;
+            mock_ntp_seconds += (unsigned long long)((long long)mock_ntp_seconds + drift);
             drift = -drift;
         } else {
             mock_ntp_seconds++;
@@ -323,7 +320,7 @@ int test_ntp_time(void)
     return status;
 }
 
-int test_ntp_errors(void)
+static int test_ntp_errors(void)
 {
     test_config.udp_response_type = UDP_NTP_INVALID;
     if (test_main() != 1) {
@@ -337,17 +334,17 @@ int test_ntp_errors(void)
     if (test_main() != 1) {
         return 1;
     }
-    test_config.udp_new_ip_type_fail = true;
+    test_config.udp_new_ip_type_fail = 1;
     if (test_main() != 1) {
         return 1;
     }
-    test_config.udp_new_ip_type_fail = false;
+    test_config.udp_new_ip_type_fail = 0;
     pbuf_alloc_fail_at = 1;
     if (test_main() != 1) {
         return 1;
     }
     pbuf_alloc_fail_at = 0;
-    test_config.udp_sendto_fail = true;
+    test_config.udp_sendto_fail = 1;
     if (test_main() != 1) {
         return 1;
     }
@@ -359,34 +356,31 @@ int test_ntp_errors(void)
     return 0;
 }
 
-extern const char *status_to_string(clock_status_t status);
-extern persistent_state_t persistent_state;
-
-int test_watchdog(void)
+static int test_watchdog(void)
 {
     if (test_main() != 0) {
         return 1;
     }
-    test_config.watchdog_caused_reboot = true;
+    test_config.watchdog_caused_reboot = 1;
     if (test_main() != 0) {
         return 1;
     }
     if (test_main() != 0 || persistent_state.boot_count != 2) {
         return 1;
     }
-    test_config.watchdog_caused_reboot = false;
-    test_config.cyw43_arch_init_fail = true;
+    test_config.watchdog_caused_reboot = 0;
+    test_config.cyw43_arch_init_fail = 1;
     if (test_main() != 1 || !watchdog_reboot_called) {
         return 1;
     }
-    watchdog_reboot_called = false;
-    test_config.cyw43_arch_init_fail = false;
-    test_config.dns_lookup_fail = true;
+    watchdog_reboot_called = 0;
+    test_config.cyw43_arch_init_fail = 0;
+    test_config.dns_lookup_fail = 1;
     if (test_main() != 1 || !watchdog_reboot_called) {
         return 1;
     }
-    test_config.watchdog_caused_reboot = true;
-    test_config.dns_lookup_fail = false;
+    test_config.watchdog_caused_reboot = 1;
+    test_config.dns_lookup_fail = 0;
     if (test_main() != 0) {
         return 1;
     }
@@ -396,7 +390,7 @@ int test_watchdog(void)
         (strcmp(status_to_string(STATUS_NTP_OK), "STATUS_NTP_OK") != 0) ||
         (strcmp(status_to_string(STATUS_WATCHDOG_RESET), "STATUS_WATCHDOG_RESET") != 0) ||
         (strcmp(status_to_string(STATUS_NONE), "STATUS_NONE") != 0) ||
-        (strcmp(status_to_string(-0xffff), "UNKNOWN_STATUS") != 0)) {
+        (strcmp(status_to_string((clock_status_t)0xff), "UNKNOWN_STATUS") != 0)) {
         return 1;
     }
     return 0;

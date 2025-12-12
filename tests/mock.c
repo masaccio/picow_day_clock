@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "clock.h"
 #include "mock.h"
 #include "test.h"
 
@@ -9,9 +10,6 @@
 // so that we can call into the system libraries as needed.
 #undef printf
 #undef calloc
-
-extern unsigned int log_buffer_size;
-extern char **log_buffer;
 
 // SPI functions
 uint spi_init(spi_inst_t *spi, int baudrate)
@@ -41,7 +39,7 @@ void gpio_init(uint gpio)
     (void)gpio;
 }
 
-void gpio_set_dir(uint gpio, bool out)
+void gpio_set_dir(uint gpio, int out)
 {
     (void)gpio;
     (void)out;
@@ -79,7 +77,7 @@ void pwm_set_clkdiv(uint slice_num, float divider)
     (void)divider;
 }
 
-void pwm_set_enabled(uint slice_num, bool enabled)
+void pwm_set_enabled(uint slice_num, int enabled)
 {
     (void)slice_num;
     (void)enabled;
@@ -159,11 +157,11 @@ int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to)
             }
         }
     }
-    return to - from;
+    return (int64_t)to - (int64_t)from;
 }
 
-int add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
-                           repeating_timer_t *out_timer)
+bool add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), void *user_data,
+                            repeating_timer_t *out_timer)
 {
     (void)ms;
     (void)callback;
@@ -183,7 +181,7 @@ int mock_printf(const char *format, ...)
         printf("*** MOCK BUFFER OVERFLOW!\n");
         return 1;
     } else {
-        log_buffer[log_buffer_size] = calloc(1, buffer_len + 1);
+        log_buffer[log_buffer_size] = (char *)calloc(1, (size_t)buffer_len + 1);
         strncpy(log_buffer[log_buffer_size], buffer, buffer_len);
         log_buffer_size += 1;
         return 0;
@@ -199,7 +197,7 @@ time_t mock_time(time_t *tloc)
 int mock_settimeofday(const struct timeval *tp, void *tzp)
 {
     (void)tzp; // Implementation has ignores timezones
-    mock_system_time_ms = tp->tv_sec * 1000 + (tp->tv_usec * 1000);
+    mock_system_time_ms = (unsigned long long)(tp->tv_sec * 1000 + (tp->tv_usec * 1000));
     return 0;
 }
 
@@ -237,7 +235,7 @@ void *mock_calloc(size_t num, size_t size)
 // lwIP functions
 static udp_recv_fn udp_recv_callback;
 static void *udp_recv_callback_arg;
-unsigned mock_ntp_seconds = 0;
+unsigned long long mock_ntp_seconds = 0;
 
 extern unsigned int pbuf_alloc_fail_at;
 
@@ -274,7 +272,7 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     p->tot_len = (test_config.udp_response_type == UDP_NTP_BAD_LEN) ? 0x0 : NTP_MSG_LEN;
     p->payload[0] = (test_config.udp_response_type == UDP_NTP_INVALID) ? 0x0 : 0x4; // mode
     p->payload[1] = (test_config.udp_response_type == UDP_NTP_KOD) ? 0x0 : 0x1;     // stratum
-    p->payload[40] = mock_ntp_seconds >> 24;
+    p->payload[40] = (mock_ntp_seconds >> 24) & 0xff;
     p->payload[41] = (mock_ntp_seconds >> 16) & 0xff;
     p->payload[42] = (mock_ntp_seconds >> 8) & 0xff;
     p->payload[43] = mock_ntp_seconds & 0xff;
@@ -350,22 +348,22 @@ void watchdog_update(void)
     watchdog_time_ms = 0;
 }
 
-bool watchdog_caused_reboot(void)
+int watchdog_caused_reboot(void)
 {
     return test_config.watchdog_caused_reboot;
 }
 
-extern bool watchdog_reboot_called;
+extern int watchdog_reboot_called;
 
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
 {
     (void)pc;
     (void)sp;
     (void)delay_ms;
-    watchdog_reboot_called = true;
+    watchdog_reboot_called = 1;
 }
 
-void watchdog_enable(uint32_t delay_ms, bool pause_on_debug)
+void watchdog_enable(uint32_t delay_ms, int pause_on_debug)
 {
     (void)delay_ms;
     (void)pause_on_debug;

@@ -16,24 +16,34 @@ typedef enum
 
 typedef struct
 {
-    // Wi-Fi
     int cyw43_auth_error_count;
     int cyw43_arch_wifi_connect_status;
     int cyw43_auth_timeout_count;
-    bool cyw43_arch_init_fail;
-    // UDP
-    bool udp_new_ip_type_fail;
-    bool udp_sendto_fail;
-    udp_response_type_t udp_response_type;
-    // DNS
     int dns_lookup_delay;
-    bool dns_lookup_fail;
-    bool dns_bad_arg;
-    // Watchdog
-    bool watchdog_caused_reboot;
+    udp_response_type_t udp_response_type;
+    // Flags go last for correct memory alignment
+    int cyw43_arch_init_fail;
+    int udp_new_ip_type_fail;
+    int udp_sendto_fail;
+    int dns_lookup_fail;
+    int dns_bad_arg;
+    int watchdog_caused_reboot;
 } test_config_t;
 
 extern int test_main(void);
+
+// Globals shared between the mocker and the test harness
 extern test_config_t test_config;
+extern unsigned int log_buffer_size;
+extern unsigned int calloc_fail_at;
+extern unsigned int calloc_counter;
+extern unsigned int pbuf_alloc_fail_at;
+extern int watchdog_reboot_called;
+extern unsigned int log_buffer_size;
+extern char **log_buffer;
+extern unsigned long long mock_system_time_ms;
+extern unsigned long long mock_boot_time_ms;
+extern unsigned long long watchdog_time_ms;
+extern unsigned long long mock_ntp_seconds;
 
 #endif // TEST_H
