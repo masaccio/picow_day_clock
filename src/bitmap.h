@@ -1,5 +1,5 @@
-#ifndef _BITMAP_H
-#define _BITMAP_H
+#ifndef BITMAP_H
+#define BITMAP_H
 
 #include <stdint.h>
 
@@ -39,4 +39,4 @@ extern const uint8_t ntp_timeout_icon[ICON_BYTES];
 extern const uint8_t ntp_memory_icon[ICON_BYTES];
 extern const uint8_t ntp_error_icon[ICON_BYTES];
 
-#endif // _BITMAP_H
+#endif // BITMAP_H

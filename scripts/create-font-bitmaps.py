@@ -138,7 +138,7 @@ def generate_variable_width_font(
 
     for char in ASCII_CHAR_RANGE:
         if clock and char not in CLOCK_CHAR_RANGE:
-            glyph_entries.append((-1, "(const uint8_t *)0"))
+            glyph_entries.append((0, "(const uint8_t *)0"))
             continue
 
         image = Image.new(

@@ -61,7 +61,8 @@ def main():
     data = image_to_bitmap(args.input, args.size)
     c_array = format_as_c_array(data, args.c_name or "bitmap")
 
-    args.output.write("#include <stdint.h>\n\n")
+    args.output.write("#include <stdint.h>\n")
+    args.output.write('#include "bitmap.h"\n\n')
     args.output.write(c_array)
 
 
