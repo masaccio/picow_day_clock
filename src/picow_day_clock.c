@@ -228,11 +228,11 @@ static void set_time_of_day(clock_state_t *state)
 {
     struct timeval tv;
 #ifdef _WIN32
-    tv.tv_sec = (long)state->ntp_time;
+    tv.tv_sec = (int32_t)state->ntp_time;
     tv.tv_usec = (long)0;
 #else
-    tv.tv_sec = (time_t)state->ntp_time;
-    tv.tv_usec = (suseconds_t)0;
+    tv.tv_sec = state->ntp_time;
+    tv.tv_usec = 0;
 #endif
     settimeofday(&tv, NULL);
 }
