@@ -11,8 +11,10 @@
 #include <time.h>
 #ifndef _WIN32
 #include <sys/time.h>
+#define to_timeval(sec, usec) {.tv_sec = (long)sec, .tv_usec = (long)usec}
 #else
 #define gmtime_r(t, result) gmtime_s(result, t)
+#define to_timeval(sec, usec) {.tv_sec = (time_t)sec, .tv_usec = (time_t)usec}
 #endif
 
 // Pico SDK
@@ -305,7 +307,7 @@ bool clock_timer_callback(repeating_timer_t *t)
                 CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(state->ntp_time), drift);
                 state->ntp_last_sync = state->ntp_time;
                 state->ntp_drift = drift;
-                struct timeval tv = {.tv_sec = state->ntp_time, .tv_usec = 0};
+                struct timeval tv = to_timeval(state->ntp_time, 0);
                 settimeofday(&tv, NULL);
             }
         }
@@ -454,7 +456,7 @@ int main(void)
     state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
 
     // Set the system clock to the NTP time
-    struct timeval tv = {.tv_sec = state->ntp_time, .tv_usec = 0};
+    struct timeval tv = to_timeval(state->ntp_time, 0);
     settimeofday(&tv, NULL);
 
     // Call the timer every second to enable us to slowly change the clock if
