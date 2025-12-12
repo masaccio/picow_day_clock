@@ -9,12 +9,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#ifndef _WIN32
+#ifndef _WIN32 // Linux/macOS build
 #include <sys/time.h>
-#define to_timeval(sec, usec) {.tv_sec = (long)sec, .tv_usec = (long)usec}
-#else
-#define gmtime_r(t, result) gmtime_s(result, t)
 #define to_timeval(sec, usec) {.tv_sec = (time_t)sec, .tv_usec = (time_t)usec}
+#else // Windows build
+#define gmtime_r(t, result) gmtime_s(result, t)
+#define to_timeval(sec, usec) {.tv_sec = (long)sec, .tv_usec = (long)usec}
 #endif
 
 // Pico SDK
