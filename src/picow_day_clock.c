@@ -228,10 +228,13 @@ static void set_time_of_day(clock_state_t *state)
 {
     struct timeval tv;
 #ifdef _WIN32
-    _Static_assert(sizeof(state->ntp_time) == 4, "ntp_time size");
-    _Static_assert(_Generic((state->ntp_time), uint32_t: 1, int32_t: 2, default: 0) == 1, "ntp_time type");
-    _Static_assert(sizeof(((struct timeval *)0)->tv_sec) == 4, "tv_sec size");
-    tv.tv_sec = (long)state->ntp_time;
+    if (state->ntp_time < 0) {
+        tv.tv_sec = 0;
+    } else if (state->ntp_time > (time_t)UINT32_MAX) {
+        tv.tv_sec = UINT32_MAX;
+    } else {
+        tv.tv_sec = (uint32_t)state->ntp_time;
+    }
     tv.tv_usec = (long)0;
 #else
     tv.tv_sec = state->ntp_time;
