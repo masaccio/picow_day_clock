@@ -56,6 +56,9 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
             expected_log_size = ii;
         }
     }
+    if (expected_log[0] == NULL && log_buffer_size > 0) {
+        log_mismatch = 1;
+    }
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
         if (ii >= log_buffer_size) {
             log_mismatch = 1;
@@ -233,6 +236,7 @@ static int test_dst(void)
     // Sun March 25, 2001 at 00:22 (just before clocks change)
     set_localtime(2001, 2, 25, 0, 22, 0);
     clock_state->ntp_last_sync = mock_time(NULL);
+    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0) {
         return 1;
@@ -282,12 +286,20 @@ static int test_ntp_time(void)
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
-    // Run for 5 simulated days
+
+    // Run for 9 simulated days
+    // +1d: normal NTP update
+    // +2d: generate a KoD
+    // +3d: should not update NTP
+    // +4d: normal NTP update
+    // +6d: create a DNS error
+    // +8d: normal NTP update
+    const int seconds_in_day = 24 * 60 * 60;
     int last_lcd_hour = -1;
     int last_lcd_min = -1;
     int drift = 50;
     int status = 0;
-    for (unsigned int tick = 0; tick < (5 * 24 * 60 * 60); tick++) {
+    for (unsigned int tick = 0; tick < (9 * seconds_in_day); tick++) {
         (void)clock_timer_callback(timer);
         int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
         int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
@@ -303,14 +315,23 @@ static int test_ntp_time(void)
         last_lcd_hour = lcd_hour;
         last_lcd_min = lcd_min;
         mock_system_time_ms += 1000;
-        if (tick == (2 * 24 * 60 * 60)) {
+
+        if (tick == (2 * seconds_in_day)) {
             test_config.udp_response_type = UDP_NTP_KOD;
         }
-        // Test that the interval as doubled as a result of a KoD
-        if (tick == (3 * 24 * 60 * 60) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
+        if (tick == (3 * seconds_in_day) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
+            // Interval was not doubled via KoD
             return 1;
         }
-        if (tick > 0 && (tick % (24 * 60 * 60)) == 0) {
+        if (tick == (6 * seconds_in_day)) {
+            test_config.dns_lookup_fail = 1;
+        }
+        if (tick == (8 * seconds_in_day)) {
+            test_config.dns_lookup_fail = 0;
+        }
+
+        // Each day gets a different drift
+        if (tick > 0 && (tick % seconds_in_day) == 0) {
             mock_ntp_seconds = (unsigned long long)((long long)mock_ntp_seconds + drift);
             drift = -drift;
         } else {
@@ -401,6 +422,7 @@ int main(void)
 {
     int status = 0;
 
+    static const char *test_empty_log[] = {NULL};
     static const char *test_bad_ldc1_ref[] = {
         "Failed to allocate clock state",
         "LCD 1: failed to initialise",
@@ -408,9 +430,13 @@ int main(void)
     };
     status |= run_test(test_bad_lcd1, "LCD1 init error", test_bad_ldc1_ref);
 
-    status |= run_test(test_dst, "Daylight savings", NULL);
+    status |= run_test(test_dst, "Daylight savings", test_empty_log);
 
-    status |= run_test(test_ntp_time, "NTP time checks", NULL);
+    static const char *test_ntp_recovery_ref[] = {
+        "LCD: NTP_STATUS_DNS_ERROR=RED",
+        NULL,
+    };
+    status |= run_test(test_ntp_time, "NTP time checks", test_ntp_recovery_ref);
 
     static const char *test_wifi_init_errors_ref[] = {
         // Wi-Fi init fails

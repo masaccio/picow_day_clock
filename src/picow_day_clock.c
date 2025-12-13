@@ -76,6 +76,16 @@ const char *status_to_string(clock_status_t status)
     return "UNKNOWN_STATUS";
 }
 
+#define NTP_STATUS_TO_STRING(x)                                                                                        \
+    ((x) == NTP_STATUS_PENDING            ? "NTP_STATUS_PENDING"                                                       \
+     : (x) == NTP_STATUS_SUCCESS          ? "NTP_STATUS_SUCCESS"                                                       \
+     : (x) == NTP_STATUS_DNS_ERROR        ? "NTP_STATUS_DNS_ERROR"                                                     \
+     : (x) == NTP_STATUS_TIMEOUT          ? "NTP_STATUS_TIMEOUT"                                                       \
+     : (x) == NTP_STATUS_INVALID_RESPONSE ? "NTP_STATUS_INVALID_RESPONSE"                                              \
+     : (x) == NTP_STATUS_MEMORY_ERROR     ? "NTP_STATUS_MEMORY_ERROR"                                                  \
+     : (x) == NTP_STATUS_KOD              ? "NTP_STATUS_KOD"                                                           \
+                                          : "UNKNOWN_NTP_STATUS")
+
 #ifdef TEST_MODE
 // In test mode, we want to return from main() but fatal_error() cannot return
 // so we use setjmp/longjmp to break out
@@ -283,42 +293,35 @@ bool clock_timer_callback(repeating_timer_t *t)
         lcd_digits[7] = '\0';
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-            if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
-                // Skip updates in test mode for performance reasons; all the subsequent
-                // stubbed calls to GPIO consume a lot of unnecessary CPU over the tests
 #ifndef TEST_MODE
+            // Skip updates in test mode for performance reasons; all the subsequent
+            // stubbed calls to GPIO consume a lot of unnecessary CPU over the tests
+            if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
-#endif
             }
-
-            if (ii == 0) {
-                if (persistent_state.boot_count > 0) {
-#ifndef TEST_MODE
-                    // Don't update in test mode as this will be VERY verbose
-                    lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, 0);
-#endif
-                }
-                if (state->ntp_state->status == NTP_STATUS_SUCCESS) {
-#ifndef TEST_MODE
-                    // Don't update in test mode as this will be VERY verbose
-                    lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, 0);
-                    lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, 0);
-#endif
-                }
+            // Don't update in test mode as this will be VERY verbose
+            if (ii == 0 && state->ntp_state->status == NTP_STATUS_SUCCESS) {
+                lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, 0);
+                lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, 0);
             }
+#endif
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
 
-        if ((now - state->ntp_last_sync) >= NTP_SYNC_INTERVAL_SEC) {
+        if ((now - state->ntp_last_sync) >= state->ntp_interval) {
             ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
             if (ntp_status == NTP_STATUS_KOD) {
                 state->ntp_interval *= 2;
                 CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
             } else if (ntp_status != NTP_STATUS_SUCCESS) {
-                state->ntp_last_sync = state->ntp_time;
-                CLOCK_DEBUG("NTP: get time failed with error %d; exiting\r\n", ntp_status);
-                // TODO: Do something with the display to indicate a problem
+                state->ntp_last_sync = now;
+                CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_status);
+#ifdef TEST_MODE
+                mock_printf("LCD: %s=RED", NTP_STATUS_TO_STRING(ntp_status));
+#else
+                lcd_update_icon(state->lcd_states[0], ntp_status, 1);
+#endif
             } else {
                 int drift = (int)state->ntp_time - (int)now;
                 CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(state->ntp_time), drift);

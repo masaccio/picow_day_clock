@@ -129,7 +129,7 @@ ntp_status_t ntp_get_time(ntp_state_t *state)
         return NTP_STATUS_DNS_ERROR;
     }
 
-    // Waitr for async NTP request to complete or timeout
+    // Wait for async NTP request to complete or timeout
     while (state->status == NTP_STATUS_PENDING) {
         watchdog_update();
         sleep_ms(500);
