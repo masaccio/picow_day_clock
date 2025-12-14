@@ -272,7 +272,7 @@ bool clock_timer_callback(repeating_timer_t *t)
     if (state->init_done == 0 || current_time.tm_sec == 0) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, last_reset_error=%s, NTP=%s\r\n", time_as_string(now), now,
                     persistent_state.boot_count, status_to_string(state->last_reset_error),
-                    (state->ntp_state->status == NTP_STATUS_SUCCESS) ? "GREEN" : "RED");
+                    status_to_string(NTP_STATUS_TO_CLOCK_STATUS(state->ntp_state->status)));
 
         if (time_is_dst(&current_time)) {
             /* Apply daylight savings */
