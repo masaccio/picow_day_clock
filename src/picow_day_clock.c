@@ -111,7 +111,8 @@ static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, clock_st
         mock_printf("LCD: WATCHDOG[WIFI]=RED");                                                                        \
     } else {                                                                                                           \
         mock_printf("LCD: WATCHDOG[NTP]=RED");                                                                         \
-    }
+    }                                                                                                                  \
+    (void)0
 #else
 persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
 
