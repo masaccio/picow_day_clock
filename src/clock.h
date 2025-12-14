@@ -70,23 +70,19 @@ typedef enum
 
 typedef enum
 {
-    NTP_STATUS_PENDING,
     NTP_STATUS_SUCCESS,
     NTP_STATUS_DNS_ERROR,
     NTP_STATUS_TIMEOUT,
     NTP_STATUS_INVALID_RESPONSE,
     NTP_STATUS_MEMORY_ERROR,
-    NTP_STATUS_KOD,
 } ntp_status_t;
 
 #define NTP_STATUS_TO_CLOCK_STATUS(x)                                                                                  \
-    ((x) == NTP_STATUS_PENDING            ? STATUS_NTP_OK                                                              \
-     : (x) == NTP_STATUS_SUCCESS          ? STATUS_NTP_OK                                                              \
+    ((x) == NTP_STATUS_SUCCESS            ? STATUS_NTP_OK                                                              \
      : (x) == NTP_STATUS_DNS_ERROR        ? STATUS_NTP_DNS                                                             \
      : (x) == NTP_STATUS_TIMEOUT          ? STATUS_NTP_TIMEOUT                                                         \
      : (x) == NTP_STATUS_INVALID_RESPONSE ? STATUS_NTP_INVALID                                                         \
      : (x) == NTP_STATUS_MEMORY_ERROR     ? STATUS_NTP_MEMORY                                                          \
-     : (x) == NTP_STATUS_KOD              ? STATUS_NTP_OK                                                              \
                                           : STATUS_NTP_INVALID)
 
 typedef struct
@@ -119,6 +115,8 @@ typedef struct ntp_state_t
     void *parent_state;
     int dns_request_sent;
     ntp_status_t status;
+    int kod;
+    int pending;
 } ntp_state_t;
 
 typedef struct clock_state_t

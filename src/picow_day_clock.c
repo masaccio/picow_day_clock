@@ -301,7 +301,8 @@ bool clock_timer_callback(repeating_timer_t *t)
 
         if ((now - state->ntp_last_sync) >= state->ntp_interval) {
             ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
-            if (ntp_status == NTP_STATUS_KOD) {
+            if (state->ntp_state->kod) {
+                state->ntp_state->kod = 0;
                 state->ntp_interval *= 2;
                 CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
             } else if (ntp_status != NTP_STATUS_SUCCESS) {
@@ -447,8 +448,6 @@ int main(void)
 
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
-        case NTP_STATUS_KOD:     // Never reached, included for -Wswitch-enum
-        case NTP_STATUS_PENDING: // Never reached, included for -Wswitch-enum
         case NTP_STATUS_SUCCESS:
             if (cold_boot) {
                 lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");

@@ -26,7 +26,7 @@ unsigned int pbuf_alloc_fail_at = 0;
 int watchdog_reboot_called = 0;
 char **log_buffer;
 
-#define LOG_ERROR_WIDTH 40
+#define LOG_ERROR_WIDTH 45
 
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
