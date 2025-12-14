@@ -80,7 +80,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         state->pending = 0;
         CLOCK_DEBUG("NTP: update success timestamp=%llu\r\n", seconds_since_1970);
         state->time_handler(state->parent_state, &seconds_since_1970);
-    } else if (addrs_valid && response_valid && stratum == 0) {
+    } else if (addrs_valid && response_valid /* stratum == 0 */) {
         // We got a 'kiss of death' from the NTP server for too many requests.
         state->status = NTP_STATUS_SUCCESS;
         state->pending = 0;

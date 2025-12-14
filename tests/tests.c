@@ -372,6 +372,12 @@ static int test_ntp_errors(void)
     if (test_main() != 1) {
         return 1;
     }
+    test_config.udp_sendto_fail = 0;
+    test_config.udp_invalid_addr = 1;
+    if (test_main() != 1) {
+        return 1;
+    }
+    test_config.udp_invalid_addr = 0;
     calloc_counter = 0;
     calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
     if (test_main() != 1) {
@@ -570,6 +576,14 @@ int main(void)
         "Watchdog reboot (error=STATUS_NTP_MEMORY)",
         "LCD: WATCHDOG[NTP]=RED",
         // UDP sendto() fails
+        "Test init",
+        "LCD: LCD init successful",
+        "LCD: Connected to WiFi",
+        "LCD: STATUS_WIFI_OK=GREEN",
+        "LCD: STATUS_NTP_INVALID=RED",
+        "Watchdog reboot (error=STATUS_NTP_INVALID)",
+        "LCD: WATCHDOG[NTP]=RED",
+        // Return address invalid
         "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",

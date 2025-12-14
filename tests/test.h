@@ -25,6 +25,7 @@ typedef struct
     int cyw43_arch_init_fail;
     int udp_new_ip_type_fail;
     int udp_sendto_fail;
+    int udp_invalid_addr;
     int dns_lookup_fail;
     int dns_bad_arg;
     int watchdog_caused_reboot;

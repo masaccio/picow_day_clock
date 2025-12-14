@@ -276,7 +276,8 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     p->payload[41] = (mock_ntp_seconds >> 16) & 0xff;
     p->payload[42] = (mock_ntp_seconds >> 8) & 0xff;
     p->payload[43] = mock_ntp_seconds & 0xff;
-    udp_recv_callback(udp_recv_callback_arg, pcb, p, dst_ip,
+    static ip_addr_t bad_addr = {.addr = 0xffff};
+    udp_recv_callback(udp_recv_callback_arg, pcb, p, (test_config.udp_invalid_addr) ? &bad_addr : dst_ip,
                       (test_config.udp_response_type == UDP_NTP_BAD_PORT) ? 0x0 : NTP_PORT);
 
     // Only generate a single invalid response
