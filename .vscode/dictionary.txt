@@ -5,6 +5,7 @@ Bebas
 CASET
 clkdiv
 CMCTRL
+CMSIS
 Connell
 CTRL
 datasheet
@@ -29,6 +30,7 @@ Neue
 NVGAMCTRL
 ORCTRL
 Pico
+picotool
 picow
 pinout
 PORCTRL
@@ -39,11 +41,13 @@ RAMWR
 RASET
 RCTRL
 SLPOUT
+stdlib
 STREQUAL
 threadsafe
 TRACEFILE
 UART
 USERHOME
+USERPROFILE
 VBUS
 VDVS
 VDVVRHEN
