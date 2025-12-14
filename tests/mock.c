@@ -348,12 +348,12 @@ void watchdog_update(void)
     watchdog_time_ms = 0;
 }
 
+extern int watchdog_reboot_called;
+
 int watchdog_caused_reboot(void)
 {
-    return test_config.watchdog_caused_reboot;
+    return test_config.watchdog_caused_reboot || watchdog_reboot_called;
 }
-
-extern int watchdog_reboot_called;
 
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
 {
