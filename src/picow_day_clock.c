@@ -70,8 +70,6 @@ const char *status_to_string(clock_status_t status)
         STATUS_CASE(STATUS_NTP_MEMORY)
         STATUS_CASE(STATUS_NTP_INVALID)
         STATUS_CASE(STATUS_WATCHDOG_RESET)
-        STATUS_CASE(STATUS_WATCHDOG_RESET_FOR_WIFI)
-        STATUS_CASE(STATUS_WATCHDOG_RESET_FOR_NTP)
         STATUS_CASE(STATUS_NONE)
     }
     return "UNKNOWN_STATUS";
@@ -103,9 +101,17 @@ static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, clock_st
     (void)color;                                                                                                       \
     mock_printf("LCD: %s", msg)
 
-#define lcd_update_icon(state, reason, is_error)                                                                       \
+#define lcd_update_icon(state, status, reason)                                                                         \
     (void)state;                                                                                                       \
-    mock_printf("LCD: %s=%s", #reason, is_error ? "RED" : "GREEN")
+    if (reason == ICON_OK) {                                                                                           \
+        mock_printf("LCD: %s=GREEN", #status);                                                                         \
+    } else if (reason == ICON_ERROR) {                                                                                 \
+        mock_printf("LCD: %s=RED", #status);                                                                           \
+    } else if (status == STATUS_WIFI_TIMEOUT) {                                                                        \
+        mock_printf("LCD: WATCHDOG[WIFI]=RED");                                                                        \
+    } else {                                                                                                           \
+        mock_printf("LCD: WATCHDOG[NTP]=RED");                                                                         \
+    }
 #else
 persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
 
@@ -388,22 +394,20 @@ int main(void)
             case STATUS_WIFI_AUTH:
             case STATUS_WIFI_CONNECT:
             case STATUS_WIFI_ERROR:
-            case STATUS_WATCHDOG_RESET_FOR_WIFI:
-                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_WIFI, 1);
+                lcd_update_icon(state->lcd_states[0], STATUS_WIFI_TIMEOUT, ICON_WATCHDOG);
                 break;
             case STATUS_NTP_INIT:
             case STATUS_NTP_DNS:
             case STATUS_NTP_TIMEOUT:
             case STATUS_NTP_MEMORY:
             case STATUS_NTP_INVALID:
-            case STATUS_WATCHDOG_RESET_FOR_NTP:
-                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET_FOR_NTP, 1);
+                lcd_update_icon(state->lcd_states[0], STATUS_NTP_TIMEOUT, ICON_WATCHDOG);
                 break;
             case STATUS_NONE:
             case STATUS_WIFI_OK:
             case STATUS_NTP_OK:
             case STATUS_WATCHDOG_RESET:
-                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, 1);
+                lcd_update_icon(state->lcd_states[0], STATUS_WATCHDOG_RESET, ICON_ERROR);
                 break;
         }
         persistent_state.reset_error = STATUS_NONE;

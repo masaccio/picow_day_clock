@@ -64,8 +64,6 @@ typedef enum
     STATUS_NTP_MEMORY,
     STATUS_NTP_INVALID,
     STATUS_WATCHDOG_RESET,
-    STATUS_WATCHDOG_RESET_FOR_WIFI,
-    STATUS_WATCHDOG_RESET_FOR_NTP,
 } clock_status_t;
 
 typedef enum
@@ -76,6 +74,13 @@ typedef enum
     NTP_STATUS_INVALID_RESPONSE,
     NTP_STATUS_MEMORY_ERROR,
 } ntp_status_t;
+
+typedef enum
+{
+    ICON_OK,
+    ICON_ERROR,
+    ICON_WATCHDOG,
+} icon_reason_t;
 
 #define NTP_STATUS_TO_CLOCK_STATUS(x)                                                                                  \
     ((x) == NTP_STATUS_SUCCESS            ? STATUS_NTP_OK                                                              \
@@ -153,7 +158,7 @@ extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 extern void lcd_init_peripherals(lcd_state_t *state, int reset);
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, int is_error);
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, icon_reason_t reason);
 
 extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 

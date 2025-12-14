@@ -115,31 +115,31 @@ void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_c
         offset = OFFSET;                                                                                               \
         break;
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, int is_error)
+void lcd_update_icon(lcd_state_t *state, clock_status_t status, icon_reason_t reason)
 {
     const uint8_t *icon = (const uint8_t *)0;
     int offset = 0;
     switch (status) {
         ICON_CASE(STATUS_WIFI_OK, wifi_icon, -1)
         ICON_CASE(STATUS_WIFI_INIT, wifi_init_icon, -1)
-        ICON_CASE(STATUS_WIFI_TIMEOUT, wifi_timeout_icon, -1)
+        ICON_CASE(STATUS_WIFI_TIMEOUT, (reason == ICON_WATCHDOG) ? watchdog_wifi_icon : wifi_timeout_icon,
+                  (reason == ICON_WATCHDOG) ? -3 : -1)
         ICON_CASE(STATUS_WIFI_AUTH, wifi_password_icon, -1)
         ICON_CASE(STATUS_WIFI_CONNECT, wifi_connect_icon, -1)
         ICON_CASE(STATUS_WIFI_ERROR, wifi_error_icon, -1)
         ICON_CASE(STATUS_NTP_OK, ntp_icon, -2)
         ICON_CASE(STATUS_NTP_INIT, ntp_init_icon, -2)
         ICON_CASE(STATUS_NTP_DNS, ntp_dns_icon, -2)
-        ICON_CASE(STATUS_NTP_TIMEOUT, ntp_timeout_icon, -2)
+        ICON_CASE(STATUS_NTP_TIMEOUT, (reason == ICON_WATCHDOG) ? watchdog_ntp_icon : ntp_timeout_icon,
+                  (reason == ICON_WATCHDOG) ? -3 : -2)
         ICON_CASE(STATUS_NTP_MEMORY, ntp_memory_icon, -2)
         ICON_CASE(STATUS_NTP_INVALID, ntp_error_icon, -2)
         ICON_CASE(STATUS_WATCHDOG_RESET, watchdog_icon, -3)
-        ICON_CASE(STATUS_WATCHDOG_RESET_FOR_WIFI, watchdog_wifi_icon, -3)
-        ICON_CASE(STATUS_WATCHDOG_RESET_FOR_NTP, watchdog_ntp_icon, -3)
         case STATUS_NONE:
             return;
     }
 
-    color_t color = is_error ? RED : GREEN;
+    color_t color = (reason == ICON_OK) ? GREEN : RED;
     // Position last icon 5 pixels from edge to handle rounded corner
     uint16_t x_start = (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * offset);
     lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
