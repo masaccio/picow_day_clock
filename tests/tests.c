@@ -45,15 +45,20 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         printf("TEST %s: OK\n", test_name);
     }
 
-    if (expected_log == NULL) {
-        return status;
+    // Reference strings do not have newlines
+    for (unsigned int ii = 0; ii < log_buffer_size; ii++) {
+        for (size_t jj = strlen(log_buffer[ii]) - 1; jj > 0; jj--) {
+            if (log_buffer[ii][jj] == '\r' || log_buffer[ii][jj] == '\n') {
+                log_buffer[ii][jj] = (char)0;
+            }
+        }
     }
 
     int log_mismatch = 0;
     uint32_t expected_log_size = 0;
     for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
-        if (ii > expected_log_size) {
-            expected_log_size = ii;
+        if (ii >= expected_log_size) {
+            expected_log_size = ii + 1;
         }
     }
     if (expected_log[0] == NULL && log_buffer_size > 0) {
@@ -67,12 +72,6 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         size_t test_len = strlen(log_buffer[ii]);
         size_t ref_len = strlen(expected_log[ii]);
         size_t max_len = (ref_len > test_len) ? test_len : ref_len;
-        for (size_t jj = test_len - 1; jj > 0; jj--) {
-            if (log_buffer[ii][jj] == '\r' || log_buffer[ii][jj] == '\n') {
-                log_buffer[ii][jj] = (char)0;
-                test_len--;
-            }
-        }
         if (test_len != ref_len || strncmp(log_buffer[ii], expected_log[ii], max_len) != 0) {
             log_mismatch = 1;
         }
@@ -83,12 +82,15 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         printf("%.*s [REF] %.*s %s %.*s [TEST] %.*s\n", heading_width, "================", heading_width,
                "================", test_name, heading_width, "================", heading_width, "================");
         for (unsigned int ii = 0; ii < expected_log_size; ii++) {
-            size_t test_len = strlen(log_buffer[ii]);
-            size_t ref_len = strlen(expected_log[ii]);
-            size_t max_len = (ref_len > test_len) ? test_len : ref_len;
-            int match = strncmp(log_buffer[ii], expected_log[ii], max_len) == 0 && test_len == max_len;
-            printf("  %-*s %c %s\n", LOG_ERROR_WIDTH, expected_log[ii], match ? '|' : 'x',
-                   (log_buffer_size >= ii) ? log_buffer[ii] : "");
+            if (log_buffer_size > ii) {
+                size_t test_len = strlen(log_buffer[ii]);
+                size_t ref_len = strlen(expected_log[ii]);
+                size_t max_len = (ref_len > test_len) ? test_len : ref_len;
+                int match = strncmp(log_buffer[ii], expected_log[ii], max_len) == 0 && test_len == max_len;
+                printf("  %-*s %c %s\n", LOG_ERROR_WIDTH, expected_log[ii], match ? '|' : 'x', log_buffer[ii]);
+            } else {
+                printf("  %-*s x \n", LOG_ERROR_WIDTH, expected_log[ii]);
+            }
         }
         for (unsigned int ii = expected_log_size; ii < log_buffer_size; ii++) {
             printf("  %-*s | %s\n", LOG_ERROR_WIDTH, "", log_buffer[ii]);
@@ -411,6 +413,8 @@ static int test_watchdog(void)
     if ((strcmp(status_to_string(STATUS_WIFI_OK), "STATUS_WIFI_OK") != 0) ||
         (strcmp(status_to_string(STATUS_NTP_OK), "STATUS_NTP_OK") != 0) ||
         (strcmp(status_to_string(STATUS_WATCHDOG_RESET), "STATUS_WATCHDOG_RESET") != 0) ||
+        (strcmp(status_to_string(STATUS_WATCHDOG_RESET_FOR_WIFI), "STATUS_WATCHDOG_RESET_FOR_WIFI") != 0) ||
+        (strcmp(status_to_string(STATUS_WATCHDOG_RESET_FOR_NTP), "STATUS_WATCHDOG_RESET_FOR_NTP") != 0) ||
         (strcmp(status_to_string(STATUS_NONE), "STATUS_NONE") != 0) ||
         (strcmp(status_to_string((clock_status_t)0xff), "UNKNOWN_STATUS") != 0)) {
         return 1;
@@ -424,74 +428,99 @@ int main(void)
 
     static const char *test_empty_log[] = {NULL};
     static const char *test_bad_ldc1_ref[] = {
-        "Failed to allocate clock state",
-        "LCD 1: failed to initialise",
-        NULL,
+        "Test init", "Failed to allocate clock state", "Test init", "LCD 1: failed to initialise", NULL,
     };
     status |= run_test(test_bad_lcd1, "LCD1 init error", test_bad_ldc1_ref);
 
     status |= run_test(test_dst, "Daylight savings", test_empty_log);
 
     static const char *test_ntp_recovery_ref[] = {
-        "LCD: NTP_STATUS_DNS_ERROR=RED",
+        "LCD: STATUS_NTP_DNS=RED",
         NULL,
     };
     status |= run_test(test_ntp_time, "NTP time checks", test_ntp_recovery_ref);
 
     static const char *test_wifi_init_errors_ref[] = {
         // Wi-Fi init fails
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_INIT=RED",
+        "Watchdog reboot (error=STATUS_WIFI_INIT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         // Wi-Fi connect fails
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_CONNECT=RED",
+        "Watchdog reboot (error=STATUS_WIFI_CONNECT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         // Unknown Wi-Fi error
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_ERROR=RED",
+        "Watchdog reboot (error=STATUS_WIFI_ERROR)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         // Successful connection after a few timeouts
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: NTP time sync OK",
         "LCD: STATUS_NTP_OK=GREEN",
         // Failed connection due to timeout
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_TIMEOUT=RED",
+        "Watchdog reboot (error=STATUS_WIFI_TIMEOUT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         NULL,
     };
     status |= run_test(test_wifi_init_errors, "Wi-Fi init error", test_wifi_init_errors_ref);
 
     static const char *test_wifi_auth_errors_ref[] = {
         // Wi-Fi auth retries succeed
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: NTP time sync OK",
         "LCD: STATUS_NTP_OK=GREEN",
         // Wi-Fi auth retries too many
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_AUTH=RED",
+        "Watchdog reboot (error=STATUS_WIFI_AUTH)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         NULL,
     };
     status |= run_test(test_wifi_auth_errors, "Wi-Fi auth", test_wifi_auth_errors_ref);
 
     static const char *test_dns_lookup_ref[] = {
         // DNS lookup bad args
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_DNS=RED",
+        "Watchdog reboot (error=STATUS_NTP_DNS)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // DNS lookup failed
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_DNS=RED",
+        "Watchdog reboot (error=STATUS_NTP_DNS)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // DNS lookup times out
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_TIMEOUT=RED",
+        "Watchdog reboot (error=STATUS_NTP_TIMEOUT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // DNS lookup OK after delays
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
@@ -503,68 +532,100 @@ int main(void)
 
     static const char *test_ntp_errors_ref[] = {
         // UDL invalid packets
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INVALID=RED",
+        "Watchdog reboot (error=STATUS_NTP_INVALID)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // UDP bad packet length
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INVALID=RED",
+        "Watchdog reboot (error=STATUS_NTP_INVALID)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // NTP wrong port
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INVALID=RED",
+        "Watchdog reboot (error=STATUS_NTP_INVALID)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // UDP bad IP type
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INIT=RED",
+        "Watchdog reboot (error=STATUS_NTP_INIT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // UDP memory alloc fails
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_MEMORY=RED",
+        "Watchdog reboot (error=STATUS_NTP_MEMORY)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // UDP sendto() fails
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INVALID=RED",
+        "Watchdog reboot (error=STATUS_NTP_INVALID)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         // Last alloc fails
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_INIT=RED",
+        "Watchdog reboot (error=STATUS_NTP_INIT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
         NULL,
     };
     status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
 
     static const char *test_watchdog_ref[] = {
         // Test boot counter
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: NTP time sync OK",
         "LCD: STATUS_NTP_OK=GREEN",
         // Test watchdog caused reset
+        "Test init",
         "LCD: STATUS_WATCHDOG_RESET=RED",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_OK=GREEN",
         // Restart clock after watchdog
+        "Test init",
         "LCD: STATUS_WATCHDOG_RESET=RED",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_OK=GREEN",
         // Normal start with Wi-Fi error
+        "Test init",
         "LCD: LCD init successful",
         "LCD: STATUS_WIFI_INIT=RED",
+        "Watchdog reboot (error=STATUS_WIFI_INIT)",
+        "LCD: STATUS_WATCHDOG_RESET_FOR_WIFI=RED",
         // Restart clock after watchdog for NTP error
+        "Test init",
         "LCD: LCD init successful",
         "LCD: Connected to WiFi",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_DNS=RED",
+        "Watchdog reboot (error=STATUS_NTP_DNS)",
         "LCD: STATUS_WATCHDOG_RESET_FOR_NTP=RED",
+        // Fake a watchdog reset for unknown cause
+        "Test init",
+        "LCD: STATUS_WATCHDOG_RESET=RED",
         "LCD: STATUS_WIFI_OK=GREEN",
         "LCD: STATUS_NTP_OK=GREEN",
         NULL,

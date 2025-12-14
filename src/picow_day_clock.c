@@ -26,6 +26,7 @@
 #include "mock.h"
 
 extern int test_main(void);
+extern int watchdog_reboot_called;
 #endif
 
 // Local includes
@@ -76,16 +77,6 @@ const char *status_to_string(clock_status_t status)
     return "UNKNOWN_STATUS";
 }
 
-#define NTP_STATUS_TO_STRING(x)                                                                                        \
-    ((x) == NTP_STATUS_PENDING            ? "NTP_STATUS_PENDING"                                                       \
-     : (x) == NTP_STATUS_SUCCESS          ? "NTP_STATUS_SUCCESS"                                                       \
-     : (x) == NTP_STATUS_DNS_ERROR        ? "NTP_STATUS_DNS_ERROR"                                                     \
-     : (x) == NTP_STATUS_TIMEOUT          ? "NTP_STATUS_TIMEOUT"                                                       \
-     : (x) == NTP_STATUS_INVALID_RESPONSE ? "NTP_STATUS_INVALID_RESPONSE"                                              \
-     : (x) == NTP_STATUS_MEMORY_ERROR     ? "NTP_STATUS_MEMORY_ERROR"                                                  \
-     : (x) == NTP_STATUS_KOD              ? "NTP_STATUS_KOD"                                                           \
-                                          : "UNKNOWN_NTP_STATUS")
-
 #ifdef TEST_MODE
 // In test mode, we want to return from main() but fatal_error() cannot return
 // so we use setjmp/longjmp to break out
@@ -107,7 +98,6 @@ static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, clock_st
 // In test mode, key status updates to the LCD are treated like a printf()
 // but tagged with an LCD prefix so that the test harness can check the sequence
 // of events.
-//
 #define lcd_print_line(state, line_num, color, msg)                                                                    \
     (void)line_num;                                                                                                    \
     (void)color;                                                                                                       \
@@ -318,7 +308,7 @@ bool clock_timer_callback(repeating_timer_t *t)
                 state->ntp_last_sync = now;
                 CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_status);
 #ifdef TEST_MODE
-                mock_printf("LCD: %s=RED", NTP_STATUS_TO_STRING(ntp_status));
+                mock_printf("LCD: %s=RED", status_to_string(NTP_STATUS_TO_CLOCK_STATUS(ntp_status)));
 #else
                 lcd_update_icon(state->lcd_states[0], ntp_status, 1);
 #endif
@@ -337,13 +327,17 @@ bool clock_timer_callback(repeating_timer_t *t)
 }
 
 #ifdef TEST_MODE
-// IN test mode, main() always returns, even in the case of a fatal error
+// In test mode, main() always returns, even in the case of a fatal error
 // as we need to that fatal errors happened for the correct reasons.
 int test_main(void)
 {
+    static int test_main_watchdog_reentry;
+    mock_printf("Test init\n");
+    test_main_watchdog_reentry = 0;
+    watchdog_reboot_called = 0;
     if (setjmp(fatal_jmp_buf)) {
-        // Fatal reset happened, exit cleanly
-        return 1;
+        test_main_watchdog_reentry = 1;
+        mock_printf("Watchdog reboot (error=%s)\n", status_to_string(persistent_state.reset_error));
     }
 #else
 int main(void)
@@ -413,6 +407,11 @@ int main(void)
         }
         persistent_state.reset_error = STATUS_NONE;
     }
+#ifdef TEST_MODE
+    if (test_main_watchdog_reentry) {
+        return 1;
+    }
+#endif
     watchdog_update();
 
     wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
@@ -448,8 +447,8 @@ int main(void)
 
     ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
-        case NTP_STATUS_KOD:     // Should never happen; including for enum completeness
-        case NTP_STATUS_PENDING: // Should never happen; including for enum completeness
+        case NTP_STATUS_KOD:     // Never reached, included for -Wswitch-enum
+        case NTP_STATUS_PENDING: // Never reached, included for -Wswitch-enum
         case NTP_STATUS_SUCCESS:
             if (cold_boot) {
                 lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");
