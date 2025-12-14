@@ -19,8 +19,6 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-# set(LLVM_TOOLCHAIN_PATH /opt/homebrew/opt/llvm/bin/)
-
 # ====================================================================================
 # Pico target build
 # ====================================================================================
@@ -116,12 +114,28 @@ ExternalProject_Add(
         -DCMAKE_C_STANDARD=11
         -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${TEST_C_COMPILER}
-        BUILD_ALWAYS 1
     INSTALL_COMMAND ""
 )
 
-add_dependencies(test_picow_day_clock generate_fonts generate_icons)
+ExternalProject_Get_Property(test_picow_day_clock BINARY_DIR)
+set(TEST_TIMESTAMP ${BINARY_DIR}/test_picow_day_clock.timestamp)
 
+add_custom_command(
+    OUTPUT ${TEST_TIMESTAMP}
+    COMMAND ${CMAKE_COMMAND} --build ${BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E touch ${TEST_TIMESTAMP}
+    DEPENDS
+        test_picow_day_clock              # ensure configure step ran
+        ${CLOCK_SRC_FILES}
+        ${GENERATED_FONT_SRC_FILES}
+        ${GENERATED_ICON_SRC_FILES}
+    WORKING_DIRECTORY ${BINARY_DIR}
+    COMMENT "Rebuilding host tests due to clock source changes"
+)
+
+add_custom_target(test_picow_day_clock_build
+    DEPENDS ${TEST_TIMESTAMP}
+)
 set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     add_custom_target(run_tests
@@ -140,6 +154,9 @@ else()
         COMMENT "Running native tests..."
     )
 endif()
+
+add_dependencies(run_tests test_picow_day_clock_build)
+add_dependencies(test_picow_day_clock_build generate_fonts generate_icons)
 
 add_test(NAME picow_day_clock_test
          COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
