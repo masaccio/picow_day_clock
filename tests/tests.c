@@ -270,6 +270,39 @@ static int test_dst(void)
     if (strncmp(time_as_string(now), "00:55:00 (DST)", 14) != 0) {
         return 1;
     }
+    struct tm tm_test_1 = {
+        .tm_sec = 0,
+        .tm_min = 30,
+        .tm_hour = 6,
+        .tm_mon = 1,
+        .tm_mday = 11,
+        .tm_wday = 3,
+        .tm_year = 115,
+        .tm_isdst = 0,
+    };
+    struct tm tm_test_2 = {
+        .tm_sec = 0,
+        .tm_min = 30,
+        .tm_hour = 6,
+        .tm_mon = 5,
+        .tm_mday = 10,
+        .tm_wday = 3,
+        .tm_year = 115,
+        .tm_isdst = 1,
+    };
+    struct tm tm_test_3 = {
+        .tm_sec = 0,
+        .tm_min = 30,
+        .tm_hour = 6,
+        .tm_mon = 11,
+        .tm_mday = 9,
+        .tm_wday = 3,
+        .tm_year = 115,
+        .tm_isdst = 0,
+    };
+    if (time_is_dst(&tm_test_1) != 0 || time_is_dst(&tm_test_2) != 1 || time_is_dst(&tm_test_3) != 0) {
+        return 1;
+    }
     return 0;
 }
 
