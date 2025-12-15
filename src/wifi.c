@@ -11,10 +11,10 @@
 #include "clock.h"
 #include "config.h"
 
-wifi_status_t connect_to_wifi(const char ssid[], const char password[])
+wifi_error_t connect_to_wifi(const char ssid[], const char password[])
 {
     if (cyw43_arch_init() != 0) {
-        return WIFI_STATUS_INIT_FAIL;
+        return WIFI_INIT_ERROR;
     }
 
     cyw43_arch_enable_sta_mode();
@@ -27,28 +27,28 @@ wifi_status_t connect_to_wifi(const char ssid[], const char password[])
 
         if (ret == 0) {
             CLOCK_DEBUG("Wi-Fi: connected to %s\r\n", ssid);
-            return WIFI_STATUS_SUCCESS;
+            return WIFI_OK;
         } else if (ret == PICO_ERROR_TIMEOUT) {
             if (absolute_time_diff_us(start_time_us, get_absolute_time()) >= (WIFI_ABANDON_TIMEOUT_MS * 1000)) {
                 CLOCK_DEBUG("Wi-Fi: exceeded maximum timeout; giving up\r\n");
-                return WIFI_STATUS_TIMEOUT;
+                return WIFI_TIMEOUT_ERROR;
             }
             CLOCK_DEBUG("Wi-Fi: timeout; trying again\r\n");
         } else if (ret == PICO_ERROR_BADAUTH) {
             bad_auth_count++;
             if (bad_auth_count >= WIFI_BAD_AUTH_RETRY_COUNT) {
                 CLOCK_DEBUG("Wi-Fi: too many bad authentication failures; giving up\r\n");
-                return WIFI_STATUS_BAD_AUTH;
+                return WIFI_AUTH_ERROR;
             } else {
                 CLOCK_DEBUG("Wi-Fi: invalid credentials; retrying...\r\n");
                 sleep_ms(WIFI_BAD_AUTH_RETRY_DELAY_MS);
             }
         } else if (ret == PICO_ERROR_CONNECT_FAILED) {
             CLOCK_DEBUG("Wi-Fi: connection failed for unknown reason; giving up\r\n");
-            return WIFI_STATUS_CONNECT_FAILED;
+            return WIFI_CONNECTION_ERROR;
         } else {
             CLOCK_DEBUG("Wi-Fi: unknown error %d; giving up\r\n", ret);
-            return WIFI_STATUS_UNKNOWN_ERROR;
+            return WIFI_UNKNOWN_ERROR;
         }
     }
 }
