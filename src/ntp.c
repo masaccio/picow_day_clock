@@ -19,7 +19,7 @@ void ntp_request(ntp_state_t *state)
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     if (!p) {
         CLOCK_DEBUG("NTP: failed to allocate PBUF\r\n");
-        state->error_status = NTP_MEMORY_ERROR;
+        state->error = NTP_MEMORY_ERROR;
         cyw43_arch_lwip_end();
         return;
     }
@@ -29,7 +29,7 @@ void ntp_request(ntp_state_t *state)
     int err = udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, NTP_PORT);
     if (err != 0) {
         CLOCK_DEBUG("NTP: send error %d\r\n", err);
-        state->error_status = NTP_PROTOCOL_ERROR;
+        state->error = NTP_PROTOCOL_ERROR;
         pbuf_free(p);
         cyw43_arch_lwip_end();
         return;
@@ -49,7 +49,7 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
         ntp_request(state);
     } else {
         CLOCK_DEBUG("NTP: DNS error for %s\r\n", hostname);
-        state->error_status = NTP_DNS_ERROR;
+        state->error = NTP_DNS_ERROR;
     }
 }
 
@@ -85,7 +85,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
                     addrs_valid ? "valid" : "invalid", port == NTP_PORT ? "valid" : "invalid",
                     p->tot_len == NTP_MSG_LEN ? "valid" : "invalid", mode == 0x4 ? "valid" : "invalid",
                     stratum != 0 ? "valid" : "invalid");
-        state->error_status = NTP_PROTOCOL_ERROR;
+        state->error = NTP_PROTOCOL_ERROR;
     }
     pbuf_free(p);
 }
@@ -117,7 +117,7 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
     absolute_time_t start_time = get_absolute_time();
 
     state->status = NTP_PENDING;
-    state->error_status = NTP_OK;
+    state->error = NTP_OK;
 
     cyw43_arch_lwip_begin();
     int dns_status = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_callback, state);
@@ -131,7 +131,7 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
     }
 
     // Wait for async NTP request to complete or timeout
-    while (state->status == NTP_PENDING && state->error_status == NTP_OK) {
+    while (state->status == NTP_PENDING && state->error == NTP_OK) {
         watchdog_update();
         sleep_ms(500);
 
@@ -140,5 +140,5 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
             return NTP_TIMEOUT_ERROR;
         }
     }
-    return state->error_status;
+    return state->error;
 }

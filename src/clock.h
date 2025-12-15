@@ -44,7 +44,7 @@ typedef enum
     WIFI_INIT_ERROR,
     WIFI_TIMEOUT_ERROR,
     WIFI_AUTH_ERROR,
-    WIFI_CONNECTION_ERROR,
+    WIFI_CONNECT_ERROR,
     WIFI_UNKNOWN_ERROR,
 } wifi_error_t;
 
@@ -69,6 +69,7 @@ typedef enum
 typedef enum
 {
     NTP_OK,
+    NTP_INIT_ERROR,
     NTP_DNS_ERROR,
     NTP_TIMEOUT_ERROR,
     NTP_PROTOCOL_ERROR,
@@ -84,23 +85,18 @@ typedef enum
 
 typedef enum
 {
-    ICON_OK,
-    ICON_ERROR,
-    ICON_WATCHDOG,
-} icon_reason_t;
-
-#define NTP_STATUS_TO_CLOCK_STATUS(x)                                                                                  \
-    ((x) == NTP_OK               ? STATUS_NTP_OK                                                                       \
-     : (x) == NTP_DNS_ERROR      ? STATUS_NTP_DNS                                                                      \
-     : (x) == NTP_TIMEOUT_ERROR  ? STATUS_NTP_TIMEOUT                                                                  \
-     : (x) == NTP_PROTOCOL_ERROR ? STATUS_NTP_INVALID                                                                  \
-     : (x) == NTP_MEMORY_ERROR   ? STATUS_NTP_MEMORY                                                                   \
-                                 : STATUS_NTP_INVALID)
+    WATCHDOG_OK,
+    WATCHDOG_RESET,
+    WATCHDOG_NTP,
+    WATCHDOG_WIFI,
+} watchdog_error_t;
 
 typedef struct
 {
     uint32_t boot_count;
-    clock_status_t reset_error;
+    watchdog_error_t watchdog_error;
+    ntp_error_t ntp_error;
+    wifi_error_t wifi_error;
 } persistent_state_t;
 
 typedef struct lcd_state_t
@@ -125,8 +121,7 @@ typedef struct ntp_state_t
     ip_addr_t ntp_server_address;
     struct udp_pcb *ntp_pcb;
     void *parent_state;
-    int dns_request_sent;
-    ntp_error_t error_status;
+    ntp_error_t error;
     ntp_status_t status;
 } ntp_state_t;
 
@@ -143,13 +138,20 @@ typedef struct clock_state_t
     char current_lcd_digits[NUM_LCDS + 1];
     // Timer state
     repeating_timer_t timer;
-    clock_status_t last_reset_error;
-    int init_done;
+    // Why watchdog reset happened
+    time_t last_watchdog_error;
+    watchdog_error_t watchdog_reset_error;
+    ntp_error_t ntp_reset_error;
+    wifi_error_t wifi_reset_error;
+    // Forces display update on first tick
+    int first_clock_tick;
 } clock_state_t;
 
 // Clock functions and state that are shared with the test harness
+extern const char *watchdog_error_to_string(watchdog_error_t status);
 extern const char *clock_status_to_string(clock_status_t status);
-extern const char *ntp_status_to_string(ntp_error_t status);
+extern const char *ntp_error_to_string(ntp_error_t status);
+extern const char *wifi_error_to_string(wifi_error_t status);
 extern persistent_state_t persistent_state;
 extern int last_day_of_month(int day, int month, int year);
 extern bool clock_timer_callback(repeating_timer_t *);
@@ -165,7 +167,8 @@ extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
 extern void lcd_init_peripherals(lcd_state_t *state, int reset);
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, icon_reason_t reason);
+void lcd_update_icons(lcd_state_t *state, watchdog_error_t watchdog_error, ntp_error_t ntp_error,
+                      wifi_error_t wifi_error);
 
 extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
 

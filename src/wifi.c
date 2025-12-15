@@ -45,7 +45,7 @@ wifi_error_t connect_to_wifi(const char ssid[], const char password[])
             }
         } else if (ret == PICO_ERROR_CONNECT_FAILED) {
             CLOCK_DEBUG("Wi-Fi: connection failed for unknown reason; giving up\r\n");
-            return WIFI_CONNECTION_ERROR;
+            return WIFI_CONNECT_ERROR;
         } else {
             CLOCK_DEBUG("Wi-Fi: unknown error %d; giving up\r\n", ret);
             return WIFI_UNKNOWN_ERROR;

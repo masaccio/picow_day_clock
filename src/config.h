@@ -36,6 +36,8 @@
 #define NTP_TIMEOUT_MS (10 * 1000)           // How long to wait for a single NTP response
 #define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24) // Sync to NTP once per day
 
+#define WATCHDOG_ICON_INTERVAL NTP_SYNC_INTERVAL_SEC // How long to hold a watchdog error icon
+
 #define LCD_COL_START 0  // ST7789 column shift for 1.47" LCD
 #define LCD_ROW_START 34 // ST7789 row shift for 1.47" LCD
 #define LCD_HEIGHT 320   // Length of the short edge of the LCD in pixels

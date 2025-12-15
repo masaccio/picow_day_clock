@@ -6,6 +6,17 @@
 #include "mock.h"
 #include "test.h"
 
+extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
+
+void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error)
+{
+    // Skip name prefix on all status conversions, e.g. "WIFI_OK" -> "OK"
+    const char *watchdog_error_string = watchdog_error_to_string(watchdog_error) + 9;
+    const char *ntp_error_string = ntp_error_to_string(ntp_error) + 4;
+    const char *wifi_error_string = wifi_error_to_string(wifi_error) + 5;
+    mock_printf("Icons: %s %s %s", watchdog_error_string, ntp_error_string, wifi_error_string);
+}
+
 // These system calls have been redefined in mock.h so undef them here
 // so that we can call into the system libraries as needed.
 #undef printf
