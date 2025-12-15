@@ -6,13 +6,10 @@ Please note: **THIS PROJECT IS A WORK IN PROGRESS**
 
 ## Planned work
 
-* Add a USB port and connect through to the Pico's USB with the correct isolation
-* Improve the handling of errors:
-  * Once the watchdog reboots, the watchdog icon permanently displays or displays for N hours
-  * Provide feedback from within the Wi-Fi and NTP modules so that timeouts are clearer
-* Build the prototype into a final layout that is more compact
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
 * Get the Windows CI build working for the test and coverage build
+  * The build works but Windows is using 32-bit `time_t` which fails the tests.
+  * The clock would need a different model of time to work as a Windows native application.
 * Make the configuration cleaner with better CMake overrides of `config.h`
   * Switching between the upper and lower case weekday fonts
 * Allow configuration of the clock using a web interface to provide the wireless password and then store this in flash
