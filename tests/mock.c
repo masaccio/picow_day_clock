@@ -202,7 +202,6 @@ int mock_printf(const char *format, ...)
 time_t mock_time(time_t *tloc)
 {
     (void)tloc; // Always called with NULL
-    printf("mock_time: %lld\n", (long long)(mock_system_time_ms / 1000));
     return (time_t)(mock_system_time_ms / 1000);
 }
 
