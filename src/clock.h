@@ -40,13 +40,13 @@ typedef enum
 
 typedef enum
 {
-    WIFI_STATUS_SUCCESS,
-    WIFI_STATUS_INIT_FAIL,
-    WIFI_STATUS_TIMEOUT,
-    WIFI_STATUS_BAD_AUTH,
-    WIFI_STATUS_CONNECT_FAILED,
-    WIFI_STATUS_UNKNOWN_ERROR,
-} wifi_status_t;
+    WIFI_OK,
+    WIFI_INIT_ERROR,
+    WIFI_TIMEOUT_ERROR,
+    WIFI_AUTH_ERROR,
+    WIFI_CONNECTION_ERROR,
+    WIFI_UNKNOWN_ERROR,
+} wifi_error_t;
 
 typedef enum
 {
@@ -68,11 +68,18 @@ typedef enum
 
 typedef enum
 {
-    NTP_STATUS_SUCCESS,
-    NTP_STATUS_DNS_ERROR,
-    NTP_STATUS_TIMEOUT,
-    NTP_STATUS_INVALID_RESPONSE,
-    NTP_STATUS_MEMORY_ERROR,
+    NTP_OK,
+    NTP_DNS_ERROR,
+    NTP_TIMEOUT_ERROR,
+    NTP_PROTOCOL_ERROR,
+    NTP_MEMORY_ERROR,
+} ntp_error_t;
+
+typedef enum
+{
+    NTP_DONE,    // NTP lookup completed successfully or with an error
+    NTP_KOD,     // Server sent 'kiss of death' to tell us to back off
+    NTP_PENDING, // Waiting for NTP response up until timeout
 } ntp_status_t;
 
 typedef enum
@@ -83,12 +90,12 @@ typedef enum
 } icon_reason_t;
 
 #define NTP_STATUS_TO_CLOCK_STATUS(x)                                                                                  \
-    ((x) == NTP_STATUS_SUCCESS            ? STATUS_NTP_OK                                                              \
-     : (x) == NTP_STATUS_DNS_ERROR        ? STATUS_NTP_DNS                                                             \
-     : (x) == NTP_STATUS_TIMEOUT          ? STATUS_NTP_TIMEOUT                                                         \
-     : (x) == NTP_STATUS_INVALID_RESPONSE ? STATUS_NTP_INVALID                                                         \
-     : (x) == NTP_STATUS_MEMORY_ERROR     ? STATUS_NTP_MEMORY                                                          \
-                                          : STATUS_NTP_INVALID)
+    ((x) == NTP_OK               ? STATUS_NTP_OK                                                                       \
+     : (x) == NTP_DNS_ERROR      ? STATUS_NTP_DNS                                                                      \
+     : (x) == NTP_TIMEOUT_ERROR  ? STATUS_NTP_TIMEOUT                                                                  \
+     : (x) == NTP_PROTOCOL_ERROR ? STATUS_NTP_INVALID                                                                  \
+     : (x) == NTP_MEMORY_ERROR   ? STATUS_NTP_MEMORY                                                                   \
+                                 : STATUS_NTP_INVALID)
 
 typedef struct
 {
@@ -119,9 +126,8 @@ typedef struct ntp_state_t
     struct udp_pcb *ntp_pcb;
     void *parent_state;
     int dns_request_sent;
+    ntp_error_t error_status;
     ntp_status_t status;
-    int kod;
-    int pending;
 } ntp_state_t;
 
 typedef struct clock_state_t
@@ -142,14 +148,15 @@ typedef struct clock_state_t
 } clock_state_t;
 
 // Clock functions and state that are shared with the test harness
-extern const char *status_to_string(clock_status_t status);
+extern const char *clock_status_to_string(clock_status_t status);
+extern const char *ntp_status_to_string(ntp_error_t status);
 extern persistent_state_t persistent_state;
 extern int last_day_of_month(int day, int month, int year);
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
 
 // Cross-module functions
-extern wifi_status_t connect_to_wifi(const char ssid[], const char password[]);
+extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, int reset);
@@ -179,6 +186,6 @@ extern void ntp_request(ntp_state_t *state);
 
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler);
 
-extern ntp_status_t ntp_get_time(ntp_state_t *ntp_state);
+extern ntp_error_t ntp_get_time(ntp_state_t *ntp_state);
 
 #endif // CLOCK_H

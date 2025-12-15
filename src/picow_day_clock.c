@@ -54,7 +54,7 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     case STATUS:                                                                                                       \
         return #STATUS;
 
-const char *status_to_string(clock_status_t status)
+const char *clock_status_to_string(clock_status_t status)
 {
     switch (status) {
         STATUS_CASE(STATUS_WIFI_OK)
@@ -75,6 +75,18 @@ const char *status_to_string(clock_status_t status)
     return "UNKNOWN_STATUS";
 }
 
+const char *ntp_status_to_string(ntp_error_t status)
+{
+    switch (status) {
+        STATUS_CASE(NTP_OK)
+        STATUS_CASE(NTP_DNS_ERROR)
+        STATUS_CASE(NTP_TIMEOUT_ERROR)
+        STATUS_CASE(NTP_PROTOCOL_ERROR)
+        STATUS_CASE(NTP_MEMORY_ERROR)
+    }
+    return "UNKNOWN_STATUS";
+}
+
 #ifdef TEST_MODE
 // In test mode, we want to return from main() but fatal_error() cannot return
 // so we use setjmp/longjmp to break out
@@ -86,7 +98,7 @@ persistent_state_t persistent_state;
 static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, clock_status_t status)
 {
     (void)state;
-    mock_printf("LCD: %s=RED", status_to_string(status));
+    mock_printf("LCD: %s=RED", clock_status_to_string(status));
     persistent_state.reset_error = status;
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
     // Returns into main() which will then exit with status=1
@@ -268,8 +280,8 @@ bool clock_timer_callback(repeating_timer_t *t)
 
     if (state->init_done == 0 || current_time.tm_sec == 0) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, last_reset_error=%s, NTP=%s\r\n", time_as_string(now), now,
-                    persistent_state.boot_count, status_to_string(state->last_reset_error),
-                    status_to_string(NTP_STATUS_TO_CLOCK_STATUS(state->ntp_state->status)));
+                    persistent_state.boot_count, clock_status_to_string(state->last_reset_error),
+                    clock_status_to_string(NTP_STATUS_TO_CLOCK_STATUS(state->ntp_state->error_status)));
 
         if (time_is_dst(&current_time)) {
             /* Apply daylight savings */
@@ -298,7 +310,7 @@ bool clock_timer_callback(repeating_timer_t *t)
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
             }
             // Don't update in test mode as this will be VERY verbose
-            if (ii == 0 && state->ntp_state->status == NTP_STATUS_SUCCESS) {
+            if (ii == 0 && state->ntp_state->status == NTP_OK) {
                 lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, 0);
                 lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, 0);
             }
@@ -307,18 +319,17 @@ bool clock_timer_callback(repeating_timer_t *t)
         }
 
         if ((now - state->ntp_last_sync) >= state->ntp_interval) {
-            ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
-            if (state->ntp_state->kod) {
-                state->ntp_state->kod = 0;
+            ntp_error_t ntp_error_status = ntp_get_time(state->ntp_state);
+            if (state->ntp_state->status == NTP_KOD) {
                 state->ntp_interval *= 2;
                 CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
-            } else if (ntp_status != NTP_STATUS_SUCCESS) {
+            } else if (ntp_error_status != NTP_OK) {
                 state->ntp_last_sync = now;
-                CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_status);
+                CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_error_status);
 #ifdef TEST_MODE
-                mock_printf("LCD: %s=RED", status_to_string(NTP_STATUS_TO_CLOCK_STATUS(ntp_status)));
+                mock_printf("LCD: %s=RED", clock_status_to_string(NTP_STATUS_TO_CLOCK_STATUS(ntp_error_status)));
 #else
-                lcd_update_icon(state->lcd_states[0], ntp_status, 1);
+                lcd_update_icon(state->lcd_states[0], ntp_error_status, 1);
 #endif
             } else {
                 int drift = (int)state->ntp_time - (int)now;
@@ -345,7 +356,7 @@ int test_main(void)
     watchdog_reboot_called = 0;
     if (setjmp(fatal_jmp_buf)) {
         test_main_watchdog_reentry = 1;
-        mock_printf("Watchdog reboot (error=%s)\n", status_to_string(persistent_state.reset_error));
+        mock_printf("Watchdog reboot (error=%s)\n", clock_status_to_string(persistent_state.reset_error));
     }
 #else
 int main(void)
@@ -420,27 +431,27 @@ int main(void)
 #endif
     watchdog_update();
 
-    wifi_status_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
+    wifi_error_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     switch (wifi_status) {
-        case WIFI_STATUS_SUCCESS:
+        case WIFI_OK:
             if (cold_boot) {
                 lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
             }
             lcd_update_icon(state->lcd_states[0], STATUS_WIFI_OK, 0);
             break;
-        case WIFI_STATUS_INIT_FAIL:
+        case WIFI_INIT_ERROR:
             fatal_reset(state, STATUS_WIFI_INIT);
             // Never reached: reset happens
-        case WIFI_STATUS_TIMEOUT:
+        case WIFI_TIMEOUT_ERROR:
             fatal_reset(state, STATUS_WIFI_TIMEOUT);
             // Never reached: reset happens
-        case WIFI_STATUS_BAD_AUTH:
+        case WIFI_AUTH_ERROR:
             fatal_reset(state, STATUS_WIFI_AUTH);
             // Never reached: reset happens
-        case WIFI_STATUS_CONNECT_FAILED:
+        case WIFI_CONNECTION_ERROR:
             fatal_reset(state, STATUS_WIFI_CONNECT);
             // Never reached: reset happens
-        case WIFI_STATUS_UNKNOWN_ERROR:
+        case WIFI_UNKNOWN_ERROR:
             fatal_reset(state, STATUS_WIFI_ERROR);
             // Never reached: reset happens
     }
@@ -451,24 +462,24 @@ int main(void)
         // Never reached: reset happens
     }
 
-    ntp_status_t ntp_status = ntp_get_time(state->ntp_state);
+    ntp_error_t ntp_status = ntp_get_time(state->ntp_state);
     switch (ntp_status) {
-        case NTP_STATUS_SUCCESS:
+        case NTP_OK:
             if (cold_boot) {
                 lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");
             }
             lcd_update_icon(state->lcd_states[0], STATUS_NTP_OK, 0);
             break;
-        case NTP_STATUS_DNS_ERROR:
+        case NTP_DNS_ERROR:
             fatal_reset(state, STATUS_NTP_DNS);
             // Never reached: reset happens
-        case NTP_STATUS_TIMEOUT:
+        case NTP_TIMEOUT_ERROR:
             fatal_reset(state, STATUS_NTP_TIMEOUT);
             // Never reached: reset happens
-        case NTP_STATUS_MEMORY_ERROR:
+        case NTP_MEMORY_ERROR:
             fatal_reset(state, STATUS_NTP_MEMORY);
             // Never reached: reset happens
-        case NTP_STATUS_INVALID_RESPONSE:
+        case NTP_PROTOCOL_ERROR:
             fatal_reset(state, STATUS_NTP_INVALID);
             // Never reached: reset happens
     }

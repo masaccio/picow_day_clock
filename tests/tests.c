@@ -449,11 +449,12 @@ static int test_watchdog(void)
     }
 
     // Coverage on otherwise unused status debug values
-    if ((strcmp(status_to_string(STATUS_WIFI_OK), "STATUS_WIFI_OK") != 0) ||
-        (strcmp(status_to_string(STATUS_NTP_OK), "STATUS_NTP_OK") != 0) ||
-        (strcmp(status_to_string(STATUS_WATCHDOG_RESET), "STATUS_WATCHDOG_RESET") != 0) ||
-        (strcmp(status_to_string(STATUS_NONE), "STATUS_NONE") != 0) ||
-        (strcmp(status_to_string((clock_status_t)0xff), "UNKNOWN_STATUS") != 0)) {
+    if ((strcmp(clock_status_to_string(STATUS_WIFI_OK), "STATUS_WIFI_OK") != 0) ||
+        (strcmp(clock_status_to_string(STATUS_NTP_OK), "STATUS_NTP_OK") != 0) ||
+        (strcmp(clock_status_to_string(STATUS_WATCHDOG_RESET), "STATUS_WATCHDOG_RESET") != 0) ||
+        (strcmp(clock_status_to_string(STATUS_NONE), "STATUS_NONE") != 0) ||
+        (strcmp(clock_status_to_string((clock_status_t)0xff), "UNKNOWN_STATUS") != 0) ||
+        (strcmp(ntp_status_to_string((ntp_error_t)0xff), "UNKNOWN_STATUS") != 0)) {
         return 1;
     }
     return 0;
