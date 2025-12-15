@@ -241,10 +241,12 @@ static int test_dst(void)
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
     time_t now = mock_time(NULL);
     if (strncmp(time_as_string(now), "00:22:00", 14) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
 
@@ -252,10 +254,12 @@ static int test_dst(void)
     set_localtime(2001, 2, 25, 1, 22, 0);
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "Sun0222", 7) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
     now = mock_time(NULL);
     if (strncmp(time_as_string(now), "02:22:00 (DST)", 14) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
 
@@ -264,10 +268,12 @@ static int test_dst(void)
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
     now = mock_time(NULL);
     if (strncmp(time_as_string(now), "00:55:00 (DST)", 14) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
     struct tm tm_test_1 = {
@@ -301,6 +307,7 @@ static int test_dst(void)
         .tm_isdst = 0,
     };
     if (time_is_dst(&tm_test_1) != 0 || time_is_dst(&tm_test_2) != 1 || time_is_dst(&tm_test_3) != 0) {
+        printf("Failing @%s:%d\n", __FILE__, __LINE__);
         return 1;
     }
     return 0;
