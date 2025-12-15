@@ -273,7 +273,7 @@ static int test_dst(void)
     }
     now = mock_time(NULL);
     if (strncmp(time_as_string(now), "00:55:00 (DST)", 14) != 0) {
-        printf("Failing @%s:%d\n", __FILE__, __LINE__);
+        printf("Failing @%s:%d: %s\n", __FILE__, __LINE__, time_as_string(now));
         return 1;
     }
     struct tm tm_test_1 = {
