@@ -200,6 +200,7 @@ static int test_wifi_auth_errors(void)
 
 static void set_localtime(int year, int mon, int mday, int hour, int min, int sec)
 {
+    printf("set_localtime: year=%d, mon=%d, mday=%d, hour=%d, min=%d, sec=%d\n", year, mon, mday, hour, min, sec);
     struct tm tm_val = {0};
     tm_val.tm_year = year - 1900;
     tm_val.tm_mon = mon;
@@ -210,6 +211,7 @@ static void set_localtime(int year, int mon, int mday, int hour, int min, int se
     tm_val.tm_isdst = 0;
     time_t t = tm_to_epoch(&tm_val);
     mock_system_time_ms = (unsigned long long)t * 1000;
+    printf("set_localtime: mock_system_time_ms=%llu\n", mock_system_time_ms);
 }
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
