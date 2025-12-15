@@ -109,40 +109,37 @@ void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_c
     (void)lcd_write_char(state, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
 }
 
-#define ICON_CASE(STATUS, ICON, OFFSET)                                                                                \
+#define ICON_CASE(STATUS, ICON, OFFSET, COLOR)                                                                         \
     case STATUS:                                                                                                       \
-        icon = ICON;                                                                                                   \
-        offset = OFFSET;                                                                                               \
+        lcd_write_image(state, ICON, OFFSET, 0, ICON_SIZE, ICON_SIZE, COLOR);                                          \
         break;
 
-void lcd_update_icon(lcd_state_t *state, clock_status_t status, icon_reason_t reason)
+void lcd_update_icons(lcd_state_t *state, watchdog_error_t watchdog_error, ntp_error_t ntp_error,
+                      wifi_error_t wifi_error)
 {
-    const uint8_t *icon = (const uint8_t *)0;
-    int offset = 0;
-    switch (status) {
-        ICON_CASE(STATUS_WIFI_OK, wifi_icon, -1)
-        ICON_CASE(STATUS_WIFI_INIT, wifi_init_icon, -1)
-        ICON_CASE(STATUS_WIFI_TIMEOUT, (reason == ICON_WATCHDOG) ? watchdog_wifi_icon : wifi_timeout_icon,
-                  (reason == ICON_WATCHDOG) ? -3 : -1)
-        ICON_CASE(STATUS_WIFI_AUTH, wifi_password_icon, -1)
-        ICON_CASE(STATUS_WIFI_CONNECT, wifi_connect_icon, -1)
-        ICON_CASE(STATUS_WIFI_ERROR, wifi_error_icon, -1)
-        ICON_CASE(STATUS_NTP_OK, ntp_icon, -2)
-        ICON_CASE(STATUS_NTP_INIT, ntp_init_icon, -2)
-        ICON_CASE(STATUS_NTP_DNS, ntp_dns_icon, -2)
-        ICON_CASE(STATUS_NTP_TIMEOUT, (reason == ICON_WATCHDOG) ? watchdog_ntp_icon : ntp_timeout_icon,
-                  (reason == ICON_WATCHDOG) ? -3 : -2)
-        ICON_CASE(STATUS_NTP_MEMORY, ntp_memory_icon, -2)
-        ICON_CASE(STATUS_NTP_INVALID, ntp_error_icon, -2)
-        ICON_CASE(STATUS_WATCHDOG_RESET, watchdog_icon, -3)
-        case STATUS_NONE:
-            return;
+    switch (watchdog_error) {
+        ICON_CASE(WATCHDOG_RESET, watchdog_icon, WATCHDOG_ICON_X_OFFSET, RED)
+        ICON_CASE(WATCHDOG_NTP, watchdog_ntp_icon, WATCHDOG_ICON_X_OFFSET, RED)
+        ICON_CASE(WATCHDOG_WIFI, watchdog_wifi_icon, WATCHDOG_ICON_X_OFFSET, RED)
+        case WATCHDOG_OK:
+            break;
     }
-
-    color_t color = (reason == ICON_OK) ? GREEN : RED;
-    // Position last icon 5 pixels from edge to handle rounded corner
-    uint16_t x_start = (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * offset);
-    lcd_write_image(state, icon, x_start, 0, ICON_SIZE, ICON_SIZE, color);
+    switch (ntp_error) {
+        ICON_CASE(NTP_OK, ntp_icon, NTP_ICON_X_OFFSET, GREEN)
+        ICON_CASE(NTP_INIT_ERROR, ntp_init_icon, NTP_ICON_X_OFFSET, RED)
+        ICON_CASE(NTP_DNS_ERROR, ntp_dns_icon, NTP_ICON_X_OFFSET, RED)
+        ICON_CASE(NTP_MEMORY_ERROR, ntp_memory_icon, NTP_ICON_X_OFFSET, RED)
+        ICON_CASE(NTP_PROTOCOL_ERROR, ntp_error_icon, NTP_ICON_X_OFFSET, RED)
+        ICON_CASE(NTP_TIMEOUT_ERROR, ntp_timeout_icon, NTP_ICON_X_OFFSET, RED)
+    }
+    switch (wifi_error) {
+        ICON_CASE(WIFI_OK, wifi_icon, WIFI_ICON_X_OFFSET, GREEN)
+        ICON_CASE(WIFI_INIT_ERROR, wifi_init_icon, WIFI_ICON_X_OFFSET, RED)
+        ICON_CASE(WIFI_TIMEOUT_ERROR, wifi_timeout_icon, WIFI_ICON_X_OFFSET, RED)
+        ICON_CASE(WIFI_AUTH_ERROR, wifi_password_icon, WIFI_ICON_X_OFFSET, RED)
+        ICON_CASE(WIFI_CONNECT_ERROR, wifi_connect_icon, WIFI_ICON_X_OFFSET, RED)
+        ICON_CASE(WIFI_UNKNOWN_ERROR, wifi_error_icon, WIFI_ICON_X_OFFSET, RED)
+    }
 }
 
 // Initialise the Pico peripherals we will use (SPI, GPIO, PWM)

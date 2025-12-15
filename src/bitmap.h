@@ -23,6 +23,11 @@ extern font_t clock_digit_font;
 #define BYTES_PER_ROW (ICON_SIZE + 7) / 8
 #define ICON_BYTES (BYTES_PER_ROW * ICON_SIZE)
 
+// Allow 5 pixels for the rounded edge
+#define WATCHDOG_ICON_X_OFFSET (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * -3)
+#define NTP_ICON_X_OFFSET (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * -2)
+#define WIFI_ICON_X_OFFSET (uint16_t)(LCD_WIDTH - 5 + ICON_SIZE * -1)
+
 extern const uint8_t memory_icon[ICON_BYTES];
 extern const uint8_t watchdog_icon[ICON_BYTES];
 extern const uint8_t watchdog_wifi_icon[ICON_BYTES];
