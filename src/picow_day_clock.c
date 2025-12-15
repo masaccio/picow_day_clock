@@ -54,27 +54,6 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     case STATUS:                                                                                                       \
         return #STATUS;
 
-const char *clock_status_to_string(clock_status_t status)
-{
-    switch (status) {
-        STATUS_CASE(STATUS_WIFI_OK)
-        STATUS_CASE(STATUS_NTP_OK)
-        STATUS_CASE(STATUS_WIFI_INIT)
-        STATUS_CASE(STATUS_WIFI_TIMEOUT)
-        STATUS_CASE(STATUS_WIFI_AUTH)
-        STATUS_CASE(STATUS_WIFI_CONNECT)
-        STATUS_CASE(STATUS_WIFI_ERROR)
-        STATUS_CASE(STATUS_NTP_INIT)
-        STATUS_CASE(STATUS_NTP_DNS)
-        STATUS_CASE(STATUS_NTP_TIMEOUT)
-        STATUS_CASE(STATUS_NTP_MEMORY)
-        STATUS_CASE(STATUS_NTP_INVALID)
-        STATUS_CASE(STATUS_WATCHDOG_RESET)
-        STATUS_CASE(STATUS_NONE)
-    }
-    return "UNKNOWN_STATUS";
-}
-
 const char *watchdog_error_to_string(watchdog_error_t status)
 {
     switch (status) {
@@ -83,6 +62,7 @@ const char *watchdog_error_to_string(watchdog_error_t status)
         STATUS_CASE(WATCHDOG_NTP)
         STATUS_CASE(WATCHDOG_WIFI)
     }
+    return "UNKNOWN_STATUS";
 }
 
 const char *ntp_error_to_string(ntp_error_t status)
@@ -247,15 +227,16 @@ const char *time_as_string(time_t t)
     static char buffer[32];
     struct tm tm_utc;
 
+    const char *suffix = "";
     gmtime_r(&t, &tm_utc);
-    int dst = time_is_dst(&tm_utc);
-    time_t local_epoch = t + (dst ? 3600 : 0);
+    time_t local_epoch = t;
+    if (time_is_dst(&tm_utc)) {
+        local_epoch += 3600;
+        suffix = " (DST)";
+    }
     struct tm tm_local;
     gmtime_r(&local_epoch, &tm_local);
-
-    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", tm_local.tm_hour, tm_local.tm_min, tm_local.tm_sec,
-             dst ? " (DST)" : "");
-
+    snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", tm_local.tm_hour, tm_local.tm_min, tm_local.tm_sec, suffix);
     return buffer;
 }
 
@@ -489,5 +470,5 @@ int main(void)
     }
 #endif
 
-    return 0; // coverage off
+    return 0;
 }
