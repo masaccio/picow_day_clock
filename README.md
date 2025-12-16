@@ -1,9 +1,5 @@
 # Raspberry Pi Pico Day of Week Clock
 
-Please note: **THIS PROJECT IS A WORK IN PROGRESS**
-
-![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
-
 ## Planned work
 
 * Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
@@ -14,6 +10,8 @@ Please note: **THIS PROJECT IS A WORK IN PROGRESS**
   * Switching between the upper and lower case weekday fonts
 * Allow configuration of the clock using a web interface to provide the wireless password and then store this in flash
 * And probably more...
+
+![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
 
 ## Introduction
 
@@ -40,7 +38,7 @@ The clock displays icons along the top edge of LCD1 when errors occur. The icons
 
 ![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/icons-on-display.jpeg)
 
-If the LCD cannot be initializes, the clock prints diagnostics to `stdout` as a last resort.
+If the LCD cannot be initialized, the clock prints diagnostics to `stdout` as a last resort.
 
 ### Timezones
 
@@ -66,7 +64,7 @@ The software is expected to build on Mac, Linux and Windows hosts and should be 
 
 Tests for the core clock functionality and error handling is largely complete through some very basic mocking of the Pico SDK. The [code](tests/mock.c) for the mocking is by no means complete and is just the very minimum required to make the clock function and generate errors that might occur such as DNS timeouts.
 
-The tests run on the host and assume Clang is available. **Windows hosts are unsupported for testing** as the host implementation of `time_t` is incompatible with the NTP implementation which assumes uses timestamps starting in 1900 which requires 64-bit.
+The tests run on the host and assume Clang is available. **Windows hosts are unsupported for testing** as the host implementation of `time_t` is incompatible with the NTP implementation which assumes uses timestamps starting in 1900 and in turn this requires 64-bit `time_t`.
 
 Automated CI is provided by [GitHub runners](.github/workflows/build.yml).
 
