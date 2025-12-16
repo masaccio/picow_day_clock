@@ -8,12 +8,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-#ifndef _WIN32 // Linux/macOS build
 #include <sys/time.h>
-#else // Windows build
-#define gmtime_r(t, result) gmtime_s(result, t)
-#endif
+#include <time.h>
 
 // Pico SDK
 #ifndef TEST_MODE
@@ -243,19 +239,8 @@ const char *time_as_string(time_t t)
 static void set_time_of_day(clock_state_t *state)
 {
     struct timeval tv;
-#ifdef _WIN32
-    if (state->ntp_time < 0) {
-        tv.tv_sec = 0;
-    } else if (state->ntp_time > (time_t)UINT32_MAX) {
-        tv.tv_sec = UINT32_MAX;
-    } else {
-        tv.tv_sec = (uint32_t)state->ntp_time;
-    }
-    tv.tv_usec = (long)0;
-#else
     tv.tv_sec = state->ntp_time;
     tv.tv_usec = 0;
-#endif
     settimeofday(&tv, NULL);
 }
 

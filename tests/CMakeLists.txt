@@ -4,6 +4,10 @@
 # We keep this build separate as it only builds in Unix-like hosts and also
 # requires host compilers rather than the Pico SDK
 
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    message(FATAL_ERROR "Host builds for testing are unsupported on Windows")
+endif()
+
 cmake_minimum_required(VERSION 3.13)
 project(test_picow_day_clock C CXX)
 
@@ -51,7 +55,6 @@ target_compile_options(test_picow_day_clock
     -Wno-poison-system-directories      # Host build requires system directories
     -Wno-padded                         # Padding is harmless
     -Wno-unsafe-buffer-usage            # No sensible way to manage buffers with this
-    -Wno-unused-command-line-argument   # Windows build fails due to -O0
 )
 
 target_compile_definitions(test_picow_day_clock PRIVATE
@@ -60,11 +63,5 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     NTP_SERVER="ntp.test.invalid"
     TEST_MODE=1
 )
-
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-target_compile_definitions(test_picow_day_clock PRIVATE
-    _CRT_SECURE_NO_WARNINGS     # Ignore Windows secure CRT deprecation warnings
-)
-endif()
 
 target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})

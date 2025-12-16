@@ -100,52 +100,40 @@ endif()
 # ====================================================================================
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     set(TEST_C_COMPILER "clang")
-elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-    set(TEST_C_COMPILER "clang-cl")
-endif()
-include(ExternalProject)
-enable_testing()
-ExternalProject_Add(
-    test_picow_day_clock
-    SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
-    BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
-    CMAKE_ARGS
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DCMAKE_C_STANDARD=11
-        -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${TEST_C_COMPILER}
-    INSTALL_COMMAND ""
-)
-
-ExternalProject_Get_Property(test_picow_day_clock BINARY_DIR)
-set(TEST_TIMESTAMP ${BINARY_DIR}/test_picow_day_clock.timestamp)
-
-add_custom_command(
-    OUTPUT ${TEST_TIMESTAMP}
-    COMMAND ${CMAKE_COMMAND} --build ${BINARY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E touch ${TEST_TIMESTAMP}
-    DEPENDS
-        test_picow_day_clock              # ensure configure step ran
-        ${CLOCK_SRC_FILES}
-        ${GENERATED_FONT_SRC_FILES}
-        ${GENERATED_ICON_SRC_FILES}
-    WORKING_DIRECTORY ${BINARY_DIR}
-    COMMENT "Rebuilding host tests due to clock source changes"
-)
-
-add_custom_target(test_picow_day_clock_build
-    DEPENDS ${TEST_TIMESTAMP}
-)
-set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-    add_custom_target(run_tests
-        DEPENDS test_picow_day_clock
-        COMMAND echo testing
-        COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock.exe
-        WORKING_DIRECTORY ${TEST_BINARY_DIR}
-        COMMENT "Running native tests..."
+    include(ExternalProject)
+    enable_testing()
+    ExternalProject_Add(
+        test_picow_day_clock
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/tests
+        BINARY_DIR ${CMAKE_BINARY_DIR}/tests_build
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_C_STANDARD=11
+            -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
+            -DCMAKE_CXX_COMPILER=${TEST_C_COMPILER}
+        INSTALL_COMMAND ""
     )
-else()
+
+    ExternalProject_Get_Property(test_picow_day_clock BINARY_DIR)
+    set(TEST_TIMESTAMP ${BINARY_DIR}/test_picow_day_clock.timestamp)
+
+    add_custom_command(
+        OUTPUT ${TEST_TIMESTAMP}
+        COMMAND ${CMAKE_COMMAND} --build ${BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${TEST_TIMESTAMP}
+        DEPENDS
+            test_picow_day_clock              # ensure configure step ran
+            ${CLOCK_SRC_FILES}
+            ${GENERATED_FONT_SRC_FILES}
+            ${GENERATED_ICON_SRC_FILES}
+        WORKING_DIRECTORY ${BINARY_DIR}
+        COMMENT "Rebuilding host tests due to clock source changes"
+    )
+
+    add_custom_target(test_picow_day_clock_build
+        DEPENDS ${TEST_TIMESTAMP}
+    )
+    set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
     add_custom_target(run_tests
         COMMAND ${CMAKE_COMMAND} -E env
                 LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
@@ -153,41 +141,41 @@ else()
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running native tests..."
     )
-endif()
 
-add_dependencies(run_tests test_picow_day_clock_build)
-add_dependencies(test_picow_day_clock_build generate_fonts generate_icons)
+    add_dependencies(run_tests test_picow_day_clock_build)
+    add_dependencies(test_picow_day_clock_build generate_fonts generate_icons)
 
-add_test(NAME picow_day_clock_test
-         COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
+    add_test(NAME picow_day_clock_test
+            COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
-add_custom_target(coverage_llvm
-    DEPENDS test_picow_day_clock
-    COMMAND llvm-profdata merge 
-            -sparse ${TEST_BINARY_DIR}/coverage.profraw
-            -o ${TEST_BINARY_DIR}/coverage.profdata
-    COMMAND llvm-cov report 
-            ${TEST_BINARY_DIR}/test_picow_day_clock
-            --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-            --show-region-summary=false
-            --show-branch-summary=true
-            --ignore-filename-regex=".*\.h"
-    COMMAND llvm-cov show
-            ${TEST_BINARY_DIR}/test_picow_day_clock
-            --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-            --ignore-filename-regex=".*\.h"
-            --show-branches=count
-            --format=html > ${TEST_BINARY_DIR}/coverage.html
-    WORKING_DIRECTORY ${TEST_BINARY_DIR}
-    COMMENT "Running coverage analysis..."
-)
+    add_custom_target(coverage_llvm
+        DEPENDS test_picow_day_clock
+        COMMAND llvm-profdata merge 
+                -sparse ${TEST_BINARY_DIR}/coverage.profraw
+                -o ${TEST_BINARY_DIR}/coverage.profdata
+        COMMAND llvm-cov report 
+                ${TEST_BINARY_DIR}/test_picow_day_clock
+                --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
+                --show-region-summary=false
+                --show-branch-summary=true
+                --ignore-filename-regex=".*\.h"
+        COMMAND llvm-cov show
+                ${TEST_BINARY_DIR}/test_picow_day_clock
+                --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
+                --ignore-filename-regex=".*\.h"
+                --show-branches=count
+                --format=html > ${TEST_BINARY_DIR}/coverage.html
+        WORKING_DIRECTORY ${TEST_BINARY_DIR}
+        COMMENT "Running coverage analysis..."
+    )
 
-set(LCOV_TRACEFILE "${TEST_BINARY_DIR}/coverage.info")
-add_custom_target(coverage_gcc
-    DEPENDS test_picow_day_clock
-    COMMAND lcov --capture --branch-coverage --directory ${TEST_BINARY_DIR} --output-file ${LCOV_TRACEFILE}
-    COMMAND lcov --remove ${LCOV_TRACEFILE} --output-file ${LCOV_TRACEFILE}
-    COMMAND lcov --list ${LCOV_TRACEFILE}
-    WORKING_DIRECTORY ${TEST_BINARY_DIR}
-    COMMENT "Running coverage analysis..."
-)
+    set(LCOV_TRACEFILE "${TEST_BINARY_DIR}/coverage.info")
+    add_custom_target(coverage_gcc
+        DEPENDS test_picow_day_clock
+        COMMAND lcov --capture --branch-coverage --directory ${TEST_BINARY_DIR} --output-file ${LCOV_TRACEFILE}
+        COMMAND lcov --remove ${LCOV_TRACEFILE} --output-file ${LCOV_TRACEFILE}
+        COMMAND lcov --list ${LCOV_TRACEFILE}
+        WORKING_DIRECTORY ${TEST_BINARY_DIR}
+        COMMENT "Running coverage analysis..."
+    )
+endif() # Host build

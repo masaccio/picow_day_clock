@@ -7,11 +7,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
-
-#ifndef _WIN32
 #include <sys/time.h>
-#endif
+#include <time.h>
 
 // Define system data types
 typedef unsigned int uint;
@@ -76,13 +73,6 @@ extern unsigned long long mock_system_time_ms;
 extern time_t mock_time(time_t *);
 
 #define settimeofday(tp, tzp) mock_settimeofday(tp, tzp)
-#ifdef _WIN32
-struct timeval
-{
-    uint32_t tv_sec;
-    uint32_t tv_usec;
-};
-#endif
 
 int mock_settimeofday(const struct timeval *, void *);
 
