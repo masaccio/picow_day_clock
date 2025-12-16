@@ -14,7 +14,7 @@ set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
 set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
-if (EXISTS ${picoVscode})
+if(EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
@@ -56,7 +56,7 @@ include_directories(
 
 file(GLOB CLOCK_SRC_FILES src/*.c)
 
-add_executable(picow_day_clock 
+add_executable(picow_day_clock
     ${CLOCK_SRC_FILES}
     ${GENERATED_FONT_SRC_FILES}
     ${GENERATED_ICON_SRC_FILES}
@@ -78,13 +78,13 @@ pico_set_program_name(picow_day_clock "picow_day_clock")
 pico_set_program_version(picow_day_clock "0.1")
 
 # Add any user requested libraries
-target_link_libraries(picow_day_clock 
-        pico_cyw43_arch_lwip_threadsafe_background
-        pico_stdlib
-        hardware_pwm
-        hardware_spi
-        hardware_watchdog
-        )
+target_link_libraries(picow_day_clock
+    pico_cyw43_arch_lwip_threadsafe_background
+    pico_stdlib
+    hardware_pwm
+    hardware_spi
+    hardware_watchdog
+)
 
 pico_add_extra_outputs(picow_day_clock)
 add_dependencies(picow_day_clock generate_fonts generate_icons)
@@ -115,14 +115,12 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
     )
 
     ExternalProject_Get_Property(test_picow_day_clock BINARY_DIR)
-    set(TEST_TIMESTAMP ${BINARY_DIR}/test_picow_day_clock.timestamp)
 
     add_custom_command(
-        OUTPUT ${TEST_TIMESTAMP}
+        OUTPUT ${BINARY_DIR}/test_picow_day_clock
         COMMAND ${CMAKE_COMMAND} --build ${BINARY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E touch ${TEST_TIMESTAMP}
         DEPENDS
-            test_picow_day_clock              # ensure configure step ran
+            test_picow_day_clock
             ${CLOCK_SRC_FILES}
             ${GENERATED_FONT_SRC_FILES}
             ${GENERATED_ICON_SRC_FILES}
@@ -130,41 +128,38 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
         COMMENT "Rebuilding host tests due to clock source changes"
     )
 
-    add_custom_target(test_picow_day_clock_build
-        DEPENDS ${TEST_TIMESTAMP}
-    )
     set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
     add_custom_target(run_tests
         COMMAND ${CMAKE_COMMAND} -E env
-                LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
-                ${TEST_BINARY_DIR}/test_picow_day_clock
+        LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
+        ${TEST_BINARY_DIR}/test_picow_day_clock
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running native tests..."
     )
 
-    add_dependencies(run_tests test_picow_day_clock_build)
-    add_dependencies(test_picow_day_clock_build generate_fonts generate_icons)
+    add_dependencies(run_tests test_picow_day_clock)
+    add_dependencies(test_picow_day_clock generate_fonts generate_icons)
 
     add_test(NAME picow_day_clock_test
-            COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
+        COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
     add_custom_target(coverage_llvm
         DEPENDS test_picow_day_clock
-        COMMAND llvm-profdata merge 
-                -sparse ${TEST_BINARY_DIR}/coverage.profraw
-                -o ${TEST_BINARY_DIR}/coverage.profdata
-        COMMAND llvm-cov report 
-                ${TEST_BINARY_DIR}/test_picow_day_clock
-                --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-                --show-region-summary=false
-                --show-branch-summary=true
-                --ignore-filename-regex=".*\.h"
+        COMMAND llvm-profdata merge
+        -sparse ${TEST_BINARY_DIR}/coverage.profraw
+        -o ${TEST_BINARY_DIR}/coverage.profdata
+        COMMAND llvm-cov report
+        ${TEST_BINARY_DIR}/test_picow_day_clock
+        --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
+        --show-region-summary=false
+        --show-branch-summary=true
+        --ignore-filename-regex=".*\.h"
         COMMAND llvm-cov show
-                ${TEST_BINARY_DIR}/test_picow_day_clock
-                --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-                --ignore-filename-regex=".*\.h"
-                --show-branches=count
-                --format=html > ${TEST_BINARY_DIR}/coverage.html
+        ${TEST_BINARY_DIR}/test_picow_day_clock
+        --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
+        --ignore-filename-regex=".*\.h"
+        --show-branches=count
+        --format=html > ${TEST_BINARY_DIR}/coverage.html
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running coverage analysis..."
     )
