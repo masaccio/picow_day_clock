@@ -66,7 +66,9 @@ The software is expected to build on Mac, Linux and Windows hosts and should be 
 
 Tests for the core clock functionality and error handling is largely complete through some very basic mocking of the Pico SDK. The [code](tests/mock.c) for the mocking is by no means complete and is just the very minimum required to make the clock function and generate errors that might occur such as DNS timeouts.
 
-The tests run on the host and assume Clang is available. Automated CI is provided by [GitHub runners](.github/workflows/build.yml).
+The tests run on the host and assume Clang is available. **Windows hosts are unsupported for testing** as the host implementation of `time_t` is incompatible with the NTP implementation which assumes uses timestamps starting in 1900 which requires 64-bit.
+
+Automated CI is provided by [GitHub runners](.github/workflows/build.yml).
 
 ## Debug
 
