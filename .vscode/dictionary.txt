@@ -35,6 +35,7 @@ picow
 pinout
 PORCTRL
 profdata
+profraw
 PVGAMCTRL
 PWCTRL
 RAMWR
