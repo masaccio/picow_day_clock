@@ -121,11 +121,19 @@ I chose the Waveshare LCD because it comes with a socket that has a wired plug w
 
 ![Soldered connections to LCD module](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/module-connections.jpeg)
 
-The glass domes appear to be referred to as "glass dome cloche covers with cork bases" and are available from Chinese manufactures on sites like [TEMU](https://www.temu.com/). Since the class is reasonably heavy 2mm thick glass, the 25mm domes are too narrow in the internal diameter for the LCD so 28mm domes are required. Unfortunately these are quite long so they need to sit about 25mm below the top of the clock so that the LCDs are comfortable in the upper section of the dome. The domes sit inside a brass frame to which the LCDs can be held using M2 machine screws:
+The glass domes appear to be referred to as "glass dome cloche covers with cork bases" and are available from Chinese manufactures on sites like [TEMU](https://www.temu.com/). Since the class is reasonably heavy 2mm thick glass, the 25mm domes are too narrow in the internal diameter for the LCD so 28mm domes are required. Unfortunately 71mm long so they need to sit about 25mm below the top of the clock so that the LCDs are comfortable in the upper section of the dome. The domes sit inside a 4mm brass frame to which the LCDs can be held using M2 machine screws:
 
 ![Brass plate design](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/clock_brass.jpeg)
 
-The brass plate is then sandwiched between two rectangular woden boxes with no lids. The USB power cable is fed through one box and plugs into the Pico's USB port which simplifies the electrical design.
+The brass frame is laser cut from 4mm brass using a CAD file that is generated using `scripts/generate-dxf.py`. Assuming CMake has generated the Python virtual environment in the `build` folder, you can build the DXF file (`generated/clock_brass.dxf`) using:
+
+``` bash
+source build/scripts_venv/bin/activate
+pip install ezdxf
+python3 scripts/create-cad-drawing.py
+```
+
+The brass frame is then sandwiched between two rectangular woden boxes with no lids. The USB power cable is fed through one box and plugs into the Pico's USB port which simplifies the electrical design.
 
 ## Credits
 
