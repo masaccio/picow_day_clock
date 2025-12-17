@@ -1,17 +1,14 @@
 # Raspberry Pi Pico Day of Week Clock
 
-## Planned work
+## Current status
 
-* Build an enclosure. I plan to create two shallow wooden boxes, put some brass between them and encase the LCD screens in class domes
-* Get the Windows CI build working for the test and coverage build
-  * The build works but Windows is using 32-bit `time_t` which fails the tests.
-  * The clock would need a different model of time to work as a Windows native application.
-* Make the configuration cleaner with better CMake overrides of `config.h`
-  * Switching between the upper and lower case weekday fonts
-* Allow configuration of the clock using a web interface to provide the wireless password and then store this in flash
-* And probably more...
+This project **is a work in progress**.
+
+The clock is now feature complete from a software perspective though if this were scaled up for sale, it would need user-level configuration using a Wi-Fi connection and a web-server to provide the credentials and would also need some means of initiating a factory reset. Better still would be bluetooth discovery from a phone app to configure the clock for things like timezones, colors and fonts as well as the Wi-Fi credentials. The clock build looks like this:
 
 ![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
+
+The next steps are to secure the glass domes and build a walnut enclosure.
 
 ## Introduction
 
