@@ -133,6 +133,12 @@ pip install ezdxf
 python3 scripts/create-cad-drawing.py
 ```
 
+It's also possible to generate a 3D model using Python for use as a prototype to check that that everything aligns correctly:
+
+``` bash
+python3 scripts/create-3d-model.py
+```
+
 The brass frame is then sandwiched between two rectangular woden boxes with no lids. The USB power cable is fed through one box and plugs into the Pico's USB port which simplifies the electrical design.
 
 ## Credits
