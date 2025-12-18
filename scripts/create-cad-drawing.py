@@ -1,78 +1,72 @@
 import ezdxf
 
-doc = ezdxf.new(dxfversion="AC1021")  # DXF R2007
-msp = doc.modelspace()
-
-# LCD is 22 x 38 mm
-# Cloche is 2mm thick glass
-# Cloches are 28 x 71 mm
-# With 10mm clearance above the LCD, the glass would need to be recessed 71 - 10 - 38 mm = 23 mm
-# Clock width with 5 mm gap between cloches and 20 mm gap either side: 7 * 28 + 6 * 5 + 2 * 20 mm = 266 mm
-# Clock height is 50 mm inside, 10 mm at the bottom, 10 mm below the cloches, 23mm recess: 50 + 10 + 10 + 23 mm = 93 mm
-# Top profile needs to be 25 mm deep and the bottom, side profiles can be 10 mm, and 50 mm inside for the clock itself
-
 NUM_DOMES = 7
+
+# Domes are 28mm with 2mm glass but allow 0.5mm clearance
+DOME_OD = 28.0
+GLASS_THICKNESS = 2.0
 GROOVE_WIDTH = 2.5
-GROOVE_DEPTH = 23
-SEPARATION = 5
-STANDOFF = 20
-DOME_OD = 28
-Y_MAX = 93
-INNER_MARGIN_X = 10
-INNER_MARGIN_TOP = 35
-INNER_MARGIN_BOTTOM = 10
+GROOVE_DEPTH = 23.0
+
+SEPARATION = 5.0  # Gap between the domes
+STANDOFF = 20.0  # Standoff left and right of the domes
+BORDER = 10.0  # Inner border wall thickness
+CLOCK_INTERNAL_HEIGHT = 50.0  # Internal height of clock cavity
+
+Y_MAX = BORDER + CLOCK_INTERNAL_HEIGHT + BORDER + GROOVE_DEPTH
+
+# Effective width occupied by one DOME + groove clearance
+EFFECTIVE_DOME_WIDTH = DOME_OD + (GROOVE_WIDTH - GLASS_THICKNESS)
+
+# Pitch between dome centers
+PITCH = EFFECTIVE_DOME_WIDTH + SEPARATION
+
+X_MAX = 2 * STANDOFF + NUM_DOMES * EFFECTIVE_DOME_WIDTH + (NUM_DOMES - 1) * SEPARATION
+
+# Inner opening margins
+INNER_MARGIN_X = BORDER
+INNER_MARGIN_BOTTOM = BORDER
+INNER_MARGIN_TOP = GROOVE_DEPTH + BORDER
 
 
-def add_notch(outer_list, x, y_max, width, depth):
-    outer_list += [
-        (x, y_max),
-        (x, y_max - depth),
-        (x + width, y_max - depth),
-        (x + width, y_max),
+def add_notch(poly, x, y_top, width, depth):
+    poly += [
+        (x, y_top),
+        (x, y_top - depth),
+        (x + width, y_top - depth),
+        (x + width, y_top),
     ]
 
 
-def generate_clock_profile(
-    num_domes=NUM_DOMES,
-    groove_width=GROOVE_WIDTH,
-    groove_depth=GROOVE_DEPTH,
-    separation=SEPARATION,
-    standoff=STANDOFF,
-    dome_od=DOME_OD,
-    y_max=Y_MAX,
-):
-    groove_x_offset_1 = [
-        standoff + (2 * ii * groove_width) + (dome_od * ii) + (separation * ii) for ii in range(num_domes)
-    ]
-    groove_x_offset_2 = [x + dome_od + groove_width for x in groove_x_offset_1]
-    x_max = groove_x_offset_1[-1] + groove_width + dome_od + standoff
+outer = [(0, 0), (0, Y_MAX)]
 
-    outer = [
-        (0, 0),
-        (0, y_max),
-    ]
-    for x1, x2 in zip(groove_x_offset_1, groove_x_offset_2):
-        for xx in [x1, x2]:
-            add_notch(outer, xx, y_max, groove_width, groove_depth)
-    outer += [
-        (x_max, y_max),
-        (x_max, 0),
-        (0, 0),
-    ]
+for i in range(NUM_DOMES):
+    x1 = STANDOFF + i * PITCH
+    x2 = x1 + EFFECTIVE_DOME_WIDTH
 
-    return outer, x_max
+    add_notch(outer, x1, Y_MAX, GROOVE_WIDTH, GROOVE_DEPTH)
+    add_notch(outer, x2, Y_MAX, GROOVE_WIDTH, GROOVE_DEPTH)
 
+outer += [
+    (X_MAX, Y_MAX),
+    (X_MAX, 0),
+    (0, 0),
+]
 
-outer, x_max = generate_clock_profile()
 inner = [
     (INNER_MARGIN_X, Y_MAX - INNER_MARGIN_TOP),
-    (x_max - INNER_MARGIN_X, Y_MAX - INNER_MARGIN_TOP),
-    (x_max - INNER_MARGIN_X, INNER_MARGIN_BOTTOM),
+    (X_MAX - INNER_MARGIN_X, Y_MAX - INNER_MARGIN_TOP),
+    (X_MAX - INNER_MARGIN_X, INNER_MARGIN_BOTTOM),
     (INNER_MARGIN_X, INNER_MARGIN_BOTTOM),
     (INNER_MARGIN_X, Y_MAX - INNER_MARGIN_TOP),
 ]
 
+doc = ezdxf.new(dxfversion="AC1021")  # DXF >=R2002 required for polyline
+
+msp = doc.modelspace()
 msp.add_lwpolyline(outer, close=True)
 msp.add_lwpolyline(inner, close=True)
 
 doc.saveas("generated/clock_brass.dxf")
+
+print(f"Created template x={X_MAX}, y={Y_MAX}")
