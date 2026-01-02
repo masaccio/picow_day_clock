@@ -1,6 +1,6 @@
 {
     "cmake.showSystemKits": false,
-    "cmake.options.statusBarVisibility": "default",
+    "cmake.options.statusBarVisibility": "compact",
     "cmake.options.advanced": {
         "build": {
             "statusBarVisibility": "hidden"
@@ -59,6 +59,7 @@
     "[c]": {
         "editor.tabSize": 4
     },
+    "python.defaultInterpreterPath": "${workspaceFolder}/build/scripts_venv/bin/python3",
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
