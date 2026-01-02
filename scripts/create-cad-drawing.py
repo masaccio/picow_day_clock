@@ -1,4 +1,5 @@
 import ezdxf
+from ezdxf.document import Drawing
 from ezdxf.enums import TextEntityAlignment
 
 NUM_DOMES = 7
@@ -81,7 +82,7 @@ def flatten(matrix):
     return [item for row in matrix for item in row]
 
 
-def add_dim_style(doc: object, dimtad: int, name: str, ext1: bool, ext2: bool) -> None:
+def add_dim_style(doc: Drawing, dimtad: int, name: str, ext1: bool, ext2: bool) -> None:
     dimstyle = doc.dimstyles.add(name)
     dimstyle.dxf.dimdsep = ord(".")  # Decimal separator
     dimstyle.dxf.dimdec = 2  # 2 decimal places
@@ -131,7 +132,7 @@ inner_poly = [
 ]
 
 # Use setup=True to get default dimstyles with arrows etc.
-doc = ezdxf.new(dxfversion="AC1021", setup=True)
+doc = ezdxf.new(dxfversion="AC1021", setup=True)  # pyright: ignore[reportPrivateImportUsage]
 
 msp = doc.modelspace()
 add_dim_style(doc, 1, "DimAbove", True, True)
