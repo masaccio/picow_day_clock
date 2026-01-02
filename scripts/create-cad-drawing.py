@@ -1,4 +1,5 @@
 import ezdxf
+from ezdxf.enums import TextEntityAlignment
 
 NUM_DOMES = 7
 
@@ -8,7 +9,7 @@ BORDER = 10.0  # Inner border wall thickness
 CLOCK_INTERNAL_HEIGHT = 50.0  # Internal height of clock cavity
 DOME_OD = 28.0  # Dome outer diameter
 DOME_ID = 23.5  # Dome inner diameter
-TAB_WIDTH = 18.5  # Width of tab to mount LCD
+TAB_WIDTH = 20.0  # Width of tab to mount LCD
 TAB_HEIGHT = 36.75
 TOLERANCE = 0.25  # Laser cutter tolerance
 GROOVE_DEPTH = 23.0  # Glass groove depth
@@ -16,7 +17,7 @@ GROOVE_DEPTH = 23.0  # Glass groove depth
 DIM_TEXT_OFFSET = 3.0  # How far away to place dimension line text
 LCD_HEIGHT = 38.8
 LCD_WIDTH = 22.0
-MOUNT_HOLE_ID = 2.00
+MOUNT_HOLE_ID = 2.25
 MOUNT_HOLE_OFFSET = 3.75  # Distance of centre of mounting holes from side
 
 # Inner opening margins
@@ -86,14 +87,14 @@ def add_dim_style(doc: object, dimtad: int, name: str, ext1: bool, ext2: bool) -
     dimstyle.dxf.dimdec = 2  # 2 decimal places
     dimstyle.dxf.dimrnd = TOLERANCE  # Round to tolerance
     dimstyle.dxf.dimasz = 2.0  # 2mm arrows
-    dimstyle.dxf.dimtxt = 3.0  # 4mm text
+    dimstyle.dxf.dimtxt = 3.0  # 3mm text
     dimstyle.dxf.dimtad = dimtad
     dimstyle.dxf.dimtih = 0  # text inside line
     dimstyle.dxf.dimclrd = 1  # red dim lines/arrows
     dimstyle.dxf.dimclre = 1  # red ext lines
     dimstyle.dxf.dimclrt = 5  # blue text
-    dimstyle.dxf.dimlwd = 40  # 0.40mm dim lines
-    dimstyle.dxf.dimlwe = 25  # 0.25mm ext lines
+    dimstyle.dxf.dimlwd = 25  # 0.25mm dim lines
+    dimstyle.dxf.dimlwe = 20  # 0.20mm ext lines
     dimstyle.dxf.dimgap = 1  # 2mm gap to line
     dimstyle.dxf.dimexo = 0  # Extension line gap to origin
     dimstyle.dxf.dimexe = 0  # Extension line gap to origin
@@ -103,10 +104,16 @@ def add_dim_style(doc: object, dimtad: int, name: str, ext1: bool, ext2: bool) -
     dimstyle.dxf.dimse2 = 0 if ext2 else 1  # Suppress extension lines
 
 
-def add_dim_line(p1: tuple, p2: tuple, dimstyle: str, text_shift: tuple[float, float] = [0.0, 0.0]) -> None:
+def add_dim_line(
+    p1: tuple,
+    p2: tuple,
+    dimstyle: str,
+    text_shift: tuple[float, float] = (0.0, 0.0),
+    text_label: str = "<>",
+) -> None:
     global msp, DIM_TEXT_OFFSET
     distance = DIM_TEXT_OFFSET if dimstyle == "DimAbove" else -DIM_TEXT_OFFSET
-    dim = msp.add_aligned_dim(p1=p1, p2=p2, distance=distance, dimstyle=dimstyle)
+    dim = msp.add_aligned_dim(p1=p1, p2=p2, distance=distance, dimstyle=dimstyle, text=text_label)
     dim.shift_text(*text_shift)
     dim.render()
 
@@ -142,9 +149,22 @@ for i in range(NUM_DOMES):
     radius = (MOUNT_HOLE_ID + TOLERANCE) / 2
     msp.add_circle((tab_left + MOUNT_HOLE_OFFSET, Y_MAX + MOUNT_HOLE_OFFSET), radius)
     msp.add_circle((tab_left + TAB_WIDTH - MOUNT_HOLE_OFFSET, Y_MAX + MOUNT_HOLE_OFFSET), radius)
+    # Add text for each LCD name
+    msp.add_text(f"LCD {i + 1}", height=2.5, dxfattribs={"style": "LiberationSerif"}).set_placement(
+        (tab_left + 5, Y_MAX + TAB_HEIGHT - 10),
+        align=TextEntityAlignment.LEFT,
+    )
 
-# Groove separation dimensions
-add_dim_line((groove_left_x_end(0), Y_MAX), (groove_right_x_start(0), Y_MAX), "DimBelowNoSel")
+# Tube inner diameter minimum size
+add_dim_line((groove_left_x_end(0), Y_MAX), (groove_right_x_start(0), Y_MAX), "DimBelowNoSel", text_label="ID=<>")
+
+# Tube outer diameter maximum size
+add_dim_line(
+    (groove_left_x_start(2), Y_MAX - GROOVE_DEPTH),
+    (groove_right_x_end(2), Y_MAX - GROOVE_DEPTH),
+    "DimBelow",
+    text_label="OD=<>",
+)
 
 # Groove width
 add_dim_line(
@@ -153,7 +173,6 @@ add_dim_line(
     "DimBelow",
     (0.0, -5.0),  # Auto-alignment places text above line
 )
-
 
 # Groove depth
 add_dim_line(
