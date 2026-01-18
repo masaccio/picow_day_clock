@@ -133,11 +133,11 @@ pip install ezdxf
 python3 scripts/create-cad-drawing.py
 ```
 
-It's also possible to generate a 3D model using Python for use as a prototype to check that that everything aligns correctly:
+It's also possible to generate a 3D model using Python for use as a 3D printing prototype to check that that everything aligns correctly:
 
 ``` bash
 source build/scripts_venv/bin/activate
-pip install cadquery
+pip install cadquery cadquery-ocp
 python3 scripts/create-3d-model.py
 ```
 

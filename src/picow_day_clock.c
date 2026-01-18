@@ -139,7 +139,7 @@ void ntp_timer_callback(void *state, time_t *ntp_time)
     clock_state->ntp_time = *ntp_time;
 }
 
-int last_day_of_month(int day, int month, int year)
+int last_weekday_of_month(int day, int month, int year)
 {
     // Compute the last day of the month using Zeller's congruence
     // See https://en.wikipedia.org/wiki/Zeller%27s_congruence
@@ -169,7 +169,7 @@ static struct tm *dst_start(int tm_year)
     tm_start.tm_sec = 0;
     tm_start.tm_isdst = 0;
 
-    int wday = last_day_of_month(31, 3, tm_year + 1900);
+    int wday = last_weekday_of_month(31, 3, tm_year + 1900);
     tm_start.tm_mday = 31 - wday;
     tm_start.tm_wday = 0;
 
@@ -188,7 +188,7 @@ static struct tm *dst_end(int tm_year)
     tm_end.tm_sec = 0;
     tm_end.tm_isdst = 0;
 
-    int wday = last_day_of_month(31, 10, tm_year + 1900);
+    int wday = last_weekday_of_month(31, 10, tm_year + 1900);
     tm_end.tm_mday = 31 - wday;
     tm_end.tm_wday = 0;
 

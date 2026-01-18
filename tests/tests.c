@@ -231,7 +231,7 @@ static int test_dst(void)
     clock_state_t *clock_state = create_test_clock_state(timer);
 
     // Coverage test for Zeller's congruence
-    if (last_day_of_month(28, 2, 2025) != /* Friday */ 5) {
+    if (last_weekday_of_month(28, 2, 2025) != /* Friday */ 5) {
         return 1;
     }
 

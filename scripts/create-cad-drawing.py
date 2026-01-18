@@ -218,4 +218,4 @@ add_dim_line((0, 0), (0, Y_MAX), "DimAbove")
 
 doc.saveas("generated/clock_brass.dxf")
 
-print(f"Created template x={X_MAX}, y={Y_MAX}")
+print(f"Created DXF: generated/clock_brass.dxf, x={X_MAX}, y={Y_MAX}")
