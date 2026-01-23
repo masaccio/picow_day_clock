@@ -96,6 +96,8 @@ static jmp_buf fatal_jmp_buf;
 persistent_state_t persistent_state;
 
 extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
+extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
+                                  uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
 
 // In test mode, key status updates to the LCD are treated like a printf()
 // so that the test harness can check the sequence of events.
@@ -105,6 +107,7 @@ extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_e
     mock_printf(msg)
 
 #define lcd_update_icons(state, watchdog, ntp, wifi) mock_update_icons(watchdog, ntp, wifi)
+#define lcd_init(...) mock_lcd_init(__VA_ARGS__)
 
 static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {

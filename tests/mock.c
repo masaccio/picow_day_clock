@@ -6,7 +6,11 @@
 #include "mock.h"
 #include "test.h"
 
+// LCD functions
+// LCD functions
 extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
+extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
+                                  uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
 
 void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
@@ -15,6 +19,24 @@ void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, w
     const char *ntp_error_string = ntp_error_to_string(ntp_error) + 4;
     const char *wifi_error_string = wifi_error_to_string(wifi_error) + 5;
     mock_printf("Icons: %s %s %s", watchdog_error_string, ntp_error_string, wifi_error_string);
+}
+
+extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
+                                  uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset)
+{
+    (void)RST_gpio;
+    (void)DC_gpio;
+    (void)BL_gpio;
+    (void)CS_gpio;
+    (void)CLK_gpio;
+    (void)MOSI_gpio;
+    (void)reset;
+
+    lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
+    if (!state) {
+        return NULL;
+    }
+    return state;
 }
 
 // These system calls have been redefined in mock.h so undef them here
