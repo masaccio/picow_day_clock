@@ -98,6 +98,7 @@ persistent_state_t persistent_state;
 extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
 extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
                                   uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
+extern void mock_reset_icons(void);
 
 // In test mode, key status updates to the LCD are treated like a printf()
 // so that the test harness can check the sequence of events.
@@ -105,9 +106,10 @@ extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t 
     (void)line_num;                                                                                                    \
     (void)color;                                                                                                       \
     mock_printf(msg)
-
 #define lcd_update_icons(state, watchdog, ntp, wifi) mock_update_icons(watchdog, ntp, wifi)
 #define lcd_init(...) mock_lcd_init(__VA_ARGS__)
+#define lcd_clear_screen(...) (void)0
+#define lcd_print_clock_digit(...) (void)0
 
 static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
@@ -292,9 +294,6 @@ bool clock_timer_callback(repeating_timer_t *t)
         lcd_digits[7] = '\0';
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-#ifndef TEST_MODE
-            // Skip updates in test mode for performance reasons; all the subsequent
-            // stubbed calls to GPIO consume a lot of unnecessary CPU over the tests
             if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
@@ -302,7 +301,6 @@ bool clock_timer_callback(repeating_timer_t *t)
             if (ii == 0) {
                 lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
             }
-#endif
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
 
@@ -335,6 +333,7 @@ bool clock_timer_callback(repeating_timer_t *t)
 int test_main(void)
 {
     static int test_main_watchdog_reentry;
+    mock_reset_icons();
     mock_printf("Test init\n");
     test_main_watchdog_reentry = 0;
     watchdog_reboot_called = 0;

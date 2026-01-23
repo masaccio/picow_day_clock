@@ -468,16 +468,21 @@ int main(void)
 {
     int status = 0;
 
-    static const char *test_empty_log[] = {NULL};
     static const char *test_bad_ldc1_ref[] = {
         "Test init", "Failed to allocate clock state", "Test init", "LCD 1: failed to initialise", NULL,
     };
     status |= run_test(test_bad_lcd1, "LCD1 init error", test_bad_ldc1_ref);
 
-    status |= run_test(test_dst, "Daylight savings", test_empty_log);
+    static const char *test_dst_ref[] = {
+        "Icons: OK OK OK",
+        NULL,
+    };
+    status |= run_test(test_dst, "Daylight savings", test_dst_ref);
 
     static const char *test_ntp_recovery_ref[] = {
+        "Icons: NTP OK OK",
         "Icons: NTP DNS_ERROR OK",
+        "Icons: OK DNS_ERROR OK",
         NULL,
     };
     status |= run_test(test_ntp_time, "NTP time checks", test_ntp_recovery_ref);
@@ -507,7 +512,6 @@ int main(void)
         "Connected to WiFi",
         "Icons: OK OK OK",
         "NTP time sync OK",
-        "Icons: OK OK OK",
         // Failed connection due to timeout
         "Test init",
         "LCD init successful",
@@ -525,7 +529,6 @@ int main(void)
         "Connected to WiFi",
         "Icons: OK OK OK",
         "NTP time sync OK",
-        "Icons: OK OK OK",
         // Wi-Fi auth retries too many
         "Test init",
         "LCD init successful",
@@ -567,7 +570,6 @@ int main(void)
         "Connected to WiFi",
         "Icons: OK OK OK",
         "NTP time sync OK",
-        "Icons: OK OK OK",
         NULL,
     };
     status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
@@ -648,16 +650,13 @@ int main(void)
         "Connected to WiFi",
         "Icons: OK OK OK",
         "NTP time sync OK",
-        "Icons: OK OK OK",
         // Test watchdog caused reset
         "Test init",
         "Icons: RESET OK OK",
         "Icons: OK OK OK",
-        "Icons: OK OK OK",
         // Restart clock after watchdog
         "Test init",
         "Icons: RESET OK OK",
-        "Icons: OK OK OK",
         "Icons: OK OK OK",
         // Normal start with Wi-Fi error
         "Test init",
@@ -676,7 +675,6 @@ int main(void)
         // Fake a watchdog reset for unknown cause
         "Test init",
         "Icons: RESET OK OK",
-        "Icons: OK OK OK",
         "Icons: OK OK OK",
         NULL,
     };

@@ -7,13 +7,32 @@
 #include "test.h"
 
 // LCD functions
-// LCD functions
 extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
 extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
                                   uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
+extern void mock_reset_icons(void);
+
+static watchdog_error_t last_watchdog_error = (watchdog_error_t)0xff;
+static ntp_error_t last_ntp_error = (ntp_error_t)0xff;
+static wifi_error_t last_wifi_error = (wifi_error_t)0xff;
+
+void mock_reset_icons(void)
+{
+    last_watchdog_error = (watchdog_error_t)0xff;
+    last_ntp_error = (ntp_error_t)0xff;
+    last_wifi_error = (wifi_error_t)0xff;
+}
 
 void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
+
+    if (last_watchdog_error == watchdog_error && last_ntp_error == ntp_error && last_wifi_error == wifi_error) {
+        return;
+    }
+    last_watchdog_error = watchdog_error;
+    last_ntp_error = ntp_error;
+    last_wifi_error = wifi_error;
+
     // Skip name prefix on all status conversions, e.g. "WIFI_OK" -> "OK"
     const char *watchdog_error_string = watchdog_error_to_string(watchdog_error) + 9;
     const char *ntp_error_string = ntp_error_to_string(ntp_error) + 4;
