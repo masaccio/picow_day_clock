@@ -112,24 +112,14 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
             -DCMAKE_C_COMPILER=${TEST_C_COMPILER}
             -DCMAKE_CXX_COMPILER=${TEST_C_COMPILER}
         INSTALL_COMMAND ""
+        BUILD_ALWAYS TRUE
     )
 
     ExternalProject_Get_Property(test_picow_day_clock BINARY_DIR)
 
-    add_custom_command(
-        OUTPUT ${BINARY_DIR}/test_picow_day_clock
-        COMMAND ${CMAKE_COMMAND} --build ${BINARY_DIR}
-        DEPENDS
-            test_picow_day_clock
-            ${CLOCK_SRC_FILES}
-            ${GENERATED_FONT_SRC_FILES}
-            ${GENERATED_ICON_SRC_FILES}
-        WORKING_DIRECTORY ${BINARY_DIR}
-        COMMENT "Rebuilding host tests due to clock source changes"
-    )
-
     set(TEST_BINARY_DIR "${CMAKE_BINARY_DIR}/tests_build")
     add_custom_target(run_tests
+        COMMAND ${CMAKE_COMMAND} --build ${TEST_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E env
         LLVM_PROFILE_FILE=${TEST_BINARY_DIR}/coverage.profraw
         ${TEST_BINARY_DIR}/test_picow_day_clock
