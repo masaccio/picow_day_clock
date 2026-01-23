@@ -18,7 +18,7 @@ def image_to_bitmap(input_file: TextIO, size: int) -> list[int]:
     img = Image.open(input_file).convert("1")
     img = img.resize((size, size), Image.LANCZOS)
     img = img.point(lambda x: 0 if x > 128 else 1, "1")
-    pixels = list(img.getdata())
+    pixels = img.get_flattened_data()
 
     data = []
     bytes_per_row = (size + 7) // 8
