@@ -265,7 +265,7 @@ bool clock_timer_callback(repeating_timer_t *t)
     struct tm current_time;
     gmtime_r(&now, &current_time);
 
-    // Clear any watchdog error icon after it's een displayed a while
+    // Clear any watchdog error icon after it's been displayed a while
     if (now > (state->last_watchdog_error + WATCHDOG_ICON_INTERVAL)) {
         state->watchdog_reset_error = WATCHDOG_OK;
     }
