@@ -39,6 +39,7 @@ extern unsigned int log_buffer_size;
 extern unsigned int calloc_fail_at;
 extern unsigned int calloc_counter;
 extern unsigned int pbuf_alloc_fail_at;
+extern unsigned int test_verbose;
 extern int watchdog_reboot_called;
 extern unsigned int log_buffer_size;
 extern char **log_buffer;

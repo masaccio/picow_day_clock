@@ -234,7 +234,16 @@ int mock_printf(const char *format, ...)
         return 1;
     } else {
         log_buffer[log_buffer_size] = (char *)calloc(1, (size_t)buffer_len + 1);
+        // Reference strings do not have newlines
+        for (int ii = buffer_len - 1; ii > 0; ii--) {
+            if (buffer[ii] == '\r' || buffer[ii] == '\n') {
+                buffer[ii] = (char)0;
+            }
+        }
         strncpy(log_buffer[log_buffer_size], buffer, (size_t)buffer_len);
+        if (test_verbose) {
+            printf("DEBUG: %s\n", buffer);
+        }
         log_buffer_size += 1;
         return 0;
     }
