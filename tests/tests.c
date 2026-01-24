@@ -23,6 +23,7 @@ unsigned int log_buffer_size = 0;
 unsigned int calloc_fail_at = 0;
 unsigned int calloc_counter = 0;
 unsigned int pbuf_alloc_fail_at = 0;
+unsigned int test_verbose = 0;
 int watchdog_reboot_called = 0;
 char **log_buffer;
 
@@ -36,6 +37,10 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     memset(&test_config, 0, sizeof(test_config_t));
     log_buffer_size = 0;
 
+    if (test_verbose) {
+        printf("DEBUG: Starting test '%s'\n", test_name);
+    }
+
     // Run test
     int status = func();
 
@@ -43,15 +48,6 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         printf("TEST %s: FAIL\n", test_name);
     } else {
         printf("TEST %s: OK\n", test_name);
-    }
-
-    // Reference strings do not have newlines
-    for (unsigned int ii = 0; ii < log_buffer_size; ii++) {
-        for (size_t jj = strlen(log_buffer[ii]) - 1; jj > 0; jj--) {
-            if (log_buffer[ii][jj] == '\r' || log_buffer[ii][jj] == '\n') {
-                log_buffer[ii][jj] = (char)0;
-            }
-        }
     }
 
     int log_mismatch = 0;
@@ -322,20 +318,20 @@ static int test_ntp_time(void)
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
 
-    // Run for 9 simulated days
+    // Run for 10 simulated days
     // +1d: normal NTP update
     // +2d: generate a KoD
     // +3d: should not update NTP
     // +4d: normal NTP update
     // +6d: create a DNS error
     // +7d: watchdog error should clear
-    // +8d: normal NTP update
+    // +8d: normal NTP update (NTP error should clear)
     const int seconds_in_day = 24 * 60 * 60;
     int last_lcd_hour = -1;
     int last_lcd_min = -1;
     int drift = 50;
     int status = 0;
-    for (unsigned int tick = 0; tick < (9 * seconds_in_day); tick++) {
+    for (unsigned int tick = 0; tick < (10 * seconds_in_day); tick++) {
         (void)clock_timer_callback(timer);
         int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
         int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
@@ -464,9 +460,16 @@ static int test_watchdog(void)
     return 0;
 }
 
-int main(void)
+int main(const int argc, const char *argv[])
 {
     int status = 0;
+    if (argc > 1) {
+        if (strcmp(argv[1], "--verbose") == 0) {
+            test_verbose = 1;
+        } else {
+            fprintf(stderr, "Warning: unknown command-line argument %s\n", argv[1]);
+        }
+    }
 
     static const char *test_bad_ldc1_ref[] = {
         "Test init", "Failed to allocate clock state", "Test init", "LCD 1: failed to initialise", NULL,
@@ -480,10 +483,7 @@ int main(void)
     status |= run_test(test_dst, "Daylight savings", test_dst_ref);
 
     static const char *test_ntp_recovery_ref[] = {
-        "Icons: NTP OK OK",
-        "Icons: NTP DNS_ERROR OK",
-        "Icons: OK DNS_ERROR OK",
-        NULL,
+        "Icons: NTP OK OK", "Icons: NTP DNS_ERROR OK", "Icons: OK DNS_ERROR OK", "Icons: OK OK OK", NULL,
     };
     status |= run_test(test_ntp_time, "NTP time checks", test_ntp_recovery_ref);
 
