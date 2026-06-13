@@ -103,6 +103,17 @@ void gpio_put(uint gpio, int value)
     (void)value;
 }
 
+void gpio_pull_up(uint gpio)
+{
+    (void)gpio;
+}
+
+int gpio_get(uint gpio)
+{
+    (void)gpio;
+    return 0;
+}
+
 // PWM functions
 int pwm_gpio_to_slice_num(uint gpio)
 {

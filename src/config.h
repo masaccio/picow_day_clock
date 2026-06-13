@@ -20,6 +20,9 @@
 #define LCD_GPIO_CLK (uint16_t)10
 #define LCD_GPIO_MOSI (uint16_t)11
 
+#define CONFIG_BUTTON_GPIO (uint16_t)22 // GPIO to control the Wi-Fi mode
+#define CONFIG_BUTTON_HOLD_SECONDS 1    // How long the config button must be held
+
 #define WATCHDOG_TIMEOUT_MS (20 * 1000)     // Watchdog timeout in milliseconds (needs to be longer than timeouts)
 #define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) // Time to allow Wi-Fi driver to connect in milliseconds
 #define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) // How long to keep retrying connection in milliseconds

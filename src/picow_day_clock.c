@@ -13,6 +13,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "pico/stdlib.h"
@@ -87,6 +88,9 @@ const char *wifi_error_to_string(wifi_error_t status)
     return "UNKNOWN_STATUS";
 }
 
+extern volatile uint trigger_ap_mode;
+volatile uint trigger_ap_mode = 0;
+
 #ifdef TEST_MODE
 // In test mode, we want to return from main() but fatal_error() cannot return
 // so we use setjmp/longjmp to break out
@@ -122,6 +126,7 @@ static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_erro
     longjmp(fatal_jmp_buf, 1);
 }
 #else // Pico target
+clock_config_t current_config;
 persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
 
 static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
@@ -270,6 +275,23 @@ bool clock_timer_callback(repeating_timer_t *t)
         state->watchdog_reset_error = WATCHDOG_OK;
     }
 
+#ifndef TEST_MODE
+    static uint8_t button_hold_seconds = 0;
+    // Check the physical state of the button (0 means pressed due to pull-up)
+    if (gpio_get(CONFIG_BUTTON_GPIO) == 0) {
+        button_hold_seconds++;
+        CLOCK_DEBUG("Configuration mode selected %d second(s)\n", button_hold_seconds);
+
+        if (button_hold_seconds >= CONFIG_BUTTON_HOLD_SECONDS) {
+            button_hold_seconds = 0;
+            CLOCK_DEBUG("Configuration mode triggered!\n");
+            trigger_ap_mode = 1;
+        }
+    } else {
+        button_hold_seconds = 0;
+    }
+#endif
+
     if (state->first_clock_tick == 0 || current_time.tm_sec == 0) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
                     time_as_string(now), now, persistent_state.boot_count, state->ntp_reset_error,
@@ -349,6 +371,10 @@ int main(void)
 
     stdio_init_all();
 
+    gpio_init(CONFIG_BUTTON_GPIO);
+    gpio_set_dir(CONFIG_BUTTON_GPIO, GPIO_IN);
+    gpio_pull_up(CONFIG_BUTTON_GPIO);
+
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
@@ -374,10 +400,8 @@ int main(void)
 
     int cold_boot = (watchdog_caused_reboot() == 0);
     if (cold_boot) {
-        persistent_state.boot_count = 0;
-        persistent_state.watchdog_error = WATCHDOG_OK;
-        persistent_state.ntp_error = NTP_OK;
-        persistent_state.wifi_error = WIFI_OK;
+        memset(&persistent_state, 0, sizeof(persistent_state_t));
+        persistent_state.magic_marker = CONFIG_MAGIC;
         lcd_print_line(state->lcd_states[0], 2, GREEN, "LCD init successful");
         CLOCK_DEBUG("Cold boot\r\n");
     } else {
@@ -399,6 +423,22 @@ int main(void)
         persistent_state.ntp_error = NTP_OK;
         persistent_state.wifi_error = WIFI_OK;
     }
+
+#ifndef TEST_MODE
+    CLOCK_DEBUG("Checking flash\r\n");
+    clock_config_t *flash_config = (clock_config_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
+    if (flash_config->magic_marker == CONFIG_MAGIC) {
+        CLOCK_DEBUG("Valid config loaded from Flash\r\n");
+        memcpy(&current_config, flash_config, sizeof(clock_config_t));
+    } else {
+        CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
+        lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
+        lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
+        start_wifi_access_point();
+        // sprintf(current_config.ntp_server, "pool.ntp.org");
+    }
+    CLOCK_DEBUG("Checking flash done\r\n");
+#endif
 #ifdef TEST_MODE
     // Test has generated a watchdog reset and logged its outcome so we can return to the test harness now
     if (test_main_watchdog_reentry) {
@@ -453,6 +493,11 @@ int main(void)
 
 #ifndef TEST_MODE
     while (1) {
+        if (trigger_ap_mode) {
+            trigger_ap_mode = 0;
+            printf("Starting access point...\n");
+            start_wifi_access_point();
+        }
         sleep_ms(1000);
     }
 #endif

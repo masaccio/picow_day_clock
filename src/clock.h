@@ -5,6 +5,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/flash.h"
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
 #else
@@ -91,13 +92,27 @@ typedef enum
     WATCHDOG_WIFI,
 } watchdog_error_t;
 
+#define CONFIG_MAGIC ((uint32_t)'C' << 24 | (uint32_t)'L' << 16 | (uint32_t)'O' << 8 | (uint32_t)'K')
+#define FLASH_TARGET_OFFSET (3 * 1024 * 1024)
+
 typedef struct
 {
+    uint32_t magic_marker;
     uint32_t boot_count;
     watchdog_error_t watchdog_error;
     ntp_error_t ntp_error;
     wifi_error_t wifi_error;
 } persistent_state_t;
+
+typedef struct
+{
+    uint32_t magic_marker;
+    char wifi_ssid[33];
+    char wifi_password[64];
+    char ntp_server[64];
+} clock_config_t;
+
+extern clock_config_t current_config;
 
 typedef struct lcd_state_t
 {
@@ -159,6 +174,8 @@ extern void ntp_timer_callback(void *state, time_t *ntp_time);
 
 // Cross-module functions
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
+
+extern int start_wifi_access_point(void);
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, int reset);

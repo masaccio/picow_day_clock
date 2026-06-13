@@ -87,6 +87,7 @@ enum
     PBUF_RAM,
     GPIO_FUNC_PWM,
     GPIO_FUNC_SPI,
+    GPIO_IN,
     GPIO_OUT,
     PICO_ERROR_CONNECT_FAILED,
     PICO_ERROR_TIMEOUT,
@@ -104,6 +105,8 @@ void gpio_set_function(uint gpio, uint func);
 void gpio_init(uint gpio);
 void gpio_set_dir(uint gpio, int out);
 void gpio_put(uint gpio, int value);
+void gpio_pull_up(uint gpio);
+int gpio_get(uint gpio);
 
 // PWM functions
 int pwm_gpio_to_slice_num(uint gpio);
