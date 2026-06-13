@@ -11,7 +11,9 @@ CTRL
 datasheet
 DCMAKE
 desoldered
+dhcpserver
 DISPON
+dnsserver
 DollaTek
 DVVRHEN
 ezdxf

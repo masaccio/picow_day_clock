@@ -50,11 +50,13 @@ set_source_files_properties(${GENERATED_ICON_SRC_FILES} PROPERTIES GENERATED TRU
 
 include_directories(
     src
+    src/dhcpserver
+    src/dnsserver
     ${CMAKE_BINARY_DIR}/generated
     ${CMAKE_CURRENT_LIST_DIR})
 
 
-file(GLOB CLOCK_SRC_FILES src/*.c)
+file(GLOB CLOCK_SRC_FILES src/*.c src/dhcpserver/dhcpserver.c  src/dnsserver/dnsserver.c)
 
 add_executable(picow_day_clock
     ${CLOCK_SRC_FILES}

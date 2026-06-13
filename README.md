@@ -149,6 +149,8 @@ ST7789 init and driver code is derived from the [Waveshare Sample Demo](https://
 
 NTP driver code is derived from [pico_ntp_client](https://github.com/raspberrypi/pico-examples/tree/master/pico_w/wifi/ntp_client) in the [Raspberry Pi Pico SDK Examples](https://github.com/raspberrypi/pico-examples) which is [licensed](raspberry-pi.txt) under a BSD license.
 
+The access point and associated DHCP/DNS server are derived from [pico_access_point](https://github.com/raspberrypi/pico-examples/tree/master/pico_w/wifi/access_point) in the [Raspberry Pi Pico SDK Examples](https://github.com/raspberrypi/pico-examples) which is [licensed](raspberry-pi.txt) under a BSD license.
+
 Variable width fonts replace the fixed-width fonts in the Waveshare examples, but the C data structures are ultimately derived from work by STMicroelectronics [licensed](licenses/stm.txt) under the 3-clause BSD license.
 
 The digit fonts included in the repository are [Bebas Neue Regular](https://fonts.google.com/specimen/Bebas+Neue) which is [licensed](licenses/BebasNeue-OFL.txt) under the Open Font License, and [Oswald](https://fonts.google.com/specimen/Oswald) which is also [licensed](licenses/Oswald-OFL.txt) under the Open Font License.
