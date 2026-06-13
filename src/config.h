@@ -49,4 +49,34 @@
 
 #define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
+#define HTTP_TCP_PORT 80
+#define HTTP_POLL_TIME_SEC 5
+#define HTTP_RESPONSE_REDIRECT_HEADER                                                                                  \
+    "HTTP/1.1 302 Found\r\n"                                                                                           \
+    "Location: http://%s" HTTP_CONFIG_URL "\r\n"                                                                       \
+    "Connection: close\r\n"                                                                                            \
+    "\r\n"
+#define HTTP_RESPONSE_OK_HEADER                                                                                        \
+    "HTTP/1.1 200 OK\r\n"                                                                                              \
+    "Content-Type: text/html; charset=utf-8\r\n"                                                                       \
+    "Connection: close\r\n"                                                                                            \
+    "\r\n"
+#define HTTP_SAVE_URL "/save"
+#define HTTP_CONFIG_URL "/clock-config"
+#define HTTP_FORM_BODY                                                                                                 \
+    "<form method=\"POST\" action=\"" HTTP_SAVE_URL "\">\n"                                                            \
+    "  <h3>Network</h3>\n"                                                                                             \
+    "  <input type=\"text\" name=\"ssid\" placeholder=\"Wi-Fi Name\" required>\n"                                      \
+    "  <input type=\"password\" name=\"pwd\" placeholder=\"Password\" required>\n"                                     \
+    "  \n"                                                                                                             \
+    "  <h3>Advanced Settings</h3>\n"                                                                                   \
+    "  <label>NTP Server</label>\n"                                                                                    \
+    "  <input type=\"text\" name=\"ntp\" value=\"pool.ntp.org\">\n"                                                    \
+    "  \n"                                                                                                             \
+    "  <label>Connect Timeout (seconds)</label>\n"                                                                     \
+    "  <input type=\"number\" name=\"cto\" value=\"10\">\n"                                                            \
+    "  \n"                                                                                                             \
+    "  <button type=\"submit\">Save & Reboot</button>\n"                                                               \
+    "</form>\n"
+
 #endif // CONFIG_H
