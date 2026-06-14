@@ -104,8 +104,8 @@ int spi_write_blocking(spi_inst_t *spi, const uint8_t *src, size_t len);
 void gpio_set_function(uint gpio, uint func);
 void gpio_init(uint gpio);
 void gpio_set_dir(uint gpio, int out);
-void gpio_put(uint gpio, int value);
 void gpio_pull_up(uint gpio);
+void gpio_put(uint gpio, int value);
 int gpio_get(uint gpio);
 
 // PWM functions
