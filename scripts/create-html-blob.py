@@ -18,11 +18,12 @@ def main():
     c_filename = args.output
     h_filename = args.output.replace(".c", ".h")
 
-    print(f"Generating {c_filename} and {h_filename}...")
+    print(f"Generating {c_filename} and {h_filename}")
 
     with open(c_filename, "w", encoding="utf-8") as f_c, open(h_filename, "w", encoding="utf-8") as f_h:
         f_h.write("#pragma once\n\n")
-        f_c.write(f'#include "{h_filename}"\n\n')
+        include_file = os.path.basename(h_filename)
+        f_c.write(f'#include "{include_file}"\n\n')
 
         var_name = to_c_identifier(args.input)
 
@@ -30,11 +31,10 @@ def main():
             content = f_in.read()
 
         f_h.write(f"extern const char {var_name}[];\n")
-        f_h.write(f"extern const unsigned int {var_name}_len;\n\n")
+        f_h.write(f"extern const unsigned int {var_name}_len;\n")
 
         f_c.write(f"const char {var_name}[] =\n")
 
-        # Process line by line so the C code is actually readable
         for line in content.splitlines(True):
             # Escape backslashes first, then quotes, then newlines
             escaped = line.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
@@ -42,11 +42,7 @@ def main():
 
         f_c.write(";\n")
 
-        f_c.write(f"const unsigned int {var_name}_len = sizeof({var_name}) - 1;\n\n")
-
-        print(f" -> Processed {args.input} into '{var_name}'")
-
-    print("Done!")
+        f_c.write(f"const unsigned int {var_name}_len = sizeof({var_name}) - 1;\n")
 
 
 if __name__ == "__main__":
