@@ -8,6 +8,7 @@
 
 #include "dhcpserver.h"
 #include "dnsserver.h"
+#include "html_form.h"
 #else
 #include "mock.h"
 #endif
@@ -131,7 +132,7 @@ static int test_server_content(const char *request, const char *params, char *re
     int len = 0;
     if (strncmp(request, HTTP_CONFIG_URL, sizeof(HTTP_CONFIG_URL) - 1) == 0) {
         CLOCK_DEBUG("Found clock request\r\n");
-        strncpy(result, HTTP_FORM_BODY, max_result_len);
+        strncpy(result, form_html, max_result_len);
         len = sizeof(HTTP_FORM_BODY);
     } else {
         CLOCK_DEBUG("Not handling request: %s\r\n", request);

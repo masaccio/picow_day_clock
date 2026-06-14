@@ -47,6 +47,7 @@ endif()
 add_subdirectory(scripts)
 set_source_files_properties(${GENERATED_FONT_SRC_FILES} PROPERTIES GENERATED TRUE)
 set_source_files_properties(${GENERATED_ICON_SRC_FILES} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${GENERATED_HTML_SRC_FILES} PROPERTIES GENERATED TRUE)
 
 include_directories(
     src
@@ -62,6 +63,7 @@ add_executable(picow_day_clock
     ${CLOCK_SRC_FILES}
     ${GENERATED_FONT_SRC_FILES}
     ${GENERATED_ICON_SRC_FILES}
+    ${GENERATED_HTML_SRC_FILES}
 )
 
 # Configuration options for the clock. Wi-Fi credentials are required
@@ -89,7 +91,7 @@ target_link_libraries(picow_day_clock
 )
 
 pico_add_extra_outputs(picow_day_clock)
-add_dependencies(picow_day_clock generate_fonts generate_icons)
+add_dependencies(picow_day_clock generate_fonts generate_icons generate_html)
 
 # The Release build is expected to be used without the CMSIS-DAP debugger
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -130,7 +132,7 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
     )
 
     add_dependencies(run_tests test_picow_day_clock)
-    add_dependencies(test_picow_day_clock generate_fonts generate_icons)
+    add_dependencies(test_picow_day_clock generate_fonts generate_icons generate_html)
 
     add_test(NAME picow_day_clock_test
         COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)

@@ -8,6 +8,11 @@ set(TEXT_HEIGHT 20)
 set(TEXT_C_NAME text_font)
 set(TEXT_C_SRC ${GENERATED_DIR}/${TEXT_C_NAME}.c)
 
+set(HTML_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-html-blob.py)
+set(HTML_SOURCE ${CMAKE_SOURCE_DIR}/src/html/form.html)
+set(HTML_C_NAME html_form)
+set(HTML_C_SRC ${GENERATED_DIR}/${HTML_C_NAME}.c)
+
 set(LCD_HEIGHT 320)
 set(LCD_WIDTH 172)
 set(CLOCK_C_NAME clock_digit_font)
@@ -50,6 +55,7 @@ add_custom_command(
 
 set(GENERATED_FONT_SRC_FILES "")
 set(GENERATED_ICON_SRC_FILES "")
+set(GENERATED_HTML_SRC_FILES "")
 
 list(APPEND GENERATED_FONT_SRC_FILES ${TEXT_C_SRC})
 add_custom_command(
@@ -91,6 +97,15 @@ foreach(ICON_NAME IN ITEMS ${ICONS_LIST})
     )
 endforeach()
 
+list(APPEND GENERATED_HTML_SRC_FILES ${HTML_C_SRC})
+add_custom_command(
+    OUTPUT ${HTML_C_SRC}
+    DEPENDS ${HTML_SCRIPT} ${HTML_SOURCE}
+    COMMAND ${PYTHON_EXECUTABLE} ${HTML_SCRIPT}
+            ${HTML_SOURCE} ${HTML_C_SRC}
+    COMMENT "Generating font file ${HTML_C_SRC}"
+)
+
 add_custom_target(generate_fonts
     DEPENDS ${GENERATED_FONT_SRC_FILES}
     COMMENT "Generating all fonts"
@@ -101,18 +116,26 @@ add_custom_target(generate_icons
     COMMENT "Generating all icons"
 )
 
+add_custom_target(generate_html
+    DEPENDS ${GENERATED_HTML_SRC_FILES}
+    COMMENT "Generating all HTML"
+)
+
 add_custom_target(clean_generated
     COMMAND ${CMAKE_COMMAND} -E rm -rf ${PIL_PACKAGE_DIR}
     COMMAND ${CMAKE_COMMAND} -E rm -f
         ${GENERATED_FONT_SRC_FILES}
         ${GENERATED_ICON_SRC_FILES}
-    COMMENT "Cleaning generated font and icon files"
+        ${GENERATED_HTML_SRC_FILES}
+    COMMENT "Cleaning generated files"
 )
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     ${GENERATED_FONT_SRC_FILES}
     ${GENERATED_ICON_SRC_FILES}
+    ${GENERATED_HTML_SRC_FILES}
 )
 
 set(GENERATED_FONT_SRC_FILES ${GENERATED_FONT_SRC_FILES} PARENT_SCOPE)
 set(GENERATED_ICON_SRC_FILES ${GENERATED_ICON_SRC_FILES} PARENT_SCOPE)
+set(GENERATED_HTML_SRC_FILES ${GENERATED_HTML_SRC_FILES} PARENT_SCOPE)
