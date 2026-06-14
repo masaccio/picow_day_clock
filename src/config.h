@@ -63,4 +63,10 @@
     "\r\n"
 #define HTTP_CONFIG_URL "/clock-config"
 
+// IEEE 802.11 standard limits
+#define WIFI_SSID_MAX_LEN 32
+#define WIFI_PASSWORD_MAX_LEN 63
+// Maximum length for Linux FQDN
+#define HOSTNAME_MAX_LEN 64
+
 #endif // CONFIG_H

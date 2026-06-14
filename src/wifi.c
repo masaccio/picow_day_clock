@@ -66,14 +66,14 @@ wifi_error_t connect_to_wifi(const char ssid[], const char password[])
 
 #ifndef TEST_MODE
 
-typedef struct TCP_SERVER_T_
+typedef struct
 {
     struct tcp_pcb *server_pcb;
     bool complete;
     ip_addr_t gw;
-} TCP_SERVER_T;
+} tcp_server_t;
 
-typedef struct TCP_CONNECT_STATE_T_
+typedef struct
 {
     struct tcp_pcb *pcb;
     int sent_len;
@@ -82,9 +82,10 @@ typedef struct TCP_CONNECT_STATE_T_
     int header_len;
     int result_len;
     ip_addr_t *gw;
-} TCP_CONNECT_STATE_T;
+    store_config_handler_t store_config;
+} tcp_connect_state_t;
 
-static err_t tcp_close_client_connection(TCP_CONNECT_STATE_T *con_state, struct tcp_pcb *client_pcb, err_t close_err)
+static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     if (client_pcb) {
         assert(con_state && con_state->pcb == client_pcb);
@@ -106,7 +107,7 @@ static err_t tcp_close_client_connection(TCP_CONNECT_STATE_T *con_state, struct 
     return close_err;
 }
 
-static void tcp_server_close(TCP_SERVER_T *state)
+static void tcp_server_close(tcp_server_t *state)
 {
     if (state->server_pcb) {
         tcp_arg(state->server_pcb, NULL);
@@ -117,7 +118,7 @@ static void tcp_server_close(TCP_SERVER_T *state)
 
 static err_t tcp_server_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
-    TCP_CONNECT_STATE_T *con_state = (TCP_CONNECT_STATE_T *)arg;
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     CLOCK_DEBUG("tcp_server_sent %u\n", len);
     con_state->sent_len += len;
     if (con_state->sent_len >= con_state->header_len + con_state->result_len) {
@@ -127,108 +128,152 @@ static err_t tcp_server_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
     return ERR_OK;
 }
 
-static int test_server_content(const char *request, const char *params, char *result, size_t max_result_len)
+static int hex_to_int(char c)
 {
-    int len = 0;
-    if (strncmp(request, HTTP_CONFIG_URL, sizeof(HTTP_CONFIG_URL) - 1) == 0) {
-        CLOCK_DEBUG("Found clock request\r\n");
-        strncpy(result, form_html, max_result_len);
-        len = form_html_len;
-    } else {
-        CLOCK_DEBUG("Not handling request: %s\r\n", request);
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return 0;
+}
+
+static void urldecode_inplace(char *str)
+{
+    char *dst = str;
+    char *src = str;
+
+    while (*src) {
+        if ((*src == '%') && src[1] && src[2]) {
+            *dst++ = (hex_to_int(src[1]) << 4) | hex_to_int(src[2]);
+            src += 3;
+        } else if (*src == '+') {
+            *dst++ = ' ';
+            src++;
+        } else {
+            *dst++ = *src++;
+        }
     }
-    return len;
+    *dst = '\0';
 }
 
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
-    TCP_CONNECT_STATE_T *con_state = (TCP_CONNECT_STATE_T *)arg;
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     if (!p) {
         CLOCK_DEBUG("connection closed\n");
         return tcp_close_client_connection(con_state, pcb, ERR_OK);
     }
     assert(con_state && con_state->pcb == pcb);
+
     if (p->tot_len > 0) {
         CLOCK_DEBUG("tcp_server_recv %d err %d\n", p->tot_len, err);
-        // Copy the request into the buffer
-        pbuf_copy_partial(p, con_state->headers,
-                          p->tot_len > sizeof(con_state->headers) - 1 ? sizeof(con_state->headers) - 1 : p->tot_len, 0);
 
-        // Handle GET request
-        if (strncmp("GET", con_state->headers, 3) == 0) {
-            char *request = con_state->headers + 4; // + space
-            char *params = strchr(request, '?');
-            if (params) {
-                if (*params) {
-                    char *space = strchr(request, ' ');
-                    *params++ = 0;
-                    if (space) {
-                        *space = 0;
+        size_t copy_len = p->tot_len;
+        if (copy_len >= sizeof(con_state->headers)) {
+            copy_len = sizeof(con_state->headers) - 1;
+        }
+        pbuf_copy_partial(p, con_state->headers, copy_len, 0);
+        // pbuf_copy_partial does not add a null terminator
+        con_state->headers[copy_len] = '\0';
+
+        char *request = con_state->headers;
+
+        // Form submission route
+        if (strncmp(request, "POST ", 5) == 0) {
+            CLOCK_DEBUG("Processing POST request...\n");
+
+            clock_config_t config = {0};
+            config.has_dst = 0;
+
+            // Locate the HTTP body (starts after \r\n\r\n)
+            char *body = strstr(request, "\r\n\r\n");
+            if (body) {
+                body += 4; // Move pointer past the line breaks
+
+                // Tokenize and parse the key=value pairs
+                char *pair = strtok(body, "&");
+                while (pair != NULL) {
+                    char *eq = strchr(pair, '=');
+                    if (eq) {
+                        *eq = '\0';
+                        char *key = pair;
+                        char *value = eq + 1;
+
+                        urldecode_inplace(value); // Decode special chars (like & or +)
+
+                        if (strcmp(key, "ssid") == 0)
+                            strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
+                        else if (strcmp(key, "pwd") == 0)
+                            strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
+                        else if (strcmp(key, "ntp") == 0)
+                            strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
+                        else if (strcmp(key, "tz") == 0)
+                            strncpy(config.timezone, value, sizeof(config.timezone) - 1);
+                        else if (strcmp(key, "dst") == 0)
+                            config.has_dst = 1; // Only hits if checkbox is checked
+                        else if (strcmp(key, "cto") == 0)
+                            config.timeout = atoi(value);
                     }
-                } else {
-                    params = NULL;
+                    pair = strtok(NULL, "&");
                 }
             }
 
-            // Generate content
-            con_state->result_len = test_server_content(request, params, con_state->result, sizeof(con_state->result));
-            CLOCK_DEBUG("Request: %s?%s\n", request, params);
-            CLOCK_DEBUG("Result: %d\n", con_state->result_len);
-
-            // Check we had enough buffer space
-            if (con_state->result_len > sizeof(con_state->result) - 1) {
-                CLOCK_DEBUG("Too much result data %d\n", con_state->result_len);
-                return tcp_close_client_connection(con_state, pcb, ERR_CLSD);
-            }
-
-            // Generate web page
-            if (con_state->result_len > 0) {
-                con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers),
-                                                 HTTP_RESPONSE_OK_HEADER, 200, con_state->result_len);
-                if (con_state->header_len > sizeof(con_state->headers) - 1) {
-                    CLOCK_DEBUG("Too much header data %d\n", con_state->header_len);
-                    return tcp_close_client_connection(con_state, pcb, ERR_CLSD);
-                }
+            // Execute the save callback
+            if (con_state->store_config(&config) == 0) {
+                const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
+                tcp_write(pcb, success_msg, strlen(success_msg), 0);
             } else {
-                // Send redirect
-                con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers),
-                                                 HTTP_RESPONSE_REDIRECT_HEADER, ipaddr_ntoa(con_state->gw));
-                CLOCK_DEBUG("Sending redirect %s", con_state->headers);
-            }
-
-            // Send the headers to the client
-            con_state->sent_len = 0;
-            err_t err = tcp_write(pcb, con_state->headers, con_state->header_len, 0);
-            if (err != ERR_OK) {
-                CLOCK_DEBUG("failed to write header data %d\n", err);
-                return tcp_close_client_connection(con_state, pcb, err);
-            }
-
-            // Send the body to the client
-            if (con_state->result_len) {
-                err = tcp_write(pcb, con_state->result, con_state->result_len, 0);
-                if (err != ERR_OK) {
-                    CLOCK_DEBUG("failed to write result data %d\n", err);
-                    return tcp_close_client_connection(con_state, pcb, err);
-                }
+                const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
+                tcp_write(pcb, fail_msg, strlen(fail_msg), 0);
             }
         }
+        // Portal requesting form
+        else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
+                 strncmp(request, "GET / ", 6) == 0) {
+
+            CLOCK_DEBUG("Serving config HTML directly from Flash...\n");
+
+            // Write Headers
+            con_state->header_len =
+                snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER, 200, form_html_len);
+
+            // Send Headers (Use FLAG_MORE to keep the packet open)
+            tcp_write(pcb, con_state->headers, con_state->header_len, TCP_WRITE_FLAG_MORE);
+
+            // Send the HTML directly from the read-only flash pointer.
+            // No length checks or SRAM buffers needed.
+            tcp_write(pcb, form_html, form_html_len, 0);
+        }
+        // Generic captive portal redirect
+        else {
+            CLOCK_DEBUG("Unknown request, sending 302 Redirect...\n");
+
+            con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers),
+                                             HTTP_RESPONSE_REDIRECT_HEADER, ipaddr_ntoa(con_state->gw));
+            tcp_write(pcb, con_state->headers, con_state->header_len, 0);
+        }
+
+        // Push data to the network
+        tcp_output(pcb);
         tcp_recved(pcb, p->tot_len);
     }
+
     pbuf_free(p);
     return ERR_OK;
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *pcb)
 {
-    TCP_CONNECT_STATE_T *con_state = (TCP_CONNECT_STATE_T *)arg;
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     CLOCK_DEBUG("tcp_server_poll_fn\n");
     return tcp_close_client_connection(con_state, pcb, ERR_OK); // Just disconnect clent?
 }
 
 static void tcp_server_err(void *arg, err_t err)
 {
-    TCP_CONNECT_STATE_T *con_state = (TCP_CONNECT_STATE_T *)arg;
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     if (err != ERR_ABRT) {
         CLOCK_DEBUG("tcp_client_err_fn %d\n", err);
         tcp_close_client_connection(con_state, con_state->pcb, err);
@@ -237,7 +282,7 @@ static void tcp_server_err(void *arg, err_t err)
 
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 {
-    TCP_SERVER_T *state = (TCP_SERVER_T *)arg;
+    tcp_server_t *state = (tcp_server_t *)arg;
     if (err != ERR_OK || client_pcb == NULL) {
         CLOCK_DEBUG("failure in accept\n");
         return ERR_VAL;
@@ -245,7 +290,7 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     CLOCK_DEBUG("client connected\n");
 
     // Create the state for the connection
-    TCP_CONNECT_STATE_T *con_state = calloc(1, sizeof(TCP_CONNECT_STATE_T));
+    tcp_connect_state_t *con_state = calloc(1, sizeof(tcp_connect_state_t));
     if (!con_state) {
         CLOCK_DEBUG("failed to allocate connect state\n");
         return ERR_MEM;
@@ -265,7 +310,7 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 
 static bool tcp_server_open(void *arg, const char *ssid)
 {
-    TCP_SERVER_T *state = (TCP_SERVER_T *)arg;
+    tcp_server_t *state = (tcp_server_t *)arg;
     CLOCK_DEBUG("starting server on port %d\n", HTTP_TCP_PORT);
 
     struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
@@ -306,11 +351,11 @@ char *get_ssid()
     return ssid;
 }
 
-int start_wifi_access_point()
+wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 
-    TCP_SERVER_T *state = calloc(1, sizeof(TCP_SERVER_T));
+    tcp_server_t *state = calloc(1, sizeof(tcp_server_t));
     if (!state) {
         CLOCK_DEBUG("Failed to allocate Wi-Fi state\r\n");
         return WIFI_INIT_ERROR;
@@ -325,12 +370,6 @@ int start_wifi_access_point()
     char *ssid = get_ssid();
     cyw43_arch_disable_sta_mode();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
-
-    // ip4_addr_t ip, mask, gw;
-
-    // ip4_addr_set_u32(&ip, PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS));
-    // ip4_addr_set_u32(&mask, PP_HTONL(CYW43_DEFAULT_IP_MASK));
-    // ip4_addr_set_u32(&gw, PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS));
 
 #if LWIP_IPV6
 #define IP(x) ((x).u_addr.ip4)

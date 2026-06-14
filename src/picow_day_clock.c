@@ -349,6 +349,12 @@ bool clock_timer_callback(repeating_timer_t *t)
     return 1; // Keep repeating
 }
 
+int config_store_handler(clock_config_t *config)
+{
+    (void)config;
+    return 0;
+}
+
 #ifdef TEST_MODE
 // In test mode, main() always returns, even in the case of a fatal error
 // as we need to that fatal errors happened for the correct reasons.
@@ -434,7 +440,7 @@ int main(void)
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
-        start_wifi_access_point();
+        start_wifi_access_point(config_store_handler);
         // sprintf(current_config.ntp_server, "pool.ntp.org");
     }
     CLOCK_DEBUG("Checking flash done\r\n");
@@ -496,7 +502,7 @@ int main(void)
         if (trigger_ap_mode) {
             trigger_ap_mode = 0;
             printf("Starting access point...\n");
-            start_wifi_access_point();
+            start_wifi_access_point(config_store_handler);
         }
         sleep_ms(1000);
     }

@@ -107,12 +107,17 @@ typedef struct
 typedef struct
 {
     uint32_t magic_marker;
-    char wifi_ssid[33];
-    char wifi_password[64];
-    char ntp_server[64];
+    char wifi_ssid[WIFI_SSID_MAX_LEN + 1];
+    char wifi_password[WIFI_PASSWORD_MAX_LEN + 1];
+    char ntp_server[HOSTNAME_MAX_LEN + 1];
+    char timezone[8];
+    int has_dst;
+    int timeout;
 } clock_config_t;
 
 extern clock_config_t current_config;
+
+typedef int (*store_config_handler_t)(clock_config_t *config);
 
 typedef struct lcd_state_t
 {
@@ -169,13 +174,16 @@ extern const char *ntp_error_to_string(ntp_error_t status);
 extern const char *wifi_error_to_string(wifi_error_t status);
 extern persistent_state_t persistent_state;
 extern int last_weekday_of_month(int day, int month, int year);
+
+// Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
+extern int config_store_handler(clock_config_t *config);
 
 // Cross-module functions
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
 
-extern int start_wifi_access_point(void);
+extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config);
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, int reset);
