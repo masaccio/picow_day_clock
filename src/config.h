@@ -61,22 +61,6 @@
     "Content-Type: text/html; charset=utf-8\r\n"                                                                       \
     "Connection: close\r\n"                                                                                            \
     "\r\n"
-#define HTTP_SAVE_URL "/save"
 #define HTTP_CONFIG_URL "/clock-config"
-#define HTTP_FORM_BODY                                                                                                 \
-    "<form method=\"POST\" action=\"" HTTP_SAVE_URL "\">\n"                                                            \
-    "  <h3>Network</h3>\n"                                                                                             \
-    "  <input type=\"text\" name=\"ssid\" placeholder=\"Wi-Fi Name\" required>\n"                                      \
-    "  <input type=\"password\" name=\"pwd\" placeholder=\"Password\" required>\n"                                     \
-    "  \n"                                                                                                             \
-    "  <h3>Advanced Settings</h3>\n"                                                                                   \
-    "  <label>NTP Server</label>\n"                                                                                    \
-    "  <input type=\"text\" name=\"ntp\" value=\"pool.ntp.org\">\n"                                                    \
-    "  \n"                                                                                                             \
-    "  <label>Connect Timeout (seconds)</label>\n"                                                                     \
-    "  <input type=\"number\" name=\"cto\" value=\"10\">\n"                                                            \
-    "  \n"                                                                                                             \
-    "  <button type=\"submit\">Save & Reboot</button>\n"                                                               \
-    "</form>\n"
 
 #endif // CONFIG_H

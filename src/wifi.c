@@ -78,7 +78,7 @@ typedef struct TCP_CONNECT_STATE_T_
     struct tcp_pcb *pcb;
     int sent_len;
     char headers[256];
-    char result[4096];
+    char result[8192];
     int header_len;
     int result_len;
     ip_addr_t *gw;
@@ -133,7 +133,7 @@ static int test_server_content(const char *request, const char *params, char *re
     if (strncmp(request, HTTP_CONFIG_URL, sizeof(HTTP_CONFIG_URL) - 1) == 0) {
         CLOCK_DEBUG("Found clock request\r\n");
         strncpy(result, form_html, max_result_len);
-        len = sizeof(HTTP_FORM_BODY);
+        len = form_html_len;
     } else {
         CLOCK_DEBUG("Not handling request: %s\r\n", request);
     }
