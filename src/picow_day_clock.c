@@ -13,6 +13,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/flash.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include "hardware/watchdog.h"
@@ -349,11 +350,19 @@ bool clock_timer_callback(repeating_timer_t *t)
     return 1; // Keep repeating
 }
 
+#ifndef TEST_MODE
 int config_store_handler(clock_config_t *config)
 {
-    (void)config;
+    config->magic_marker = CONFIG_MAGIC;
+    uint32_t interrupts = save_and_disable_interrupts();
+    flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
+    flash_range_program(FLASH_TARGET_OFFSET, (uint8_t *)config, sizeof(clock_config_t));
+    restore_interrupts(interrupts);
+
+    CLOCK_DEBUG("Stored new config in flash\r\n");
     return 0;
 }
+#endif
 
 #ifdef TEST_MODE
 // In test mode, main() always returns, even in the case of a fatal error
