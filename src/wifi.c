@@ -71,6 +71,7 @@ typedef struct
     struct tcp_pcb *server_pcb;
     bool complete;
     ip_addr_t gw;
+    store_config_handler_t store_config;
 } tcp_server_t;
 
 typedef struct
@@ -83,6 +84,7 @@ typedef struct
     int result_len;
     ip_addr_t *gw;
     store_config_handler_t store_config;
+    tcp_server_t *server_state;
 } tcp_connect_state_t;
 
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
@@ -245,6 +247,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
         if (con_state->store_config(&config) == 0) {
             const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
             tcp_write(pcb, success_msg, strlen(success_msg), 0);
+            con_state->server_state->complete = true;
         } else {
             const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
             tcp_write(pcb, fail_msg, strlen(fail_msg), 0);
@@ -302,6 +305,8 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         CLOCK_DEBUG("failed to allocate connect state\n");
         return ERR_MEM;
     }
+    con_state->store_config = state->store_config;
+    con_state->server_state = state;
     con_state->pcb = client_pcb; // for checking
     con_state->gw = &state->gw;
 
@@ -370,6 +375,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
         CLOCK_DEBUG("Failed to allocate Wi-Fi state\r\n");
         return WIFI_INIT_ERROR;
     }
+    state->store_config = store_config;
 
     if (!wifi_is_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
@@ -409,10 +415,14 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
         sleep_ms(1000);
     }
 
+    cyw43_arch_disable_ap_mode();
     tcp_server_close(state);
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
 
+    free(state);
+
+    CLOCK_DEBUG("start_wifi_access_point DONE\r\n");
     return STATUS_WIFI_OK;
 }
 
