@@ -77,7 +77,7 @@ typedef struct
 {
     struct tcp_pcb *pcb;
     int sent_len;
-    char headers[256];
+    char headers[8192];
     char result[8192];
     int header_len;
     int result_len;
@@ -162,105 +162,112 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
     tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     if (!p) {
-        CLOCK_DEBUG("connection closed\n");
         return tcp_close_client_connection(con_state, pcb, ERR_OK);
     }
     assert(con_state && con_state->pcb == pcb);
 
     if (p->tot_len > 0) {
-        CLOCK_DEBUG("tcp_server_recv %d err %d\n", p->tot_len, err);
+        size_t current_len = strlen(con_state->headers);
+        size_t available_space = sizeof(con_state->headers) - current_len - 1;
+        size_t copy_len = p->tot_len > available_space ? available_space : p->tot_len;
 
-        size_t copy_len = p->tot_len;
-        if (copy_len >= sizeof(con_state->headers)) {
-            copy_len = sizeof(con_state->headers) - 1;
-        }
-        pbuf_copy_partial(p, con_state->headers, copy_len, 0);
-        // pbuf_copy_partial does not add a null terminator
-        con_state->headers[copy_len] = '\0';
+        pbuf_copy_partial(p, con_state->headers + current_len, copy_len, 0);
+        con_state->headers[current_len + copy_len] = '\0';
 
-        char *request = con_state->headers;
-
-        // Form submission route
-        if (strncmp(request, "POST ", 5) == 0) {
-            CLOCK_DEBUG("Processing POST request...\n");
-
-            clock_config_t config = {0};
-            config.has_dst = 0;
-
-            // Locate the HTTP body (starts after \r\n\r\n)
-            char *body = strstr(request, "\r\n\r\n");
-            if (body) {
-                body += 4; // Move pointer past the line breaks
-
-                // Tokenize and parse the key=value pairs
-                char *pair = strtok(body, "&");
-                while (pair != NULL) {
-                    char *eq = strchr(pair, '=');
-                    if (eq) {
-                        *eq = '\0';
-                        char *key = pair;
-                        char *value = eq + 1;
-
-                        urldecode_inplace(value); // Decode special chars (like & or +)
-
-                        if (strcmp(key, "ssid") == 0)
-                            strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
-                        else if (strcmp(key, "pwd") == 0)
-                            strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
-                        else if (strcmp(key, "ntp") == 0)
-                            strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
-                        else if (strcmp(key, "tz") == 0)
-                            strncpy(config.timezone, value, sizeof(config.timezone) - 1);
-                        else if (strcmp(key, "dst") == 0)
-                            config.has_dst = 1; // Only hits if checkbox is checked
-                        else if (strcmp(key, "cto") == 0)
-                            config.timeout = atoi(value);
-                    }
-                    pair = strtok(NULL, "&");
-                }
-            }
-
-            // Execute the save callback
-            if (con_state->store_config(&config) == 0) {
-                const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
-                tcp_write(pcb, success_msg, strlen(success_msg), 0);
-            } else {
-                const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
-                tcp_write(pcb, fail_msg, strlen(fail_msg), 0);
-            }
-        }
-        // Portal requesting form
-        else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
-                 strncmp(request, "GET / ", 6) == 0) {
-
-            CLOCK_DEBUG("Serving config HTML directly from Flash...\n");
-
-            // Write Headers
-            con_state->header_len =
-                snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER, 200, form_html_len);
-
-            // Send Headers (Use FLAG_MORE to keep the packet open)
-            tcp_write(pcb, con_state->headers, con_state->header_len, TCP_WRITE_FLAG_MORE);
-
-            // Send the HTML directly from the read-only flash pointer.
-            // No length checks or SRAM buffers needed.
-            tcp_write(pcb, form_html, form_html_len, 0);
-        }
-        // Generic captive portal redirect
-        else {
-            CLOCK_DEBUG("Unknown request, sending 302 Redirect...\n");
-
-            con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers),
-                                             HTTP_RESPONSE_REDIRECT_HEADER, ipaddr_ntoa(con_state->gw));
-            tcp_write(pcb, con_state->headers, con_state->header_len, 0);
-        }
-
-        // Push data to the network
-        tcp_output(pcb);
         tcp_recved(pcb, p->tot_len);
     }
-
     pbuf_free(p);
+
+    char *request = con_state->headers;
+
+    if (strncmp(request, "POST ", 5) == 0) {
+        char *content_len_ptr = strstr(request, "Content-Length: ");
+        int expected_body_len = 0;
+        if (content_len_ptr) {
+            expected_body_len = atoi(content_len_ptr + 16);
+        }
+
+        char *body = strstr(request, "\r\n\r\n");
+
+        // If the double line-break hasn't arrived, or the body payload has't arrived yet
+        if (!body || (int)strlen(body + 4) < expected_body_len) {
+            CLOCK_DEBUG("POST incomplete (%d/%d bytes accumulated)\r\n", body ? (int)strlen(body + 4) : 0,
+                        expected_body_len);
+            return ERR_OK;
+        }
+    } else {
+        // For GET or other single-packet requests, make sure we at least have the HTTP line terminator
+        if (!strstr(request, "\r\n")) {
+            CLOCK_DEBUG("Incomplete HTTP headers. Waiting for next packet.\n");
+            return ERR_OK;
+        }
+    }
+
+    // Route A: Form submitted with new configuration parameters
+    if (strncmp(request, "POST ", 5) == 0) {
+        clock_config_t config = {0};
+        config.has_dst = 0;
+
+        char *body = strstr(request, "\r\n\r\n");
+        if (body) {
+            // Step past the double line-break boundary
+            body += 4;
+
+            char *pair = strtok(body, "&");
+            while (pair != NULL) {
+                char *eq = strchr(pair, '=');
+                if (eq) {
+                    *eq = '\0';
+                    char *key = pair;
+                    char *value = eq + 1;
+
+                    urldecode_inplace(value);
+                    CLOCK_DEBUG("Config: %s=%s\r\n", key, value);
+
+                    if (strcmp(key, "ssid") == 0)
+                        strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
+                    else if (strcmp(key, "pwd") == 0)
+                        strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
+                    else if (strcmp(key, "ntp") == 0)
+                        strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
+                    else if (strcmp(key, "tz") == 0)
+                        strncpy(config.timezone, value, sizeof(config.timezone) - 1);
+                    else if (strcmp(key, "dst") == 0)
+                        config.has_dst = 1;
+                    else if (strcmp(key, "cto") == 0)
+                        config.timeout = atoi(value);
+                }
+                pair = strtok(NULL, "&");
+            }
+        }
+
+        // Pass structured variables down into your custom configuration callback
+        if (con_state->store_config(&config) == 0) {
+            const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
+            tcp_write(pcb, success_msg, strlen(success_msg), 0);
+        } else {
+            const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
+            tcp_write(pcb, fail_msg, strlen(fail_msg), 0);
+        }
+    }
+    // Route B: Configuration page
+    else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
+             strncmp(request, "GET / ", 6) == 0) {
+        con_state->header_len =
+            snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER, 200, form_html_len);
+
+        tcp_write(pcb, con_state->headers, con_state->header_len, TCP_WRITE_FLAG_MORE);
+        tcp_write(pcb, form_html, form_html_len, 0);
+    }
+    // Route C: Background OS pages / captive portal
+    else {
+        con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_REDIRECT_HEADER,
+                                         ipaddr_ntoa(con_state->gw));
+        tcp_write(pcb, con_state->headers, con_state->header_len, 0);
+    }
+
+    tcp_output(pcb);
+
     return ERR_OK;
 }
 
@@ -268,7 +275,7 @@ static err_t tcp_server_poll(void *arg, struct tcp_pcb *pcb)
 {
     tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     CLOCK_DEBUG("tcp_server_poll_fn\n");
-    return tcp_close_client_connection(con_state, pcb, ERR_OK); // Just disconnect clent?
+    return tcp_close_client_connection(con_state, pcb, ERR_OK); // Just disconnect client?
 }
 
 static void tcp_server_err(void *arg, err_t err)
@@ -337,17 +344,20 @@ static bool tcp_server_open(void *arg, const char *ssid)
     tcp_arg(state->server_pcb, state);
     tcp_accept(state->server_pcb, tcp_server_accept);
 
-    printf("Try connecting to '%s' (press 'd' to disable access point)\n", ssid);
     return true;
 }
 
 char *get_ssid()
 {
-    // Get the MAC address for the Access Point interface
     uint8_t mac[6];
+
+    cyw43_arch_enable_sta_mode();
+    cyw43_wifi_get_mac(&cyw43_state, CYW43_ITF_STA, mac);
+    cyw43_arch_disable_sta_mode();
+
     static char ssid[32];
-    cyw43_wifi_get_mac(&cyw43_state, CYW43_ITF_AP, mac);
-    snprintf(ssid, sizeof(ssid), "Clock-%02X%02X%02X", mac[3], mac[4], mac[5]);
+    snprintf(ssid, sizeof(ssid), "%s-%02X%02X%02X", WIFI_AP_SSID_PREFIX, mac[3], mac[4], mac[5]);
+    CLOCK_DEBUG("SSID=%s\n", ssid);
     return ssid;
 }
 
@@ -368,7 +378,6 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
     wifi_is_initialized = 1;
 
     char *ssid = get_ssid();
-    cyw43_arch_disable_sta_mode();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
 
 #if LWIP_IPV6

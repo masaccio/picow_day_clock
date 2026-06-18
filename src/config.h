@@ -63,10 +63,9 @@
     "\r\n"
 #define HTTP_CONFIG_URL "/clock-config"
 
-// IEEE 802.11 standard limits
-#define WIFI_SSID_MAX_LEN 32
-#define WIFI_PASSWORD_MAX_LEN 63
-// Maximum length for Linux FQDN
-#define HOSTNAME_MAX_LEN 64
+#define WIFI_AP_SSID_PREFIX "Pico-Day-Clock-Setup" // Prefix will have a partial MAC address appended
+#define WIFI_SSID_MAX_LEN 32                       // IEEE 802.11 standard limits
+#define WIFI_PASSWORD_MAX_LEN 63                   // IEEE 802.11 standard limits
+#define HOSTNAME_MAX_LEN 64                        // Maximum length for Linux FQDN
 
 #endif // CONFIG_H
