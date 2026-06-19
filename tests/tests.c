@@ -240,7 +240,7 @@ static int test_dst(void)
         return 1;
     }
     time_t now = mock_time(NULL);
-    if (strncmp(time_as_string(now), "00:22:00", 14) != 0) {
+    if (strncmp(time_as_string(now, clock_state), "00:22:00", 14) != 0) {
         return 1;
     }
 
@@ -251,7 +251,7 @@ static int test_dst(void)
         return 1;
     }
     now = mock_time(NULL);
-    if (strncmp(time_as_string(now), "02:22:00 (DST)", 14) != 0) {
+    if (strncmp(time_as_string(now, clock_state), "02:22:00 (DST)", 14) != 0) {
         return 1;
     }
 
@@ -263,40 +263,26 @@ static int test_dst(void)
         return 1;
     }
     now = mock_time(NULL);
-    if (strncmp(time_as_string(now), "00:55:00 (DST)", 14) != 0) {
+    if (strncmp(time_as_string(now, clock_state), "00:55:00 (DST)", 14) != 0) {
         return 1;
     }
     struct tm tm_test_1 = {
-        .tm_sec = 0,
-        .tm_min = 30,
-        .tm_hour = 6,
-        .tm_mon = 1,
-        .tm_mday = 11,
-        .tm_wday = 3,
-        .tm_year = 115,
-        .tm_isdst = 0,
+        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 11, .tm_mon = 1, .tm_year = 115 // Feb 11, 2015
     };
     struct tm tm_test_2 = {
-        .tm_sec = 0,
-        .tm_min = 30,
-        .tm_hour = 6,
-        .tm_mon = 5,
-        .tm_mday = 10,
-        .tm_wday = 3,
-        .tm_year = 115,
-        .tm_isdst = 1,
+        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 10, .tm_mon = 5, .tm_year = 115 // Jun 10, 2015
     };
     struct tm tm_test_3 = {
-        .tm_sec = 0,
-        .tm_min = 30,
-        .tm_hour = 6,
-        .tm_mon = 11,
-        .tm_mday = 9,
-        .tm_wday = 3,
-        .tm_year = 115,
-        .tm_isdst = 0,
+        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 9, .tm_mon = 11, .tm_year = 115 // Dec 9, 2015
     };
-    if (time_is_dst(&tm_test_1) != 0 || time_is_dst(&tm_test_2) != 1 || time_is_dst(&tm_test_3) != 0) {
+
+    // Convert structs to raw Epoch timestamps
+    time_t t1 = timegm(&tm_test_1);
+    time_t t2 = timegm(&tm_test_2);
+    time_t t3 = timegm(&tm_test_3);
+
+    // Test the epochs against the EU ruleset
+    if (time_is_dst(t1, clock_state) != 0 || time_is_dst(t2, clock_state) != 1 || time_is_dst(t3, clock_state) != 0) {
         return 1;
     }
     return 0;

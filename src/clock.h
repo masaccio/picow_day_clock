@@ -92,6 +92,17 @@ typedef enum
     WATCHDOG_WIFI,
 } watchdog_error_t;
 
+typedef enum
+{
+    DST_RULE_NONE = 0,
+    DST_RULE_NA,
+    DST_RULE_EU,
+    DST_RULE_AU,
+    DST_RULE_NZ,
+    DST_RULE_CL,
+    DST_RULE_IL
+} dst_rule_t;
+
 #define CONFIG_MAGIC ((uint32_t)'C' << 24 | (uint32_t)'L' << 16 | (uint32_t)'O' << 8 | (uint32_t)'K')
 #define FLASH_TARGET_OFFSET (3 * 1024 * 1024)
 
@@ -110,8 +121,8 @@ typedef struct
     char wifi_ssid[WIFI_SSID_MAX_LEN + 1];
     char wifi_password[WIFI_PASSWORD_MAX_LEN + 1];
     char ntp_server[HOSTNAME_MAX_LEN + 1];
-    char timezone[8];
-    int has_dst;
+    int16_t tz_offset_mins;
+    dst_rule_t dst_rule;
     int timeout;
 } clock_config_t;
 
@@ -158,6 +169,7 @@ typedef struct clock_state_t
     char current_lcd_digits[NUM_LCDS + 1];
     // Timer state
     repeating_timer_t timer;
+    clock_config_t clock_config;
     // Why watchdog reset happened
     time_t last_watchdog_error;
     watchdog_error_t watchdog_reset_error;
@@ -204,11 +216,11 @@ extern void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_
 
 void lcd_clear_screen(lcd_state_t *state, uint16_t color);
 
-extern int time_is_dst(struct tm *utc);
+extern int time_is_dst(time_t utc_now, clock_state_t *state);
 
 extern time_t tm_to_epoch(struct tm *tm);
 
-extern const char *time_as_string(time_t ntp_time);
+extern const char *time_as_string(time_t t, clock_state_t *state);
 
 extern void ntp_request(ntp_state_t *state);
 

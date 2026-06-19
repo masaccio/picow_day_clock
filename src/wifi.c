@@ -208,7 +208,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     // Route A: Form submitted with new configuration parameters
     if (strncmp(request, "POST ", 5) == 0) {
         clock_config_t config = {0};
-        config.has_dst = 0;
+        config.dst_rule = DST_RULE_EU;
 
         char *body = strstr(request, "\r\n\r\n");
         if (body) {
@@ -233,10 +233,23 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                     else if (strcmp(key, "ntp") == 0)
                         strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
                     else if (strcmp(key, "tz") == 0)
-                        strncpy(config.timezone, value, sizeof(config.timezone) - 1);
-                    else if (strcmp(key, "dst") == 0)
-                        config.has_dst = 1;
-                    else if (strcmp(key, "cto") == 0)
+                        config.tz_offset_mins = atoi(value);
+                    else if (strcmp(key, "dst") == 0) {
+                        if (strcmp(value, "NA") == 0)
+                            config.dst_rule = DST_RULE_NA;
+                        else if (strcmp(value, "EU") == 0)
+                            config.dst_rule = DST_RULE_EU;
+                        else if (strcmp(value, "AU") == 0)
+                            config.dst_rule = DST_RULE_AU;
+                        else if (strcmp(value, "NZ") == 0)
+                            config.dst_rule = DST_RULE_NZ;
+                        else if (strcmp(value, "CL") == 0)
+                            config.dst_rule = DST_RULE_CL;
+                        else if (strcmp(value, "IL") == 0)
+                            config.dst_rule = DST_RULE_IL;
+                        else
+                            config.dst_rule = DST_RULE_NONE;
+                    } else if (strcmp(key, "cto") == 0)
                         config.timeout = atoi(value);
                 }
                 pair = strtok(NULL, "&");

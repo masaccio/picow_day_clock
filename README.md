@@ -37,13 +37,19 @@ The clock displays icons along the top edge of LCD1 when errors occur. The icons
 
 If the LCD cannot be initialized, the clock prints diagnostics to `stdout` as a last resort.
 
-### Timezones
+### Timezones and Daylight Saving Time
 
-The software takes into consideration daylight savings time, but currently calculates this based on the last Sunday of the month which is the approach taken in Europe including the United Kingdom.
+The software takes into consideration daylight saving time (DST) and timezones as configured in flash. Timezones are configured as hour/half-hour offsets matching those known across the globe. The following DST rules are available which covers all regions:
 
-The default time is also set to UTC with daylight savings time, which is the configuration for the United Kingdom.
-
-Should the clock be useful to others, and pull requests are always appreciated, the handling of timezones could be improved as well as the settings for daylight savings time.
+| Region / Pattern | DST Start Rule (Clocks go forward) | DST End Rule (Clocks go back) | Shift |
+| --- | --- | --- | --- |
+| **None** (Japan, India, Arizona, Hawaii) | *Does not observe DST* | *Does not observe DST* | 0 |
+| **North America** (US, Canada) | 2nd Sunday in March at 02:00 | 1st Sunday in November at 02:00 | +1 Hour |
+| **Europe / UK** (EU, UK, Switzerland) | Last Sunday in March at 01:00 UTC | Last Sunday in October at 01:00 UTC | +1 Hour |
+| **Australia** (Most states) | 1st Sunday in October at 02:00 | 1st Sunday in April at 03:00 | +1 Hour |
+| **New Zealand** | Last Sunday in September at 02:00 | 1st Sunday in April at 03:00 | +1 Hour |
+| **Chile** | 1st Saturday in September at 24:00 | 1st Saturday in April at 24:00 | +1 Hour |
+| **Israel** | Friday before the last Sunday in March | Last Sunday in October at 02:00 | +1 Hour |
 
 ## Configuration
 
