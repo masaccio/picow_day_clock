@@ -51,11 +51,13 @@ target_compile_options(test_picow_day_clock
     -Werror
     -Weverything
     # Disable unacceptable warnings for host build
+    -Wno-unknown-warning-option         # Handle Clang vs GCC mismatches
     -Wno-switch-default                 # Conflicts with -Wswitch-enum
     -Wno-declaration-after-statement    # Pointless limitation when using modern C
     -Wno-poison-system-directories      # Host build requires system directories
     -Wno-padded                         # Padding is harmless
     -Wno-unsafe-buffer-usage            # No sensible way to manage buffers with this
+    -Wno-allocator-wrappers             # Unhelpful for mock calloc()
 )
 
 target_compile_definitions(test_picow_day_clock PRIVATE

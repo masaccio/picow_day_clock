@@ -292,9 +292,6 @@ int test_printf(const char *format, ...)
 extern unsigned int calloc_fail_at;
 extern unsigned int calloc_counter;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wallocator-wrappers"
-
 void *mock_calloc(size_t num, size_t size)
 {
     if (calloc_fail_at != 0) {
@@ -306,7 +303,6 @@ void *mock_calloc(size_t num, size_t size)
     }
     return calloc(num, size);
 }
-#pragma GCC diagnostic pop
 
 // lwIP functions
 static udp_recv_fn udp_recv_callback;

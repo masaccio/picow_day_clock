@@ -194,8 +194,9 @@ static int test_wifi_auth_errors(void)
     return 0;
 }
 
-static void set_localtime(int year, int mon, int mday, int hour, int min, int sec)
+static void set_localtime(clock_state_t *clock_state, int year, int mon, int mday, int hour, int min, int sec)
 {
+
     struct tm tm_val = {0};
     tm_val.tm_year = year - 1900;
     tm_val.tm_mon = mon;
@@ -205,7 +206,12 @@ static void set_localtime(int year, int mon, int mday, int hour, int min, int se
     tm_val.tm_sec = sec;
     tm_val.tm_isdst = 0;
     time_t t = tm_to_epoch(&tm_val);
+
+    clock_state->ntp_drift = 0;
+    clock_state->ntp_last_sync = t;
+    clock_state->first_clock_tick = 0;
     mock_system_time_ms = (unsigned long long)t * 1000;
+    mock_ntp_seconds = (unsigned long long)t;
 }
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
@@ -221,71 +227,131 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
     return clock_state;
 }
 
+// Note: 'mo' is 0-indexed (2 = March, 9 = October, etc.)
+#define TEST_DST_BOUND(yr, mo, dy, hr, mn, rule, expected)                                                             \
+    do {                                                                                                               \
+        clock_state->clock_config.dst_rule = rule;                                                                     \
+        tm_val.tm_year = (yr) - 1900;                                                                                  \
+        tm_val.tm_mon = (mo);                                                                                          \
+        tm_val.tm_mday = (dy);                                                                                         \
+        tm_val.tm_hour = (hr);                                                                                         \
+        tm_val.tm_min = (mn);                                                                                          \
+        tm_val.tm_sec = 0;                                                                                             \
+        t = tm_to_epoch(&tm_val);                                                                                      \
+        if (time_is_dst(t, clock_state) != (expected)) {                                                               \
+            printf("DST Test Failed: %04d-%02d-%02d %02d:%02d\n", yr, mo, dy, hr, mn);                                 \
+            return 1;                                                                                                  \
+        }                                                                                                              \
+    } while (0)
+
 static int test_dst(void)
 {
     repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
     clock_state_t *clock_state = create_test_clock_state(timer);
+    time_t now;
 
     // Coverage test for Zeller's congruence
     if (last_weekday_of_month(28, 2, 2025) != /* Friday */ 5) {
         return 1;
     }
 
-    // Sun March 25, 2001 at 00:22 (just before clocks change)
-    set_localtime(2001, 2, 25, 0, 22, 0);
+    // Timezone Offset Tests (DST_RULE_NONE)`
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0) {
-        return 1;
-    }
-    time_t now = mock_time(NULL);
-    if (strncmp(time_as_string(now, clock_state), "00:22:00", 14) != 0) {
-        return 1;
-    }
+    clock_state->clock_config.dst_rule = DST_RULE_NONE;
 
-    // Sun March 25, 2001 at 01:22 (just after clocks change)
-    set_localtime(2001, 2, 25, 1, 22, 0);
+    // Test Positive Fractional Offset: India (+5:30 -> 330 mins)
+    clock_state->clock_config.tz_offset_mins = 330;
+    set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
     (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "Sun0222", 7) != 0) {
-        return 1;
-    }
     now = mock_time(NULL);
-    if (strncmp(time_as_string(now, clock_state), "02:22:00 (DST)", 14) != 0) {
+    if (strncmp(time_as_string(now, clock_state), "17:30:00", 8) != 0)
         return 1;
-    }
 
-    // Thu August 23, 2001 at 23:55 (test day rollover in DST))
-    set_localtime(2001, 7, 23, 23, 55, 0);
+    // Test Negative Offset: New York (-5:00 -> -300 mins)
+    clock_state->clock_config.tz_offset_mins = -300;
+    set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
+    (void)clock_timer_callback(timer);
+    now = mock_time(NULL);
+    if (strncmp(time_as_string(now, clock_state), "07:00:00", 8) != 0)
+        return 1;
+
+    // Display Rollover Tests
+    clock_state->clock_config.tz_offset_mins = 0; // Reset to UK base
+    clock_state->clock_config.dst_rule = DST_RULE_EU;
+
+    // Sun March 25, 2001 at 00:22 (just before EU clocks change)
+    set_localtime(clock_state, 2001, 2, 25, 0, 22, 0);
+    (void)clock_timer_callback(timer);
+    if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0)
+        return 1;
+    now = mock_time(NULL);
+    if (strncmp(time_as_string(now, clock_state), "00:22:00", 14) != 0)
+        return 1;
+
+    // Sun March 25, 2001 at 01:22 (just after EU clocks change)
+    set_localtime(clock_state, 2001, 2, 25, 1, 22, 0);
+    (void)clock_timer_callback(timer);
+    if (strncmp(clock_state->current_lcd_digits, "Sun0222", 7) != 0)
+        return 1;
+    now = mock_time(NULL);
+    if (strncmp(time_as_string(now, clock_state), "02:22:00 (DST)", 14) != 0)
+        return 1;
+
+    // Thu August 23, 2001 at 23:55 (test day rollover in DST)
+    set_localtime(clock_state, 2001, 7, 23, 23, 55, 0);
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
     (void)clock_timer_callback(timer);
-    if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0) {
+    if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0)
         return 1;
-    }
     now = mock_time(NULL);
-    if (strncmp(time_as_string(now, clock_state), "00:55:00 (DST)", 14) != 0) {
+    if (strncmp(time_as_string(now, clock_state), "00:55:00 (DST)", 14) != 0)
         return 1;
-    }
-    struct tm tm_test_1 = {
-        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 11, .tm_mon = 1, .tm_year = 115 // Feb 11, 2015
-    };
-    struct tm tm_test_2 = {
-        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 10, .tm_mon = 5, .tm_year = 115 // Jun 10, 2015
-    };
-    struct tm tm_test_3 = {
-        .tm_sec = 0, .tm_min = 30, .tm_hour = 6, .tm_mday = 9, .tm_mon = 11, .tm_year = 115 // Dec 9, 2015
-    };
 
-    // Convert structs to raw Epoch timestamps
-    time_t t1 = timegm(&tm_test_1);
-    time_t t2 = timegm(&tm_test_2);
-    time_t t3 = timegm(&tm_test_3);
+    // Exhaustive DST Boundary Math Tests
+    struct tm tm_val = {0};
+    time_t t;
 
-    // Test the epochs against the EU ruleset
-    if (time_is_dst(t1, clock_state) != 0 || time_is_dst(t2, clock_state) != 1 || time_is_dst(t3, clock_state) != 0) {
-        return 1;
-    }
-    return 0;
+    // --- Northern Hemisphere ---
+
+    // NA: 2nd Sun Mar (02:00) to 1st Sun Nov (02:00) -> 2024: Mar 10, Nov 3
+    TEST_DST_BOUND(2024, 2, 10, 1, 59, DST_RULE_NA, 0); // Before spring forward
+    TEST_DST_BOUND(2024, 2, 10, 2, 0, DST_RULE_NA, 1);  // Spring forward triggers
+    TEST_DST_BOUND(2024, 10, 3, 1, 59, DST_RULE_NA, 1); // Before fall back
+    TEST_DST_BOUND(2024, 10, 3, 2, 0, DST_RULE_NA, 0);  // Fall back triggers
+
+    // EU: Last Sun Mar (01:00) to Last Sun Oct (01:00) -> 2024: Mar 31, Oct 27
+    TEST_DST_BOUND(2024, 2, 31, 0, 59, DST_RULE_EU, 0);
+    TEST_DST_BOUND(2024, 2, 31, 1, 0, DST_RULE_EU, 1);
+    TEST_DST_BOUND(2024, 9, 27, 0, 59, DST_RULE_EU, 1);
+    TEST_DST_BOUND(2024, 9, 27, 1, 0, DST_RULE_EU, 0);
+
+    // --- Southern Hemisphere (Wraps across New Year) ---
+
+    // AU: 1st Sun Oct (02:00) to 1st Sun Apr (03:00) -> 2024: Oct 6, Apr 7
+    TEST_DST_BOUND(2024, 9, 6, 1, 59, DST_RULE_AU, 0);   // Spring: Before Oct start
+    TEST_DST_BOUND(2024, 9, 6, 2, 0, DST_RULE_AU, 1);    // Spring: DST starts
+    TEST_DST_BOUND(2024, 11, 25, 12, 0, DST_RULE_AU, 1); // Peak Summer: Dec is DST!
+    TEST_DST_BOUND(2024, 3, 7, 2, 59, DST_RULE_AU, 1);   // Autumn: Before Apr end
+    TEST_DST_BOUND(2024, 3, 7, 3, 0, DST_RULE_AU, 0);    // Autumn: DST ends (Winter begins)
+    TEST_DST_BOUND(2024, 6, 15, 12, 0, DST_RULE_AU, 0);  // Deep Winter: July is Standard Time
+
+    // --- Complex Edge Cases ---
+
+    // Chile: 1st Sat Sep (24:00) to 1st Sat Apr (24:00) -> 2024: Sep 7, Apr 6
+    // Note: 24:00 is mathematically 23:59:59 transition
+    TEST_DST_BOUND(2024, 8, 7, 23, 58, DST_RULE_CL, 0);
+    TEST_DST_BOUND(2024, 8, 7, 23, 59, DST_RULE_CL, 1);
+    TEST_DST_BOUND(2024, 3, 6, 23, 58, DST_RULE_CL, 1);
+    TEST_DST_BOUND(2024, 3, 6, 23, 59, DST_RULE_CL, 0);
+
+    // Israel: Fri before last Sun Mar to Last Sun Oct -> 2024: Mar 29, Oct 27
+    TEST_DST_BOUND(2024, 2, 29, 1, 59, DST_RULE_IL, 0);
+    TEST_DST_BOUND(2024, 2, 29, 2, 0, DST_RULE_IL, 1);
+    TEST_DST_BOUND(2024, 9, 27, 1, 59, DST_RULE_IL, 1);
+    TEST_DST_BOUND(2024, 9, 27, 2, 0, DST_RULE_IL, 0);
+
+    return 0; // All paths passed
 }
 
 static int lcd_digits_to_int(const char *digits)
@@ -299,7 +365,7 @@ static int test_ntp_time(void)
     clock_state_t *clock_state = create_test_clock_state(timer);
 
     // Tue January 9, 2001 at 09:28:32
-    set_localtime(2001, 0, 9, 9, 28, 32);
+    set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ntp_seconds = (mock_system_time_ms / 1000) + NTP_DELTA;
