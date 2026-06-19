@@ -524,6 +524,7 @@ int main(void)
 #endif
     watchdog_update();
 
+    wifi_is_initialized = 0;
     wifi_error_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     if (wifi_status == WIFI_OK) {
         if (cold_boot) {

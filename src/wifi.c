@@ -19,7 +19,7 @@
 #include "clock.h"
 #include "config.h"
 
-static uint wifi_is_initialized = 0;
+uint wifi_is_initialized = 0;
 
 wifi_error_t connect_to_wifi(const char ssid[], const char password[])
 {

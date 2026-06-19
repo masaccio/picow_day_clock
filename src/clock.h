@@ -199,6 +199,8 @@ extern int config_store_handler(clock_config_t *config);
 // Cross-module functions
 extern volatile uint trigger_ap_mode;
 
+extern uint wifi_is_initialized;
+
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
 
 extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config);

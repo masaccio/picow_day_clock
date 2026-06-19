@@ -41,6 +41,10 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
         printf("DEBUG: Starting test '%s'\n", test_name);
     }
 
+    // Only happens once on the target
+    // TODO: this really should be state in the Wi-Fi code
+    wifi_is_initialized = 0;
+
     // Run test
     int status = func();
 
