@@ -89,7 +89,6 @@ const char *wifi_error_to_string(wifi_error_t status)
     return "UNKNOWN_STATUS";
 }
 
-extern volatile uint trigger_ap_mode;
 volatile uint trigger_ap_mode = 0;
 
 #ifdef TEST_MODE
@@ -415,7 +414,6 @@ bool clock_timer_callback(repeating_timer_t *t)
     return 1; // Keep repeating
 }
 
-#ifndef TEST_MODE
 int config_store_handler(clock_config_t *config)
 {
     config->magic_marker = CONFIG_MAGIC;
@@ -427,7 +425,6 @@ int config_store_handler(clock_config_t *config)
     CLOCK_DEBUG("Stored new config in flash\r\n");
     return 0;
 }
-#endif
 
 #ifdef TEST_MODE
 // In test mode, main() always returns, even in the case of a fatal error
@@ -518,6 +515,7 @@ int main(void)
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 #endif
+
 #ifdef TEST_MODE
     // Test has generated a watchdog reset and logged its outcome so we can return to the test harness now
     if (test_main_watchdog_reentry) {

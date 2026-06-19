@@ -1,6 +1,5 @@
 // Mock definitions for unit testing
-#ifndef MOCK_H
-#define MOCK_H
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -64,7 +63,7 @@ typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, cons
 #define printf(...) mock_printf(__VA_ARGS__)
 extern int mock_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-extern void *mock_calloc(size_t, size_t);
+extern void *mock_calloc(size_t num, size_t size);
 #define calloc(num, size) mock_calloc(num, size)
 
 extern unsigned long long mock_system_time_ms;
@@ -151,4 +150,13 @@ void watchdog_enable(uint32_t delay_ms, int pause_on_debug);
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms);
 void watchdog_update(void);
 
-#endif // MOCK_H
+// Flash
+uint32_t save_and_disable_interrupts(void);
+void restore_interrupts(uint32_t status);
+
+extern void *flash_clock_config;
+#define FLASH_SECTOR_SIZE (uint32_t)0
+#define XIP_BASE &flash_clock_config
+
+void flash_range_erase(uint32_t flash_offs, size_t count);
+void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);

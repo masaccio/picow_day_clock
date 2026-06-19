@@ -292,6 +292,9 @@ int test_printf(const char *format, ...)
 extern unsigned int calloc_fail_at;
 extern unsigned int calloc_counter;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wallocator-wrappers"
+
 void *mock_calloc(size_t num, size_t size)
 {
     if (calloc_fail_at != 0) {
@@ -303,6 +306,7 @@ void *mock_calloc(size_t num, size_t size)
     }
     return calloc(num, size);
 }
+#pragma GCC diagnostic pop
 
 // lwIP functions
 static udp_recv_fn udp_recv_callback;
@@ -440,4 +444,32 @@ void watchdog_enable(uint32_t delay_ms, int pause_on_debug)
 {
     (void)delay_ms;
     (void)pause_on_debug;
+}
+
+// Flash
+static uint32_t interrupt_status;
+
+uint32_t save_and_disable_interrupts(void)
+{
+    return interrupt_status;
+}
+
+void restore_interrupts(uint32_t status)
+{
+    interrupt_status = status;
+}
+
+static clock_config_t flash_clock_config_storage;
+void *flash_clock_config = (void *)&flash_clock_config_storage;
+
+void flash_range_erase(uint32_t flash_offs, size_t count)
+{
+    (void)flash_offs;
+    memset(&flash_clock_config, 0, count);
+}
+
+void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
+{
+    (void)flash_offs;
+    memcpy(&flash_clock_config, data, count);
 }

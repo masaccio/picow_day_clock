@@ -104,7 +104,11 @@ typedef enum
 } dst_rule_t;
 
 #define CONFIG_MAGIC ((uint32_t)'C' << 24 | (uint32_t)'L' << 16 | (uint32_t)'O' << 8 | (uint32_t)'K')
+#ifndef TEST_MODE
 #define FLASH_TARGET_OFFSET (3 * 1024 * 1024)
+#else
+#define FLASH_TARGET_OFFSET 0
+#endif
 
 typedef struct
 {
@@ -193,6 +197,8 @@ extern void ntp_timer_callback(void *state, time_t *ntp_time);
 extern int config_store_handler(clock_config_t *config);
 
 // Cross-module functions
+extern volatile uint trigger_ap_mode;
+
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
 
 extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config);
