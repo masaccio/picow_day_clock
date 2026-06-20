@@ -217,8 +217,8 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
 
 static bool tcp_server_open(void *arg, const char *ssid)
 {
+    (void)arg;
     (void)ssid;
-    mock_tcp_server_state = arg;
     return true;
 }
 
@@ -399,6 +399,27 @@ static char *get_ssid(void)
     return ssid;
 }
 
+#ifdef TEST_MODE
+void *create_test_config(void *arg)
+{
+    static tcp_connect_state_t *state;
+    state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
+    state->server_state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
+    state->store_config = (store_config_handler_t)arg;
+    return (void *)state;
+}
+
+void clear_test_config(void *arg)
+{
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
+    con_state->headers[0] = '\0';
+    con_state->result[0] = '\0';
+    con_state->header_len = 0;
+    con_state->result_len = 0;
+}
+
+#endif
+
 wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
@@ -409,6 +430,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
         return WIFI_INIT_ERROR;
     }
     state->store_config = store_config;
+    state->complete = false;
 
     if (!wifi_is_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
@@ -442,7 +464,6 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
         return WIFI_INIT_ERROR;
     }
 
-    state->complete = false;
     while (!state->complete) {
         watchdog_update();
         sleep_ms(1000);

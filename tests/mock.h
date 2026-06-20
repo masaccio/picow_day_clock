@@ -49,7 +49,7 @@ typedef unsigned int pbuf_layer;
 
 typedef struct pbuf
 {
-    u8_t payload[NTP_MSG_LEN];
+    u8_t payload[8192];
     u16_t tot_len;
 } pbuf;
 #define repeating_timer repeating_timer_t
@@ -192,3 +192,5 @@ void dhcp_server_deinit(dhcp_server_t *d);
 void dhcp_server_init(dhcp_server_t *d, ip_addr_t *ip, ip_addr_t *nm);
 void dns_server_deinit(dns_server_t *d);
 void dns_server_init(dns_server_t *d, ip_addr_t *ip);
+void *create_test_config(void *arg);
+void clear_test_config(void *arg);
