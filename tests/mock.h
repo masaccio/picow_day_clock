@@ -21,12 +21,18 @@ struct udp_pcb
 {
     unsigned int mock;
 };
+struct tcp_pcb
+{
+    unsigned int mock;
+};
 typedef struct
 {
     unsigned int mock;
 } mock_struct_t;
 typedef mock_struct_t spi_inst_t;
-typedef mock_struct_t udp_pcb;
+typedef mock_struct_t dhcp_server_t;
+typedef mock_struct_t dns_server_t;
+
 typedef struct repeating_timer_t
 {
     void *user_data;
@@ -54,6 +60,7 @@ typedef struct ip_addr_t
     unsigned long addr;
 
 } ip_addr_t;
+typedef ip_addr_t ip4_addr_t;
 typedef void (*dns_callback_fn)(const char *name, const ip_addr_t *ipaddr, void *arg);
 typedef unsigned long alarm_id_t;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
@@ -92,7 +99,12 @@ enum
     PICO_ERROR_TIMEOUT,
     PICO_ERROR_BADAUTH,
     CYW43_AUTH_WPA2_AES_PSK,
+    CYW43_DEFAULT_IP_AP_ADDRESS,
+    CYW43_DEFAULT_IP_MASK,
+    CYW43_ITF_STA,
+    TCP_WRITE_FLAG_MORE,
 };
+#define LWIP_IPV6 0
 #define spi1 ((spi_inst_t *)0xdeadbeef)
 
 // SPI functions
@@ -118,9 +130,14 @@ void pwm_set_enabled(uint slice_num, int enabled);
 int cyw43_arch_init(void);
 void cyw43_arch_lwip_begin(void);
 void cyw43_arch_lwip_end(void);
-void cyw43_arch_enable_sta_mode(void);
 int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, uint auth, uint timeout_ms);
 void cyw43_arch_deinit(void);
+int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac);
+void cyw43_arch_enable_sta_mode(void);
+void cyw43_arch_disable_sta_mode(void);
+void cyw43_arch_enable_ap_mode(const char *ssid, const char *password, uint32_t auth);
+void cyw43_arch_disable_ap_mode(void);
+extern void *cyw43_state;
 
 // Utility functions
 void sleep_ms(uint32_t ms);
@@ -160,3 +177,17 @@ extern void *flash_clock_config;
 
 void flash_range_erase(uint32_t flash_offs, size_t count);
 void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
+
+// TCP/IP
+typedef char err_t;
+#define ipaddr_ntoa(ipaddr) ip4addr_ntoa(ipaddr)
+const char *ip4addr_ntoa(ip_addr_t *ipaddr);
+#define PP_HTONL(ipaddr) (ipaddr)
+err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
+err_t tcp_recved(struct tcp_pcb *pcb, u16_t len);
+err_t tcp_write(struct tcp_pcb *pcb, const void *dataptr, u16_t len, u8_t apiflags);
+err_t tcp_output(struct tcp_pcb *pcb);
+void dhcp_server_deinit(dhcp_server_t *d);
+void dhcp_server_init(dhcp_server_t *d, ip_addr_t *ip, ip_addr_t *nm);
+void dns_server_deinit(dns_server_t *d);
+void dns_server_init(dns_server_t *d, ip_addr_t *ip);

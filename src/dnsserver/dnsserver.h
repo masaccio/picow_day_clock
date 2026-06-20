@@ -4,17 +4,19 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef _DNSSERVER_H_
-#define _DNSSERVER_H_
+#pragma once
 
+#ifndef TEST_MODE
 #include "lwip/ip_addr.h"
+#else
+#include "mock.h"
+#endif
 
-typedef struct dns_server_t_ {
+typedef struct
+{
     struct udp_pcb *udp;
-     ip_addr_t ip;
+    ip_addr_t ip;
 } dns_server_t;
 
 void dns_server_init(dns_server_t *d, ip_addr_t *ip);
 void dns_server_deinit(dns_server_t *d);
-
-#endif

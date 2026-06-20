@@ -26,17 +26,23 @@
 #ifndef MICROPY_INCLUDED_LIB_NETUTILS_DHCPSERVER_H
 #define MICROPY_INCLUDED_LIB_NETUTILS_DHCPSERVER_H
 
+#ifndef TEST_MODE
 #include "lwip/ip_addr.h"
+#else
+#include "mock.h"
+#endif
 
 #define DHCPS_BASE_IP (16)
 #define DHCPS_MAX_IP (8)
 
-typedef struct _dhcp_server_lease_t {
+typedef struct
+{
     uint8_t mac[6];
     uint16_t expiry;
 } dhcp_server_lease_t;
 
-typedef struct _dhcp_server_t {
+typedef struct
+{
     ip_addr_t ip;
     ip_addr_t nm;
     dhcp_server_lease_t lease[DHCPS_MAX_IP];

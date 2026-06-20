@@ -408,7 +408,7 @@ static int test_ntp_time(void)
             test_config.udp_response_type = UDP_NTP_KOD;
         }
         if (tick == (3 * seconds_in_day) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
-            // Interval was not doubled via KoD
+            printf("TEST FAIL: Interval was not doubled via KoD\n");
             return 1;
         }
         if (tick == (6 * seconds_in_day)) {

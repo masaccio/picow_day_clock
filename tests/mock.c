@@ -152,15 +152,30 @@ int cyw43_arch_init(void)
     return test_config.cyw43_arch_init_fail ? 1 : 0;
 }
 
+void cyw43_arch_enable_sta_mode(void)
+{
+}
+
+void cyw43_arch_enable_ap_mode(const char *ssid, const char *password, uint32_t auth)
+{
+    (void)ssid;
+    (void)password;
+    (void)auth;
+}
+
+void cyw43_arch_disable_ap_mode(void)
+{
+}
+
+void cyw43_arch_disable_sta_mode(void)
+{
+}
+
 void cyw43_arch_lwip_begin(void)
 {
 }
 
 void cyw43_arch_lwip_end(void)
-{
-}
-
-void cyw43_arch_enable_sta_mode(void)
 {
 }
 
@@ -184,6 +199,19 @@ int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, u
 
 void cyw43_arch_deinit(void)
 {
+}
+
+static uint32_t cyw43_state_storage = 0xffffffff;
+
+void *cyw43_state = &cyw43_state_storage;
+
+int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
+{
+    (void)self;
+    (void)itf;
+    static uint8_t test_mac[8] = {0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef};
+    memcpy(mac, test_mac, sizeof(test_mac));
+    return 0;
 }
 
 unsigned long long mock_system_time_ms = 0;
@@ -468,4 +496,56 @@ void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
 {
     (void)flash_offs;
     memcpy(&flash_clock_config, data, count);
+}
+
+// TCP/IP
+err_t tcp_recved(struct tcp_pcb *pcb, u16_t len)
+{
+    (void)pcb;
+    (void)len;
+    return 0;
+}
+
+err_t tcp_write(struct tcp_pcb *pcb, const void *dataptr, u16_t len, u8_t apiflags)
+{
+    (void)pcb;
+    (void)dataptr;
+    (void)len;
+    (void)apiflags;
+    return 0;
+}
+
+err_t tcp_output(struct tcp_pcb *pcb)
+{
+    (void)pcb;
+    return 0;
+}
+
+const char *ip4addr_ntoa(ip_addr_t *ipaddr)
+{
+    (void)ipaddr;
+    return "192.168.4.1";
+}
+
+void dhcp_server_deinit(dhcp_server_t *d)
+{
+    (void)d;
+}
+
+void dhcp_server_init(dhcp_server_t *d, ip_addr_t *ip, ip_addr_t *nm)
+{
+    (void)d;
+    (void)ip;
+    (void)nm;
+}
+
+void dns_server_deinit(dns_server_t *d)
+{
+    (void)d;
+}
+
+void dns_server_init(dns_server_t *d, ip_addr_t *ip)
+{
+    (void)d;
+    (void)ip;
 }

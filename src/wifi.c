@@ -1,17 +1,16 @@
 // Pico SDK
 #ifndef TEST_MODE
+#include "dhcpserver.h"
+#include "dnsserver.h"
 #include "hardware/watchdog.h"
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
-
-#include "dhcpserver.h"
-#include "dnsserver.h"
-#include "html_form.h"
 #else
 #include "mock.h"
 #endif
+#include "html_form.h"
 
 #include <string.h>
 
@@ -20,6 +19,7 @@
 #include "config.h"
 
 uint wifi_is_initialized = 0;
+err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
 
 wifi_error_t connect_to_wifi(const char ssid[], const char password[])
 {
@@ -64,8 +64,6 @@ wifi_error_t connect_to_wifi(const char ssid[], const char password[])
     }
 }
 
-#ifndef TEST_MODE
-
 typedef struct
 {
     struct tcp_pcb *server_pcb;
@@ -87,10 +85,12 @@ typedef struct
     tcp_server_t *server_state;
 } tcp_connect_state_t;
 
+// For testing we just call tcp_server_recv() directly with payloads to avoid mocking
+// a lot of lwIP infrastructure. We can also ignore DNS and DHCP.
+#ifndef TEST_MODE
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     if (client_pcb) {
-        assert(con_state && con_state->pcb == client_pcb);
         tcp_arg(client_pcb, NULL);
         tcp_poll(client_pcb, NULL, 0);
         tcp_sent(client_pcb, NULL);
@@ -127,163 +127,6 @@ static err_t tcp_server_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
         CLOCK_DEBUG("all done\n");
         return tcp_close_client_connection(con_state, pcb, ERR_OK);
     }
-    return ERR_OK;
-}
-
-static int hex_to_int(char c)
-{
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    return 0;
-}
-
-static void urldecode_inplace(char *str)
-{
-    char *dst = str;
-    char *src = str;
-
-    while (*src) {
-        if ((*src == '%') && src[1] && src[2]) {
-            *dst++ = (hex_to_int(src[1]) << 4) | hex_to_int(src[2]);
-            src += 3;
-        } else if (*src == '+') {
-            *dst++ = ' ';
-            src++;
-        } else {
-            *dst++ = *src++;
-        }
-    }
-    *dst = '\0';
-}
-
-err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
-{
-    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
-    if (!p) {
-        return tcp_close_client_connection(con_state, pcb, ERR_OK);
-    }
-    assert(con_state && con_state->pcb == pcb);
-
-    if (p->tot_len > 0) {
-        size_t current_len = strlen(con_state->headers);
-        size_t available_space = sizeof(con_state->headers) - current_len - 1;
-        size_t copy_len = p->tot_len > available_space ? available_space : p->tot_len;
-
-        pbuf_copy_partial(p, con_state->headers + current_len, copy_len, 0);
-        con_state->headers[current_len + copy_len] = '\0';
-
-        tcp_recved(pcb, p->tot_len);
-    }
-    pbuf_free(p);
-
-    char *request = con_state->headers;
-
-    if (strncmp(request, "POST ", 5) == 0) {
-        char *content_len_ptr = strstr(request, "Content-Length: ");
-        int expected_body_len = 0;
-        if (content_len_ptr) {
-            expected_body_len = atoi(content_len_ptr + 16);
-        }
-
-        char *body = strstr(request, "\r\n\r\n");
-
-        // If the double line-break hasn't arrived, or the body payload has't arrived yet
-        if (!body || (int)strlen(body + 4) < expected_body_len) {
-            CLOCK_DEBUG("POST incomplete (%d/%d bytes accumulated)\r\n", body ? (int)strlen(body + 4) : 0,
-                        expected_body_len);
-            return ERR_OK;
-        }
-    } else {
-        // For GET or other single-packet requests, make sure we at least have the HTTP line terminator
-        if (!strstr(request, "\r\n")) {
-            CLOCK_DEBUG("Incomplete HTTP headers. Waiting for next packet.\n");
-            return ERR_OK;
-        }
-    }
-
-    // Route A: Form submitted with new configuration parameters
-    if (strncmp(request, "POST ", 5) == 0) {
-        clock_config_t config = {0};
-        config.dst_rule = DST_RULE_EU;
-
-        char *body = strstr(request, "\r\n\r\n");
-        if (body) {
-            // Step past the double line-break boundary
-            body += 4;
-
-            char *pair = strtok(body, "&");
-            while (pair != NULL) {
-                char *eq = strchr(pair, '=');
-                if (eq) {
-                    *eq = '\0';
-                    char *key = pair;
-                    char *value = eq + 1;
-
-                    urldecode_inplace(value);
-                    CLOCK_DEBUG("Config: %s=%s\r\n", key, value);
-
-                    if (strcmp(key, "ssid") == 0)
-                        strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
-                    else if (strcmp(key, "pwd") == 0)
-                        strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
-                    else if (strcmp(key, "ntp") == 0)
-                        strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
-                    else if (strcmp(key, "tz") == 0)
-                        config.tz_offset_mins = atoi(value);
-                    else if (strcmp(key, "dst") == 0) {
-                        if (strcmp(value, "NA") == 0)
-                            config.dst_rule = DST_RULE_NA;
-                        else if (strcmp(value, "EU") == 0)
-                            config.dst_rule = DST_RULE_EU;
-                        else if (strcmp(value, "AU") == 0)
-                            config.dst_rule = DST_RULE_AU;
-                        else if (strcmp(value, "NZ") == 0)
-                            config.dst_rule = DST_RULE_NZ;
-                        else if (strcmp(value, "CL") == 0)
-                            config.dst_rule = DST_RULE_CL;
-                        else if (strcmp(value, "IL") == 0)
-                            config.dst_rule = DST_RULE_IL;
-                        else
-                            config.dst_rule = DST_RULE_NONE;
-                    } else if (strcmp(key, "cto") == 0)
-                        config.timeout = atoi(value);
-                }
-                pair = strtok(NULL, "&");
-            }
-        }
-
-        // Pass structured variables down into your custom configuration callback
-        if (con_state->store_config(&config) == 0) {
-            const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
-            tcp_write(pcb, success_msg, strlen(success_msg), 0);
-            con_state->server_state->complete = true;
-        } else {
-            const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
-            tcp_write(pcb, fail_msg, strlen(fail_msg), 0);
-        }
-    }
-    // Route B: Configuration page
-    else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
-             strncmp(request, "GET / ", 6) == 0) {
-        con_state->header_len =
-            snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER, 200, form_html_len);
-
-        tcp_write(pcb, con_state->headers, con_state->header_len, TCP_WRITE_FLAG_MORE);
-        tcp_write(pcb, form_html, form_html_len, 0);
-    }
-    // Route C: Background OS pages / captive portal
-    else {
-        con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_REDIRECT_HEADER,
-                                         ipaddr_ntoa(con_state->gw));
-        tcp_write(pcb, con_state->headers, con_state->header_len, 0);
-    }
-
-    tcp_output(pcb);
-
     return ERR_OK;
 }
 
@@ -364,8 +207,185 @@ static bool tcp_server_open(void *arg, const char *ssid)
 
     return true;
 }
+#else
+static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
+{
+    (void)con_state;
+    (void)client_pcb;
+    return close_err;
+}
 
-char *get_ssid()
+static bool tcp_server_open(void *arg, const char *ssid)
+{
+    (void)arg;
+    (void)ssid;
+    return true;
+}
+
+static void tcp_server_close(tcp_server_t *state)
+{
+    (void)state;
+}
+#endif // !TEST_MODE
+
+static char hex_to_int(char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return (char)0;
+}
+
+static void urldecode_inplace(char *str)
+{
+    char *dst = str;
+    char *src = str;
+
+    while (*src) {
+        if ((*src == '%') && src[1] && src[2]) {
+            // Cast the final result of the integer math to (char)
+            *dst++ = (char)((hex_to_int(src[1]) << 4) | hex_to_int(src[2]));
+            src += 3;
+        } else if (*src == '+') {
+            *dst++ = ' ';
+            src++;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+}
+
+err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
+{
+    (void)err;
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
+    if (!p) {
+        return tcp_close_client_connection(con_state, pcb, ERR_OK);
+    }
+
+    if (p->tot_len > 0) {
+        size_t current_len = strlen(con_state->headers);
+        size_t available_space = sizeof(con_state->headers) - current_len - 1;
+        size_t copy_len = p->tot_len > available_space ? available_space : p->tot_len;
+
+        pbuf_copy_partial(p, con_state->headers + current_len, (u16_t)copy_len, 0);
+        con_state->headers[current_len + copy_len] = '\0';
+
+        tcp_recved(pcb, p->tot_len);
+    }
+    pbuf_free(p);
+
+    char *request = con_state->headers;
+
+    if (strncmp(request, "POST ", 5) == 0) {
+        char *content_len_ptr = strstr(request, "Content-Length: ");
+        int expected_body_len = 0;
+        if (content_len_ptr) {
+            expected_body_len = atoi(content_len_ptr + 16);
+        }
+
+        char *body = strstr(request, "\r\n\r\n");
+
+        // If the double line-break hasn't arrived, or the body payload has't arrived yet
+        if (!body || (int)strlen(body + 4) < expected_body_len) {
+            CLOCK_DEBUG("POST incomplete (%d/%d bytes accumulated)\r\n", body ? (int)strlen(body + 4) : 0,
+                        expected_body_len);
+            return ERR_OK;
+        }
+    } else {
+        // For GET or other single-packet requests, make sure we at least have the HTTP line terminator
+        if (!strstr(request, "\r\n")) {
+            CLOCK_DEBUG("Incomplete HTTP headers. Waiting for next packet.\n");
+            return ERR_OK;
+        }
+    }
+
+    // Route A: Form submitted with new configuration parameters
+    if (strncmp(request, "POST ", 5) == 0) {
+        clock_config_t config = {0};
+        config.dst_rule = DST_RULE_EU;
+
+        char *body = strstr(request, "\r\n\r\n");
+        if (body) {
+            // Step past the double line-break boundary
+            body += 4;
+
+            char *pair = strtok(body, "&");
+            while (pair != NULL) {
+                char *eq = strchr(pair, '=');
+                if (eq) {
+                    *eq = '\0';
+                    char *key = pair;
+                    char *value = eq + 1;
+
+                    urldecode_inplace(value);
+                    CLOCK_DEBUG("Config: %s=%s\r\n", key, value);
+
+                    if (strcmp(key, "ssid") == 0)
+                        strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
+                    else if (strcmp(key, "pwd") == 0)
+                        strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
+                    else if (strcmp(key, "ntp") == 0)
+                        strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
+                    else if (strcmp(key, "tz") == 0)
+                        config.tz_offset_mins = (int16_t)atoi(value);
+                    else if (strcmp(key, "dst") == 0) {
+                        if (strcmp(value, "NA") == 0)
+                            config.dst_rule = DST_RULE_NA;
+                        else if (strcmp(value, "EU") == 0)
+                            config.dst_rule = DST_RULE_EU;
+                        else if (strcmp(value, "AU") == 0)
+                            config.dst_rule = DST_RULE_AU;
+                        else if (strcmp(value, "NZ") == 0)
+                            config.dst_rule = DST_RULE_NZ;
+                        else if (strcmp(value, "CL") == 0)
+                            config.dst_rule = DST_RULE_CL;
+                        else if (strcmp(value, "IL") == 0)
+                            config.dst_rule = DST_RULE_IL;
+                        else
+                            config.dst_rule = DST_RULE_NONE;
+                    } else if (strcmp(key, "cto") == 0)
+                        config.timeout = atoi(value);
+                }
+                pair = strtok(NULL, "&");
+            }
+        }
+
+        // Pass structured variables down into your custom configuration callback
+        if (con_state->store_config(&config) == 0) {
+            const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
+            tcp_write(pcb, success_msg, (u16_t)strlen(success_msg), 0);
+            con_state->server_state->complete = true;
+        } else {
+            const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
+            tcp_write(pcb, fail_msg, (u16_t)strlen(fail_msg), 0);
+        }
+    }
+    // Route B: Configuration page
+    else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
+             strncmp(request, "GET / ", 6) == 0) {
+        con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER);
+
+        tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, TCP_WRITE_FLAG_MORE);
+        tcp_write(pcb, form_html, (u16_t)form_html_len, 0);
+    }
+    // Route C: Background OS pages / captive portal
+    else {
+        con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_REDIRECT_HEADER,
+                                         ipaddr_ntoa(con_state->gw));
+        tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, 0);
+    }
+
+    tcp_output(pcb);
+
+    return ERR_OK;
+}
+
+static char *get_ssid(void)
 {
     uint8_t mac[6];
 
@@ -383,7 +403,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 
-    tcp_server_t *state = calloc(1, sizeof(tcp_server_t));
+    tcp_server_t *state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
     if (!state) {
         CLOCK_DEBUG("Failed to allocate Wi-Fi state\r\n");
         return WIFI_INIT_ERROR;
@@ -436,7 +456,5 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
     free(state);
 
     CLOCK_DEBUG("start_wifi_access_point DONE\r\n");
-    return STATUS_WIFI_OK;
+    return WIFI_OK;
 }
-
-#endif /* !TEST_MODE */
