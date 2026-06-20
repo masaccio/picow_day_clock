@@ -36,6 +36,8 @@ set_source_files_properties(${COVERED_CLOCK_SRC_FILES}
 include_directories(
     ${CMAKE_SOURCE_DIR}/../tests
     ${CMAKE_SOURCE_DIR}/../src
+    ${CMAKE_SOURCE_DIR}/../src/dhcpserver
+    ${CMAKE_SOURCE_DIR}/../src/dnsserver
     ${CMAKE_SOURCE_DIR}/../generated
 )
 

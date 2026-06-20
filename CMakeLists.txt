@@ -54,7 +54,8 @@ include_directories(
     src/dhcpserver
     src/dnsserver
     ${CMAKE_BINARY_DIR}/generated
-    ${CMAKE_CURRENT_LIST_DIR})
+    ${CMAKE_CURRENT_LIST_DIR}
+)
 
 
 file(GLOB CLOCK_SRC_FILES src/*.c src/dhcpserver/dhcpserver.c  src/dnsserver/dnsserver.c)
