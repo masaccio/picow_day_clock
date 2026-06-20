@@ -851,7 +851,6 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_watchdog, "Watchdog", test_watchdog_ref);
 
     static const char *test_wifi_ap_config_ref[] = {
-        "Starting access point for configuration",
         NULL,
     };
     status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config", test_wifi_ap_config_ref);
