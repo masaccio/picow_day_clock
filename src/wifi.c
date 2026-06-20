@@ -217,8 +217,8 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
 
 static bool tcp_server_open(void *arg, const char *ssid)
 {
-    (void)arg;
     (void)ssid;
+    mock_tcp_server_state = arg;
     return true;
 }
 
