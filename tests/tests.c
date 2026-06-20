@@ -115,18 +115,30 @@ test_config_t test_config = {
     .watchdog_caused_reboot = 0,
 };
 
+#define EXPECT_OK 0
+#define EXPECT_FAIL 1
+#define EXECUTE_TEST(msg, status)                                                                                      \
+    do {                                                                                                               \
+        if (test_main() != status) {                                                                                   \
+            if (test_verbose) {                                                                                        \
+                printf("CHECK: TEST FAIL: " msg "\n");                                                                 \
+            }                                                                                                          \
+            return 1;                                                                                                  \
+        } else {                                                                                                       \
+            if (test_verbose) {                                                                                        \
+                printf("CHECK: TEST OK: " msg "\n");                                                                   \
+            }                                                                                                          \
+        }                                                                                                              \
+    } while (0)
+
 static int test_bad_lcd1(void)
 {
     calloc_counter = 0;
     calloc_fail_at = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("LCD alloc (1)", EXPECT_FAIL);
     calloc_counter = 0;
     calloc_fail_at = 2;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("LCD alloc (2)", EXPECT_FAIL);
     calloc_fail_at = 0;
     return 0;
 }
@@ -134,67 +146,54 @@ static int test_bad_lcd1(void)
 static int test_dns_lookups(void)
 {
     test_config.dns_bad_arg = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
+
     test_config.dns_lookup_fail = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
+
     // DNS poll loops every 500ms for 10s
     test_config.dns_lookup_delay = 21;
     test_config.dns_lookup_fail = 0;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("DNS lookup failure", EXPECT_FAIL);
+
     // DNS poll loops every 500ms for 10s
     test_config.dns_lookup_delay = 20;
-    if (test_main() != 0) {
-        return 1;
-    }
+    EXECUTE_TEST("DNS delay", EXPECT_OK);
     return 0;
 }
 
 static int test_wifi_init_errors(void)
 {
     test_config.cyw43_arch_init_fail = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi init failure", EXPECT_FAIL);
+
     test_config.cyw43_arch_init_fail = 0;
     test_config.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi connect failure", EXPECT_FAIL);
+
     test_config.cyw43_arch_wifi_connect_status = -99;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi status failure", EXPECT_FAIL);
+
     // Try two batches of timeouts: the first one should not quite timeout enough
     test_config.cyw43_arch_wifi_connect_status = 0;
     test_config.cyw43_auth_timeout_count = 4;
-    if (test_main() != 0) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi OK timeout", EXPECT_OK);
+
     test_config.cyw43_arch_wifi_connect_status = 0;
     test_config.cyw43_auth_timeout_count = 6;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi excess timeout", EXPECT_FAIL);
+
     return 0;
 }
 
 static int test_wifi_auth_errors(void)
 {
     test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
-    if (test_main() != 0) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi OK retry", EXPECT_OK);
 
     test_config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("Wi-Fi bad retry", EXPECT_FAIL);
+
     return 0;
 }
 
@@ -439,73 +438,58 @@ static int test_ntp_time(void)
 static int test_ntp_errors(void)
 {
     test_config.udp_response_type = UDP_NTP_INVALID;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP UDP invalid", EXPECT_FAIL);
+
     test_config.udp_response_type = UDP_NTP_BAD_LEN;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP UDP bad length failure", EXPECT_FAIL);
+
     test_config.udp_response_type = UDP_NTP_BAD_PORT;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP UDP bad port failure", EXPECT_FAIL);
+
     test_config.udp_new_ip_type_fail = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP UDP new IP failure", EXPECT_FAIL);
+
     test_config.udp_new_ip_type_fail = 0;
     pbuf_alloc_fail_at = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP pbuf alloc failure", EXPECT_FAIL);
+
     pbuf_alloc_fail_at = 0;
     test_config.udp_sendto_fail = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP sendto failure", EXPECT_FAIL);
+
     test_config.udp_sendto_fail = 0;
     test_config.udp_invalid_addr = 1;
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP invalid address", EXPECT_FAIL);
+
     test_config.udp_invalid_addr = 0;
     calloc_counter = 0;
     calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
-    if (test_main() != 1) {
-        return 1;
-    }
+    EXECUTE_TEST("NTP calloc failure", EXPECT_FAIL);
+
     return 0;
 }
 
 static int test_watchdog(void)
 {
-    if (test_main() != 0) {
-        return 1;
-    }
+    EXECUTE_TEST("Watchdog init OK", EXPECT_OK);
+
     test_config.watchdog_caused_reboot = 1;
-    if (test_main() != 0) {
-        return 1;
-    }
-    if (test_main() != 0 || persistent_state.boot_count != 2) {
-        return 1;
-    }
+    EXECUTE_TEST("Watchdog reboot OK", EXPECT_OK);
+
+    EXECUTE_TEST("Watchdog boot count", 0 || persistent_state.boot_count != 2);
+
     test_config.watchdog_caused_reboot = 0;
     test_config.cyw43_arch_init_fail = 1;
-    if (test_main() != 1 || !watchdog_reboot_called) {
-        return 1;
-    }
+    EXECUTE_TEST("Watchdog reboot on Wi-Fi", 1 || !watchdog_reboot_called);
+
     watchdog_reboot_called = 0;
     test_config.cyw43_arch_init_fail = 0;
     test_config.dns_lookup_fail = 1;
-    if (test_main() != 1 || !watchdog_reboot_called) {
-        return 1;
-    }
+    EXECUTE_TEST("Watchdog reboot on DNS", 1 || !watchdog_reboot_called);
+
     test_config.watchdog_caused_reboot = 1;
     test_config.dns_lookup_fail = 0;
-    if (test_main() != 0) {
-        return 1;
-    }
+    EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
 
     // Coverage on otherwise invalid status debug values
     if ((strcmp(watchdog_error_to_string((watchdog_error_t)0xff), "UNKNOWN_STATUS") != 0) ||
@@ -513,6 +497,139 @@ static int test_watchdog(void)
         (strcmp(ntp_error_to_string((ntp_error_t)0xff), "UNKNOWN_STATUS") != 0)) {
         return 1;
     }
+    return 0;
+}
+
+static clock_config_t last_parsed_config;
+static int config_save_count = 0;
+
+static int mock_store_config(clock_config_t *config)
+{
+    memcpy(&last_parsed_config, config, sizeof(clock_config_t));
+    config_save_count++;
+    return 0;
+}
+
+// static int mock_store_config_failure(clock_config_t *config)
+// {
+//     (void)config;
+//     return 1;
+// }
+
+static int simulate_form_post(void *con_state, struct tcp_pcb *pcb, const char *post_body)
+{
+    config_save_count = 0;
+    memset(&last_parsed_config, 0, sizeof(clock_config_t));
+
+    char headers[256];
+    snprintf(headers, sizeof(headers), "POST / HTTP/1.1\r\nContent-Length: %zu\r\n\r\n", strlen(post_body));
+
+    struct pbuf p_head = {0};
+    p_head.tot_len = (u16_t)strlen(headers);
+    memcpy(p_head.payload, headers, p_head.tot_len);
+    tcp_server_recv(con_state, pcb, &p_head, 0);
+
+    struct pbuf p_body = {0};
+    p_body.tot_len = (u16_t)strlen(post_body);
+    memcpy(p_body.payload, post_body, p_body.tot_len);
+    tcp_server_recv(con_state, pcb, &p_body, 0);
+
+    return config_save_count;
+}
+
+static int test_wifi_ap_config(void)
+{
+    // Initialize AP to set up the mock_tcp_server_state
+    if (start_wifi_access_point(mock_store_config) != WIFI_OK)
+        return 1;
+
+    struct tcp_pcb client_pcb = {0};
+    // tcp_server_accept(mock_tcp_server_state, &client_pcb, 0);
+    void *con_state = mock_tcp_server_state;
+
+    // Test happy path (standard fully-populated form)
+    const char *happy_path = "ssid=HomeNet&pwd=Password123&ntp=time.apple.com&tz=-300&dst=NA";
+    if (simulate_form_post(con_state, &client_pcb, happy_path) != 1)
+        return 1;
+
+    if (strcmp(last_parsed_config.wifi_ssid, "HomeNet") != 0)
+        return 1;
+    if (strcmp(last_parsed_config.wifi_password, "Password123") != 0)
+        return 1;
+    if (strcmp(last_parsed_config.ntp_server, "time.apple.com") != 0)
+        return 1;
+    if (last_parsed_config.tz_offset_mins != -300)
+        return 1;
+    if (last_parsed_config.dst_rule != DST_RULE_NA)
+        return 1;
+
+    // Stress URL decode
+    // ssid: "My Wi-Fi!" (Testing + and %21)
+    // pwd:  "a&b=c%d"   (Testing %26, %3D, %25)
+    const char *url_encoded = "ssid=My+Wi-Fi%21&pwd=a%26b%3Dc%25d&tz=0&dst=NONE";
+    simulate_form_post(con_state, &client_pcb, url_encoded);
+
+    if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {
+        printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
+        return 1;
+    }
+    if (strcmp(last_parsed_config.wifi_password, "a&b=c%d") != 0) {
+        printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
+        return 1;
+    }
+
+    // Buffer overflow tests
+    const char *overflow = "ssid=1234567890123456789012345678901234567890"                                // 40 chars
+                           "&pwd=1234567890123456789012345678901234567890123456789012345678901234567890"; // 70 chars
+
+    simulate_form_post(con_state, &client_pcb, overflow);
+
+    // Assert strictly null-terminated and truncated correctly
+    if (strlen(last_parsed_config.wifi_ssid) > 32)
+        return 1;
+    if (strlen(last_parsed_config.wifi_password) > 63)
+        return 1;
+    if (strncmp(last_parsed_config.wifi_ssid, "12345678901234567890123456789012", 32) != 0)
+        return 1;
+
+    // Exhaustive DST Enumeration Mapping
+    simulate_form_post(con_state, &client_pcb, "dst=EU");
+    if (last_parsed_config.dst_rule != DST_RULE_EU)
+        return 1;
+    simulate_form_post(con_state, &client_pcb, "dst=AU");
+    if (last_parsed_config.dst_rule != DST_RULE_AU)
+        return 1;
+    simulate_form_post(con_state, &client_pcb, "dst=NZ");
+    if (last_parsed_config.dst_rule != DST_RULE_NZ)
+        return 1;
+    simulate_form_post(con_state, &client_pcb, "dst=CL");
+    if (last_parsed_config.dst_rule != DST_RULE_CL)
+        return 1;
+    simulate_form_post(con_state, &client_pcb, "dst=IL");
+    if (last_parsed_config.dst_rule != DST_RULE_IL)
+        return 1;
+
+    // Invalid / Catch-all cases must default to NONE
+    simulate_form_post(con_state, &client_pcb, "dst=GARBAGE");
+    if (last_parsed_config.dst_rule != DST_RULE_NONE)
+        return 1;
+    simulate_form_post(con_state, &client_pcb, "dst=");
+    if (last_parsed_config.dst_rule != DST_RULE_NONE)
+        return 1;
+
+    // Malformed data and missing fields
+    simulate_form_post(con_state, &client_pcb, "ssid=&pwd=&tz=");
+    if (strlen(last_parsed_config.wifi_ssid) != 0)
+        return 1;
+    if (last_parsed_config.tz_offset_mins != 0)
+        return 1;
+
+    simulate_form_post(con_state, &client_pcb, "&&&&=&=ssid=Valid&&");
+    if (strcmp(last_parsed_config.wifi_ssid, "Valid") != 0) {
+        printf("FAILED Malformed Parse: Expected 'Valid', got '%s'\n", last_parsed_config.wifi_ssid);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -735,6 +852,12 @@ int main(const int argc, const char *argv[])
         NULL,
     };
     status |= run_test(test_watchdog, "Watchdog", test_watchdog_ref);
+
+    static const char *test_wifi_ap_config_ref[] = {
+        "Starting access point for configuration",
+        NULL,
+    };
+    status |= run_test(test_wifi_ap_config, "Wi-Fi AP Form Permutations", test_wifi_ap_config_ref);
 
     return status;
 }
