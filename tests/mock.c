@@ -486,6 +486,9 @@ void restore_interrupts(uint32_t status)
 static clock_config_t flash_clock_config_storage;
 void *flash_clock_config = (void *)&flash_clock_config_storage;
 
+static mock_struct_t mock_tcp_server_state_storage;
+void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
+
 void flash_range_erase(uint32_t flash_offs, size_t count)
 {
     (void)flash_offs;
