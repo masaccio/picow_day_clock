@@ -29,6 +29,7 @@ typedef struct
     int dns_lookup_fail;
     int dns_bad_arg;
     int watchdog_caused_reboot;
+    int tcp_open_fail;
 } test_config_t;
 
 extern int test_main(void);

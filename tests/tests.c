@@ -122,13 +122,14 @@ test_config_t test_config = {
     .dns_lookup_delay = 0,
     .dns_lookup_fail = 0,
     .watchdog_caused_reboot = 0,
+    .tcp_open_fail = 0,
 };
 
 #define EXPECT_OK 0
 #define EXPECT_FAIL 1
-#define EXECUTE_TEST(msg, status)                                                                                      \
+#define EXECUTE_TEST_WRAPPER(test_func, msg, status)                                                                   \
     do {                                                                                                               \
-        if (test_main() != status) {                                                                                   \
+        if (test_func != status) {                                                                                     \
             if (test_verbose) {                                                                                        \
                 printf("CHECK: TEST FAIL: " msg "\n");                                                                 \
             }                                                                                                          \
@@ -139,6 +140,8 @@ test_config_t test_config = {
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
+#define EXECUTE_TEST(msg, status) EXECUTE_TEST_WRAPPER(test_main(), msg, status)
+#define EXECUTE_AP_TEST(msg, status) EXECUTE_TEST_WRAPPER(start_wifi_access_point(mock_store_config), msg, status)
 
 static int test_bad_lcd1(void)
 {
@@ -534,11 +537,11 @@ static int mock_store_config(clock_config_t *config)
     return 0;
 }
 
-// static int mock_store_config_failure(clock_config_t *config)
-// {
-//     (void)config;
-//     return 1;
-// }
+static int mock_store_config_failure(clock_config_t *config)
+{
+    (void)config;
+    return 1;
+}
 
 static int simulate_form_post(void *con_state, struct tcp_pcb *pcb, const char *post_body)
 {
@@ -564,15 +567,39 @@ static int simulate_form_post(void *con_state, struct tcp_pcb *pcb, const char *
 
 static int test_wifi_ap_config(void)
 {
-    // TODO: test start_wifi_access_point() paths
-    void *con_state = create_test_config((void *)mock_store_config);
+    calloc_counter = 0;
+    calloc_fail_at = 1;
+    EXECUTE_AP_TEST("Wi-Fi AP alloc failure", EXPECT_FAIL);
+
+    calloc_fail_at = 0;
+    test_config.tcp_open_fail = 1;
+    EXECUTE_AP_TEST("Wi-Fi TCP open failure", EXPECT_FAIL);
+
+    test_config.tcp_open_fail = 0;
+    void *con_state = create_test_config((void *)mock_store_config_failure);
     struct tcp_pcb client_pcb = {0};
 
+    // Flash failure test
+    const char *url = TEST_CONFIG_URL("SSID", "password", TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
+    if (simulate_form_post(con_state, &client_pcb, url) != 0)
+        return 1;
+    if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
+        if (test_verbose) {
+            printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
+        }
+    }
+
     // Test happy path (standard fully-populated form)
+    con_state = create_test_config((void *)mock_store_config);
     const char *happy_path =
         TEST_CONFIG_URL(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
     if (simulate_form_post(con_state, &client_pcb, happy_path) != 1)
         return 1;
+    if (strstr(mock_tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
+        if (test_verbose) {
+            printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
+        }
+    }
 
     if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0)
         return 1;
@@ -592,11 +619,15 @@ static int test_wifi_ap_config(void)
     simulate_form_post(con_state, &client_pcb, url_encoded);
 
     if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {
-        printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
+        if (test_verbose) {
+            printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
+        }
         return 1;
     }
     if (strcmp(last_parsed_config.wifi_password, "a&b=c%d") != 0) {
-        printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
+        if (test_verbose) {
+            printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
+        }
         return 1;
     }
 

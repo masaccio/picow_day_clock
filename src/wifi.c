@@ -9,6 +9,7 @@
 #include "pico/stdlib.h"
 #else
 #include "mock.h"
+#include "test.h"
 #endif
 #include "html_form.h"
 
@@ -208,6 +209,7 @@ static bool tcp_server_open(void *arg, const char *ssid)
     return true;
 }
 #else
+
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     (void)con_state;
@@ -215,11 +217,17 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
     return close_err;
 }
 
+extern test_config_t test_config;
+
 static bool tcp_server_open(void *arg, const char *ssid)
 {
     (void)arg;
     (void)ssid;
-    return true;
+    if (test_config.tcp_open_fail) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 static void tcp_server_close(tcp_server_t *state)
@@ -417,7 +425,6 @@ void clear_test_config(void *arg)
     con_state->header_len = 0;
     con_state->result_len = 0;
 }
-
 #endif
 
 wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
@@ -441,17 +448,9 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
     char *ssid = get_ssid();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
 
-#if LWIP_IPV6
-#define IP(x) ((x).u_addr.ip4)
-#else
-#define IP(x) (x)
-#endif
-
     ip4_addr_t mask;
-    IP(state->gw).addr = PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS);
-    IP(mask).addr = PP_HTONL(CYW43_DEFAULT_IP_MASK);
-
-#undef IP
+    state->gw.addr = PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS);
+    mask.addr = PP_HTONL(CYW43_DEFAULT_IP_MASK);
 
     dhcp_server_t dhcp_server;
     dhcp_server_init(&dhcp_server, &state->gw, &mask);

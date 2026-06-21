@@ -178,8 +178,9 @@ extern void *flash_clock_config;
 void flash_range_erase(uint32_t flash_offs, size_t count);
 void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
 
-// TCP/IP
+// TCP/IP and Wi-Fi AP
 extern void *mock_tcp_server_state;
+extern char mock_tcp_write_buffer[8192];
 typedef char err_t;
 #define ipaddr_ntoa(ipaddr) ip4addr_ntoa(ipaddr)
 const char *ip4addr_ntoa(ip_addr_t *ipaddr);
