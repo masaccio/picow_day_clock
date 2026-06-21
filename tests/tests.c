@@ -29,6 +29,15 @@ char **log_buffer;
 
 #define LOG_ERROR_WIDTH 45
 
+#define STR(x) #x
+#define TEST_AP_SSID "HomeNet"
+#define TEST_AP_PASSWORD "s3cr3t"
+#define TEST_NTP_SERVER "time.apple.com"
+#define TEST_TZ_OFFSET 0
+#define TEST_DST_RULE 0
+#define TEST_TIMEOUT 10 * 1000
+#define TEST_CONFIG_URL(ssid, pwd, ntp, tz, dst) "ssid=" ssid "&pwd=" pwd "&ntp=" ntp "&tz=" STR(tz) "&dst=" STR(dst)
+
 static int run_test(test_func_t func, const char *test_name, const char **expected_log)
 {
     log_buffer = (char **)calloc(sizeof(char *), LOG_BUFFER_SIZE);
@@ -217,7 +226,7 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
     mock_ntp_seconds = (unsigned long long)t;
 }
 
-static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
+static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
@@ -227,7 +236,21 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->first_clock_tick = 0;
     timer->user_data = clock_state;
+
+    memcpy(&clock_state->clock_config, clock_config, sizeof(clock_config_t));
+    memcpy(flash_clock_config, clock_config, sizeof(clock_config_t));
     return clock_state;
+}
+
+static clock_config_t *create_clock_config(void)
+{
+    static clock_config_t clock_config = {.magic_marker = CONFIG_MAGIC,
+                                          .wifi_ssid = TEST_AP_SSID,
+                                          .wifi_password = TEST_AP_PASSWORD,
+                                          .tz_offset_mins = TEST_TZ_OFFSET,
+                                          .dst_rule = (dst_rule_t)TEST_DST_RULE,
+                                          .timeout = TEST_TIMEOUT};
+    return &clock_config;
 }
 
 // Note: 'mo' is 0-indexed (2 = March, 9 = October, etc.)
@@ -250,7 +273,7 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer)
 static int test_dst(void)
 {
     repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer);
+    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
     time_t now;
 
     // Coverage test for Zeller's congruence
@@ -261,7 +284,6 @@ static int test_dst(void)
     // Timezone Offset Tests (DST_RULE_NONE)`
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    clock_state->clock_config.dst_rule = DST_RULE_NONE;
 
     // Test Positive Fractional Offset: India (+5:30 -> 330 mins)
     clock_state->clock_config.tz_offset_mins = 330;
@@ -365,7 +387,7 @@ static int lcd_digits_to_int(const char *digits)
 static int test_ntp_time(void)
 {
     repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer);
+    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
 
     // Tue January 9, 2001 at 09:28:32
     set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
@@ -395,8 +417,10 @@ static int test_ntp_time(void)
             struct tm *current_time = gmtime(&now);
             if (current_time->tm_hour != lcd_hour || current_time->tm_min != lcd_min) {
                 status = 1;
-                printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min, lcd_hour,
-                       lcd_min);
+                if (test_verbose) {
+                    printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min,
+                           lcd_hour, lcd_min);
+                }
             }
         }
         last_lcd_hour = lcd_hour;
@@ -545,25 +569,26 @@ static int test_wifi_ap_config(void)
     struct tcp_pcb client_pcb = {0};
 
     // Test happy path (standard fully-populated form)
-    const char *happy_path = "ssid=HomeNet&pwd=Password123&ntp=time.apple.com&tz=-300&dst=NA";
+    const char *happy_path =
+        TEST_CONFIG_URL(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
     if (simulate_form_post(con_state, &client_pcb, happy_path) != 1)
         return 1;
 
-    if (strcmp(last_parsed_config.wifi_ssid, "HomeNet") != 0)
+    if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0)
         return 1;
-    if (strcmp(last_parsed_config.wifi_password, "Password123") != 0)
+    if (strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD) != 0)
         return 1;
-    if (strcmp(last_parsed_config.ntp_server, "time.apple.com") != 0)
+    if (strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER) != 0)
         return 1;
-    if (last_parsed_config.tz_offset_mins != -300)
+    if (last_parsed_config.tz_offset_mins != TEST_TZ_OFFSET)
         return 1;
-    if (last_parsed_config.dst_rule != DST_RULE_NA)
+    if (last_parsed_config.dst_rule != (dst_rule_t)TEST_DST_RULE)
         return 1;
 
     // Stress URL decode
     // ssid: "My Wi-Fi!" (Testing + and %21)
     // pwd:  "a&b=c%d"   (Testing %26, %3D, %25)
-    const char *url_encoded = "ssid=My+Wi-Fi%21&pwd=a%26b%3Dc%25d&tz=0&dst=NONE";
+    const char *url_encoded = TEST_CONFIG_URL("My+Wi-Fi%21", "a%26b%3Dc%25d", TEST_NTP_SERVER, 0, 0);
     simulate_form_post(con_state, &client_pcb, url_encoded);
 
     if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {

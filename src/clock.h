@@ -104,10 +104,9 @@ typedef enum
 } dst_rule_t;
 
 #define CONFIG_MAGIC ((uint32_t)'C' << 24 | (uint32_t)'L' << 16 | (uint32_t)'O' << 8 | (uint32_t)'K')
-#ifndef TEST_MODE
 #define FLASH_TARGET_OFFSET (3 * 1024 * 1024)
-#else
-#define FLASH_TARGET_OFFSET 0
+#ifndef FLASH_CONFIG_ADDR
+#define FLASH_CONFIG_ADDR XIP_BASE + FLASH_TARGET_OFFSET
 #endif
 
 typedef struct

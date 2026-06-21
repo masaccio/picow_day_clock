@@ -349,7 +349,6 @@ bool clock_timer_callback(repeating_timer_t *t)
         state->watchdog_reset_error = WATCHDOG_OK;
     }
 
-#ifndef TEST_MODE
     static uint8_t button_hold_seconds = 0;
     // Check the physical state of the button (0 means pressed due to pull-up)
     if (gpio_get(CONFIG_BUTTON_GPIO) == 0) {
@@ -364,7 +363,6 @@ bool clock_timer_callback(repeating_timer_t *t)
     } else {
         button_hold_seconds = 0;
     }
-#endif
 
     if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
@@ -501,9 +499,8 @@ int main(void)
         persistent_state.wifi_error = WIFI_OK;
     }
 
-#ifndef TEST_MODE
     CLOCK_DEBUG("Checking flash\r\n");
-    clock_config_t *flash_config = (clock_config_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
+    clock_config_t *flash_config = (clock_config_t *)FLASH_CONFIG_ADDR;
     if (flash_config->magic_marker == CONFIG_MAGIC) {
         CLOCK_DEBUG("Valid config loaded from Flash\r\n");
         memcpy(&state->clock_config, flash_config, sizeof(clock_config_t));
@@ -514,7 +511,6 @@ int main(void)
         start_wifi_access_point(config_store_handler);
     }
     CLOCK_DEBUG("Checking flash done\r\n");
-#endif
 
 #ifdef TEST_MODE
     // Test has generated a watchdog reset and logged its outcome so we can return to the test harness now
