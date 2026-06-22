@@ -209,7 +209,7 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
 {
     (void)self;
     (void)itf;
-    static uint8_t test_mac[8] = {0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef};
+    static uint8_t test_mac[6] = {0x00, 0x00, 0xde, 0xad, 0xbe, 0xef};
     memcpy(mac, test_mac, sizeof(test_mac));
     return 0;
 }
