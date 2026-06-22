@@ -223,7 +223,7 @@ static bool tcp_server_open(void *arg, const char *ssid)
 {
     (void)arg;
     (void)ssid;
-    if (mock_ctx.config.tcp_open_fail) {
+    if (mock_ctx.inject.tcp_open_fail) {
         return false;
     } else {
         return true;

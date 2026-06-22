@@ -149,7 +149,7 @@ void pwm_set_enabled(uint slice_num, int enabled)
 // Wi-Fi functions
 int cyw43_arch_init(void)
 {
-    return mock_ctx.config.cyw43_arch_init_fail ? 1 : 0;
+    return mock_ctx.inject.cyw43_arch_init_fail ? 1 : 0;
 }
 
 void cyw43_arch_enable_sta_mode(void)
@@ -185,16 +185,16 @@ int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, u
     (void)password;
     (void)auth;
     (void)timeout_ms;
-    if (mock_ctx.config.cyw43_auth_error_count > 0) {
-        mock_ctx.config.cyw43_auth_error_count--;
+    if (mock_ctx.inject.cyw43_auth_error_count > 0) {
+        mock_ctx.inject.cyw43_auth_error_count--;
         return PICO_ERROR_BADAUTH;
     }
-    if (mock_ctx.config.cyw43_auth_timeout_count > 0) {
-        mock_ctx.config.cyw43_auth_timeout_count--;
+    if (mock_ctx.inject.cyw43_auth_timeout_count > 0) {
+        mock_ctx.inject.cyw43_auth_timeout_count--;
         sleep_ms(10 * 1000);
         return PICO_ERROR_TIMEOUT;
     }
-    return mock_ctx.config.cyw43_arch_wifi_connect_status;
+    return mock_ctx.inject.cyw43_arch_wifi_connect_status;
 }
 
 void cyw43_arch_deinit(void)
@@ -233,10 +233,10 @@ absolute_time_t get_absolute_time(void)
 
 int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to)
 {
-    if (mock_ctx.config.dns_lookup_delay) {
-        mock_ctx.config.dns_lookup_delay--;
-        if (mock_ctx.config.dns_lookup_delay == 0) {
-            if (mock_ctx.config.dns_lookup_fail) {
+    if (mock_ctx.inject.dns_lookup_delay) {
+        mock_ctx.inject.dns_lookup_delay--;
+        if (mock_ctx.inject.dns_lookup_delay == 0) {
+            if (mock_ctx.inject.dns_lookup_fail) {
                 dns_found_func(dns_hostname, NULL, dns_found_arg);
             } else {
                 static const ip_addr_t ipaddr = {0xdeadbeef};
@@ -276,7 +276,7 @@ int mock_printf(const char *format, ...)
             }
         }
         strncpy(mock_ctx.spy.log_buffer[mock_ctx.spy.log_buffer_size], buffer, (size_t)buffer_len);
-        if (mock_ctx.spy.test_verbose) {
+        if (mock_ctx.config.test_verbose) {
             printf("DEBUG: %s\n", buffer);
         }
         mock_ctx.spy.log_buffer_size += 1;
@@ -352,24 +352,24 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     (void)dst_ip;
     (void)dst_port;
 
-    if (mock_ctx.config.udp_sendto_fail) {
+    if (mock_ctx.inject.udp_sendto_fail) {
         return -1;
     }
     // Calling the recv() callback right away is harmless for this implementation.
     // And we hard-code a hacked up NTP packet as that's all that will ever be used
-    p->tot_len = (mock_ctx.config.udp_response_type == UDP_NTP_BAD_LEN) ? 0x0 : NTP_MSG_LEN;
-    p->payload[0] = (mock_ctx.config.udp_response_type == UDP_NTP_INVALID) ? 0x0 : 0x4; // mode
-    p->payload[1] = (mock_ctx.config.udp_response_type == UDP_NTP_KOD) ? 0x0 : 0x1;     // stratum
+    p->tot_len = (mock_ctx.inject.udp_response_type == UDP_NTP_BAD_LEN) ? 0x0 : NTP_MSG_LEN;
+    p->payload[0] = (mock_ctx.inject.udp_response_type == UDP_NTP_INVALID) ? 0x0 : 0x4; // mode
+    p->payload[1] = (mock_ctx.inject.udp_response_type == UDP_NTP_KOD) ? 0x0 : 0x1;     // stratum
     p->payload[40] = (mock_ctx.spy.ntp_seconds >> 24) & 0xff;
     p->payload[41] = (mock_ctx.spy.ntp_seconds >> 16) & 0xff;
     p->payload[42] = (mock_ctx.spy.ntp_seconds >> 8) & 0xff;
     p->payload[43] = mock_ctx.spy.ntp_seconds & 0xff;
     static ip_addr_t bad_addr = {.addr = 0xffff};
-    udp_recv_callback(udp_recv_callback_arg, pcb, p, (mock_ctx.config.udp_invalid_addr) ? &bad_addr : dst_ip,
-                      (mock_ctx.config.udp_response_type == UDP_NTP_BAD_PORT) ? 0x0 : NTP_PORT);
+    udp_recv_callback(udp_recv_callback_arg, pcb, p, (mock_ctx.inject.udp_invalid_addr) ? &bad_addr : dst_ip,
+                      (mock_ctx.inject.udp_response_type == UDP_NTP_BAD_PORT) ? 0x0 : NTP_PORT);
 
     // Only generate a single invalid response
-    mock_ctx.config.udp_response_type = UDP_NTP_OK;
+    mock_ctx.inject.udp_response_type = UDP_NTP_OK;
     return ERR_OK;
 }
 
@@ -392,17 +392,17 @@ u8_t pbuf_get_at(const struct pbuf *p, u16_t offset)
 
 int dns_gethostbyname(const char *hostname, ip_addr_t *addr, dns_callback_fn found, void *arg)
 {
-    if (mock_ctx.config.dns_lookup_delay > 0) {
+    if (mock_ctx.inject.dns_lookup_delay > 0) {
         dns_hostname = hostname;
         dns_found_func = found;
         dns_found_arg = arg;
         return ERR_INPROGRESS;
     }
-    if (mock_ctx.config.dns_lookup_fail) {
+    if (mock_ctx.inject.dns_lookup_fail) {
         addr->addr = 0;
         found(hostname, NULL, arg);
         return ERR_INPROGRESS;
-    } else if (mock_ctx.config.dns_bad_arg) {
+    } else if (mock_ctx.inject.dns_bad_arg) {
         return ERR_ARG;
     } else {
         return ERR_OK;
@@ -419,7 +419,7 @@ void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg)
 struct udp_pcb *udp_new_ip_type(u8_t type)
 {
     (void)type;
-    if (mock_ctx.config.udp_new_ip_type_fail) {
+    if (mock_ctx.inject.udp_new_ip_type_fail) {
         return NULL;
     }
     static struct udp_pcb buffer = {0xdeadbeef};
@@ -439,7 +439,7 @@ void watchdog_update(void)
 
 int watchdog_caused_reboot(void)
 {
-    return mock_ctx.config.watchdog_caused_reboot || mock_ctx.spy.watchdog_reboot_called;
+    return mock_ctx.spy.watchdog_caused_reboot || mock_ctx.spy.watchdog_reboot_called;
 }
 
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)

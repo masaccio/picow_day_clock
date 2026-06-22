@@ -39,7 +39,7 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     mock_ctx.spy.log_buffer = (char **)calloc(sizeof(char *), LOG_BUFFER_SIZE);
     mock_ctx.spy.log_buffer_size = 0;
 
-    if (mock_ctx.spy.test_verbose) {
+    if (mock_ctx.config.test_verbose) {
         printf("DEBUG: Starting test '%s'\n", test_name);
     }
 
@@ -111,12 +111,12 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
 #define EXECUTE_TEST_WRAPPER(test_func, msg, status)                                                                   \
     do {                                                                                                               \
         if (test_func != status) {                                                                                     \
-            if (mock_ctx.spy.test_verbose) {                                                                           \
+            if (mock_ctx.config.test_verbose) {                                                                        \
                 printf("CHECK: TEST FAIL: " msg "\n");                                                                 \
             }                                                                                                          \
             return 1;                                                                                                  \
         } else {                                                                                                       \
-            if (mock_ctx.spy.test_verbose) {                                                                           \
+            if (mock_ctx.config.test_verbose) {                                                                        \
                 printf("CHECK: TEST OK: " msg "\n");                                                                   \
             }                                                                                                          \
         }                                                                                                              \
@@ -138,42 +138,42 @@ static int test_bad_lcd1(void)
 
 static int test_dns_lookups(void)
 {
-    mock_ctx.config.dns_bad_arg = 1;
+    mock_ctx.inject.dns_bad_arg = 1;
     EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
 
-    mock_ctx.config.dns_lookup_fail = 1;
+    mock_ctx.inject.dns_lookup_fail = 1;
     EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
 
     // DNS poll loops every 500ms for 10s
-    mock_ctx.config.dns_lookup_delay = 21;
-    mock_ctx.config.dns_lookup_fail = 0;
+    mock_ctx.inject.dns_lookup_delay = 21;
+    mock_ctx.inject.dns_lookup_fail = 0;
     EXECUTE_TEST("DNS lookup failure", EXPECT_FAIL);
 
     // DNS poll loops every 500ms for 10s
-    mock_ctx.config.dns_lookup_delay = 20;
+    mock_ctx.inject.dns_lookup_delay = 20;
     EXECUTE_TEST("DNS delay", EXPECT_OK);
     return 0;
 }
 
 static int test_wifi_init_errors(void)
 {
-    mock_ctx.config.cyw43_arch_init_fail = 1;
+    mock_ctx.inject.cyw43_arch_init_fail = 1;
     EXECUTE_TEST("Wi-Fi init failure", EXPECT_FAIL);
 
-    mock_ctx.config.cyw43_arch_init_fail = 0;
-    mock_ctx.config.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
+    mock_ctx.inject.cyw43_arch_init_fail = 0;
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
     EXECUTE_TEST("Wi-Fi connect failure", EXPECT_FAIL);
 
-    mock_ctx.config.cyw43_arch_wifi_connect_status = -99;
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = -99;
     EXECUTE_TEST("Wi-Fi status failure", EXPECT_FAIL);
 
     // Try two batches of timeouts: the first one should not quite timeout enough
-    mock_ctx.config.cyw43_arch_wifi_connect_status = 0;
-    mock_ctx.config.cyw43_auth_timeout_count = 4;
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = 0;
+    mock_ctx.inject.cyw43_auth_timeout_count = 4;
     EXECUTE_TEST("Wi-Fi OK timeout", EXPECT_OK);
 
-    mock_ctx.config.cyw43_arch_wifi_connect_status = 0;
-    mock_ctx.config.cyw43_auth_timeout_count = 6;
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = 0;
+    mock_ctx.inject.cyw43_auth_timeout_count = 6;
     EXECUTE_TEST("Wi-Fi excess timeout", EXPECT_FAIL);
 
     return 0;
@@ -181,10 +181,10 @@ static int test_wifi_init_errors(void)
 
 static int test_wifi_auth_errors(void)
 {
-    mock_ctx.config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
+    mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
     EXECUTE_TEST("Wi-Fi OK retry", EXPECT_OK);
 
-    mock_ctx.config.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
+    mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
     EXECUTE_TEST("Wi-Fi bad retry", EXPECT_FAIL);
 
     return 0;
@@ -401,7 +401,7 @@ static int test_ntp_time(void)
             struct tm *current_time = gmtime(&now);
             if (current_time->tm_hour != lcd_hour || current_time->tm_min != lcd_min) {
                 status = 1;
-                if (mock_ctx.spy.test_verbose) {
+                if (mock_ctx.config.test_verbose) {
                     printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min,
                            lcd_hour, lcd_min);
                 }
@@ -412,14 +412,14 @@ static int test_ntp_time(void)
         mock_ctx.spy.system_time_ms += 1000;
 
         if (tick == (2 * seconds_in_day)) {
-            mock_ctx.config.udp_response_type = UDP_NTP_KOD;
+            mock_ctx.inject.udp_response_type = UDP_NTP_KOD;
         }
         if (tick == (3 * seconds_in_day) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
             printf("TEST FAIL: Interval was not doubled via KoD\n");
             return 1;
         }
         if (tick == (6 * seconds_in_day)) {
-            mock_ctx.config.dns_lookup_fail = 1;
+            mock_ctx.inject.dns_lookup_fail = 1;
             clock_state->watchdog_reset_error = WATCHDOG_NTP;
             clock_state->last_watchdog_error = (time_t)(mock_ctx.spy.system_time_ms / 1000) + NTP_SYNC_INTERVAL_SEC / 2;
         }
@@ -428,7 +428,7 @@ static int test_ntp_time(void)
                 status = 1;
                 printf("WATCHDOG FAILED TO CLEAR\n");
             }
-            mock_ctx.config.dns_lookup_fail = 0;
+            mock_ctx.inject.dns_lookup_fail = 0;
         }
 
         // Each day gets a different drift
@@ -439,37 +439,37 @@ static int test_ntp_time(void)
             mock_ctx.spy.ntp_seconds++;
         }
     }
-    mock_ctx.config.udp_response_type = UDP_NTP_OK;
+    mock_ctx.inject.udp_response_type = UDP_NTP_OK;
     return status;
 }
 
 static int test_ntp_errors(void)
 {
-    mock_ctx.config.udp_response_type = UDP_NTP_INVALID;
+    mock_ctx.inject.udp_response_type = UDP_NTP_INVALID;
     EXECUTE_TEST("NTP UDP invalid", EXPECT_FAIL);
 
-    mock_ctx.config.udp_response_type = UDP_NTP_BAD_LEN;
+    mock_ctx.inject.udp_response_type = UDP_NTP_BAD_LEN;
     EXECUTE_TEST("NTP UDP bad length failure", EXPECT_FAIL);
 
-    mock_ctx.config.udp_response_type = UDP_NTP_BAD_PORT;
+    mock_ctx.inject.udp_response_type = UDP_NTP_BAD_PORT;
     EXECUTE_TEST("NTP UDP bad port failure", EXPECT_FAIL);
 
-    mock_ctx.config.udp_new_ip_type_fail = 1;
+    mock_ctx.inject.udp_new_ip_type_fail = 1;
     EXECUTE_TEST("NTP UDP new IP failure", EXPECT_FAIL);
 
-    mock_ctx.config.udp_new_ip_type_fail = 0;
+    mock_ctx.inject.udp_new_ip_type_fail = 0;
     mock_ctx.inject.pbuf_alloc_fail_at = 1;
     EXECUTE_TEST("NTP pbuf alloc failure", EXPECT_FAIL);
 
     mock_ctx.inject.pbuf_alloc_fail_at = 0;
-    mock_ctx.config.udp_sendto_fail = 1;
+    mock_ctx.inject.udp_sendto_fail = 1;
     EXECUTE_TEST("NTP sendto failure", EXPECT_FAIL);
 
-    mock_ctx.config.udp_sendto_fail = 0;
-    mock_ctx.config.udp_invalid_addr = 1;
+    mock_ctx.inject.udp_sendto_fail = 0;
+    mock_ctx.inject.udp_invalid_addr = 1;
     EXECUTE_TEST("NTP invalid address", EXPECT_FAIL);
 
-    mock_ctx.config.udp_invalid_addr = 0;
+    mock_ctx.inject.udp_invalid_addr = 0;
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
     EXECUTE_TEST("NTP calloc failure", EXPECT_FAIL);
@@ -481,22 +481,22 @@ static int test_watchdog(void)
 {
     EXECUTE_TEST("Watchdog init OK", EXPECT_OK);
 
-    mock_ctx.config.watchdog_caused_reboot = 1;
+    mock_ctx.spy.watchdog_caused_reboot = 1;
     EXECUTE_TEST("Watchdog reboot OK", EXPECT_OK);
 
     EXECUTE_TEST("Watchdog boot count", 0 || persistent_state.boot_count != 2);
 
-    mock_ctx.config.watchdog_caused_reboot = 0;
-    mock_ctx.config.cyw43_arch_init_fail = 1;
+    mock_ctx.spy.watchdog_caused_reboot = 0;
+    mock_ctx.inject.cyw43_arch_init_fail = 1;
     EXECUTE_TEST("Watchdog reboot on Wi-Fi", 1 || !mock_ctx.spy.watchdog_reboot_called);
 
     mock_ctx.spy.watchdog_reboot_called = 0;
-    mock_ctx.config.cyw43_arch_init_fail = 0;
-    mock_ctx.config.dns_lookup_fail = 1;
+    mock_ctx.inject.cyw43_arch_init_fail = 0;
+    mock_ctx.inject.dns_lookup_fail = 1;
     EXECUTE_TEST("Watchdog reboot on DNS", 1 || !mock_ctx.spy.watchdog_reboot_called);
 
-    mock_ctx.config.watchdog_caused_reboot = 1;
-    mock_ctx.config.dns_lookup_fail = 0;
+    mock_ctx.spy.watchdog_caused_reboot = 1;
+    mock_ctx.inject.dns_lookup_fail = 0;
     EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
 
     // Coverage on otherwise invalid status debug values
@@ -553,10 +553,10 @@ static int test_wifi_ap_config(void)
     EXECUTE_AP_TEST("Wi-Fi AP alloc failure", EXPECT_FAIL);
 
     mock_ctx.inject.calloc_fail_at = 0;
-    mock_ctx.config.tcp_open_fail = 1;
+    mock_ctx.inject.tcp_open_fail = 1;
     EXECUTE_AP_TEST("Wi-Fi TCP open failure", EXPECT_FAIL);
 
-    mock_ctx.config.tcp_open_fail = 0;
+    mock_ctx.inject.tcp_open_fail = 0;
     void *con_state = create_test_config((void *)mock_store_config_failure);
     struct tcp_pcb client_pcb = {0};
 
@@ -565,7 +565,7 @@ static int test_wifi_ap_config(void)
     if (simulate_form_post(con_state, &client_pcb, url) != 0)
         return 1;
     if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
-        if (mock_ctx.spy.test_verbose) {
+        if (mock_ctx.config.test_verbose) {
             printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
         }
     }
@@ -577,7 +577,7 @@ static int test_wifi_ap_config(void)
     if (simulate_form_post(con_state, &client_pcb, happy_path) != 1)
         return 1;
     if (strstr(mock_tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
-        if (mock_ctx.spy.test_verbose) {
+        if (mock_ctx.config.test_verbose) {
             printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
         }
     }
@@ -600,13 +600,13 @@ static int test_wifi_ap_config(void)
     simulate_form_post(con_state, &client_pcb, url_encoded);
 
     if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {
-        if (mock_ctx.spy.test_verbose) {
+        if (mock_ctx.config.test_verbose) {
             printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
         }
         return 1;
     }
     if (strcmp(last_parsed_config.wifi_password, "a&b=c%d") != 0) {
-        if (mock_ctx.spy.test_verbose) {
+        if (mock_ctx.config.test_verbose) {
             printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
         }
         return 1;
@@ -672,7 +672,7 @@ int main(const int argc, const char *argv[])
     int status = 0;
     if (argc > 1) {
         if (strcmp(argv[1], "--verbose") == 0) {
-            mock_ctx.spy.test_verbose = 1;
+            mock_ctx.config.test_verbose = 1;
         } else {
             fprintf(stderr, "Warning: unknown command-line argument %s\n", argv[1]);
         }

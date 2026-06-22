@@ -18,13 +18,25 @@ typedef struct
     struct
     {
         unsigned int calloc_fail_at;
+        int cyw43_arch_init_fail;
+        int cyw43_arch_wifi_connect_status;
+        int cyw43_auth_error_count;
+        int cyw43_auth_timeout_count;
+        int dns_bad_arg;
+        int dns_lookup_delay;
+        int dns_lookup_fail;
         unsigned int pbuf_alloc_fail_at;
+        int tcp_open_fail;
+        int udp_invalid_addr;
+        int udp_new_ip_type_fail;
+        udp_response_type_t udp_response_type;
+        int udp_sendto_fail;
     } inject;
 
     struct
     {
-        unsigned int log_buffer_size;
         char **log_buffer;
+        unsigned int log_buffer_size;
         unsigned int calloc_counter;
         unsigned int pbuf_alloc_counter;
         unsigned long long system_time_ms;
@@ -32,23 +44,12 @@ typedef struct
         unsigned long long watchdog_time_ms;
         unsigned long long ntp_seconds;
         int watchdog_reboot_called;
-        unsigned int test_verbose;
+        int watchdog_caused_reboot;
     } spy;
+
     struct
     {
-        int cyw43_auth_error_count;
-        int cyw43_arch_wifi_connect_status;
-        int cyw43_auth_timeout_count;
-        int dns_lookup_delay;
-        udp_response_type_t udp_response_type;
-        int cyw43_arch_init_fail;
-        int udp_new_ip_type_fail;
-        int udp_sendto_fail;
-        int udp_invalid_addr;
-        int dns_lookup_fail;
-        int dns_bad_arg;
-        int watchdog_caused_reboot;
-        int tcp_open_fail;
+        unsigned int test_verbose;
     } config;
 } mock_context_t;
 
