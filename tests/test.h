@@ -15,23 +15,6 @@ typedef enum
 
 typedef struct
 {
-    int cyw43_auth_error_count;
-    int cyw43_arch_wifi_connect_status;
-    int cyw43_auth_timeout_count;
-    int dns_lookup_delay;
-    udp_response_type_t udp_response_type;
-    int cyw43_arch_init_fail;
-    int udp_new_ip_type_fail;
-    int udp_sendto_fail;
-    int udp_invalid_addr;
-    int dns_lookup_fail;
-    int dns_bad_arg;
-    int watchdog_caused_reboot;
-    int tcp_open_fail;
-} test_config_t;
-
-typedef struct
-{
     struct
     {
         unsigned int calloc_fail_at;
@@ -51,8 +34,22 @@ typedef struct
         int watchdog_reboot_called;
         unsigned int test_verbose;
     } spy;
-
-    test_config_t config;
+    struct
+    {
+        int cyw43_auth_error_count;
+        int cyw43_arch_wifi_connect_status;
+        int cyw43_auth_timeout_count;
+        int dns_lookup_delay;
+        udp_response_type_t udp_response_type;
+        int cyw43_arch_init_fail;
+        int udp_new_ip_type_fail;
+        int udp_sendto_fail;
+        int udp_invalid_addr;
+        int dns_lookup_fail;
+        int dns_bad_arg;
+        int watchdog_caused_reboot;
+        int tcp_open_fail;
+    } config;
 } mock_context_t;
 
 extern int test_main(void);
