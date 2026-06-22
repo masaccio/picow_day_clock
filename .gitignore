@@ -20,3 +20,5 @@ config.cmake
 *.profraw
 *.profdata
 
+# KiCad
+~*.lck
