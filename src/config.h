@@ -1,5 +1,4 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
 #define LCD1_GPIO_DC (uint16_t)6
 #define LCD1_GPIO_CS (uint16_t)7
@@ -67,5 +66,3 @@
 #define WIFI_SSID_MAX_LEN 32                       // IEEE 802.11 standard limits
 #define WIFI_PASSWORD_MAX_LEN 63                   // IEEE 802.11 standard limits
 #define HOSTNAME_MAX_LEN 64                        // Maximum length for Linux FQDN
-
-#endif // CONFIG_H

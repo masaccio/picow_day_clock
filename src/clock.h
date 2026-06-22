@@ -1,5 +1,4 @@
-#ifndef CLOCK_H
-#define CLOCK_H
+#pragma once
 
 #include <stdlib.h>
 
@@ -234,5 +233,3 @@ extern void ntp_request(ntp_state_t *state);
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler);
 
 extern ntp_error_t ntp_get_time(ntp_state_t *ntp_state);
-
-#endif // CLOCK_H
