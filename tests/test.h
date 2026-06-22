@@ -1,5 +1,4 @@
-#ifndef TEST_H
-#define TEST_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -21,7 +20,6 @@ typedef struct
     int cyw43_auth_timeout_count;
     int dns_lookup_delay;
     udp_response_type_t udp_response_type;
-    // Flags go last for correct memory alignment
     int cyw43_arch_init_fail;
     int udp_new_ip_type_fail;
     int udp_sendto_fail;
@@ -32,21 +30,30 @@ typedef struct
     int tcp_open_fail;
 } test_config_t;
 
+typedef struct
+{
+    struct
+    {
+        unsigned int calloc_fail_at;
+        unsigned int pbuf_alloc_fail_at;
+    } inject;
+
+    struct
+    {
+        unsigned int log_buffer_size;
+        char **log_buffer;
+        unsigned int calloc_counter;
+        unsigned int pbuf_alloc_counter;
+        unsigned long long system_time_ms;
+        unsigned long long boot_time_ms;
+        unsigned long long watchdog_time_ms;
+        unsigned long long ntp_seconds;
+        int watchdog_reboot_called;
+        unsigned int test_verbose;
+    } spy;
+
+    test_config_t config;
+} mock_context_t;
+
 extern int test_main(void);
-
-// Globals shared between the mocker and the test harness
-extern test_config_t test_config;
-extern unsigned int log_buffer_size;
-extern unsigned int calloc_fail_at;
-extern unsigned int calloc_counter;
-extern unsigned int pbuf_alloc_fail_at;
-extern unsigned int test_verbose;
-extern int watchdog_reboot_called;
-extern unsigned int log_buffer_size;
-extern char **log_buffer;
-extern unsigned long long mock_system_time_ms;
-extern unsigned long long mock_boot_time_ms;
-extern unsigned long long watchdog_time_ms;
-extern unsigned long long mock_ntp_seconds;
-
-#endif // TEST_H
+extern mock_context_t mock_ctx;

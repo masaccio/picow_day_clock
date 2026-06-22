@@ -22,9 +22,9 @@
 #include "pico/util/datetime.h"
 #else
 #include "mock.h"
+#include "test.h"
 
 extern int test_main(void);
-extern int watchdog_reboot_called;
 #endif
 
 // Local includes
@@ -433,7 +433,7 @@ int test_main(void)
     mock_reset_icons();
     mock_printf("Test init\n");
     test_main_watchdog_reentry = 0;
-    watchdog_reboot_called = 0;
+    mock_ctx.spy.watchdog_reboot_called = 0;
     if (setjmp(fatal_jmp_buf)) {
         test_main_watchdog_reentry = 1;
         mock_printf("Reboot: %s/%s\n", ntp_error_to_string(persistent_state.ntp_error),

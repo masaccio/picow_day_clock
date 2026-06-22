@@ -217,13 +217,13 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
     return close_err;
 }
 
-extern test_config_t test_config;
+extern mock_context_t mock_ctx;
 
 static bool tcp_server_open(void *arg, const char *ssid)
 {
     (void)arg;
     (void)ssid;
-    if (test_config.tcp_open_fail) {
+    if (mock_ctx.config.tcp_open_fail) {
         return false;
     } else {
         return true;

@@ -1,4 +1,3 @@
-// Mock definitions for unit testing
 #pragma once
 
 #include <stdbool.h>
