@@ -20,6 +20,7 @@ list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
 file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
+set(SANITIZER_FLAGS "-fsanitize=address -g -fno-omit-frame-pointer")
 set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
 
 set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
@@ -30,7 +31,7 @@ set(NON_COVERED_CLOCK_SRC_FILES
 )
 list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
 set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
-    PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS}"
+    PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS} ${SANITIZER_FLAGS}"
 )
 
 include_directories(
@@ -50,6 +51,7 @@ add_executable(test_picow_day_clock
 
 target_compile_options(test_picow_day_clock
     PRIVATE
+    -fsanitize=address -g -fno-omit-frame-pointer
     -Werror
     -Weverything
     # Disable unacceptable warnings for host build
@@ -69,4 +71,9 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     TEST_MODE=1
 )
 
-target_link_libraries(test_picow_day_clock PRIVATE ${COVERAGE_FLAGS})
+target_link_libraries(
+    test_picow_day_clock
+    PRIVATE
+    ${COVERAGE_FLAGS}
+    ${SANITIZER_FLAGS}
+)
