@@ -20,8 +20,7 @@
 typedef int (*test_func_t)(void);
 
 mock_context_t mock_ctx = {0};
-
-#define LOG_ERROR_WIDTH 45
+static unsigned int test_verbose;
 
 #define STR(x) #x
 #define TEST_AP_SSID "HomeNet"
@@ -32,12 +31,45 @@ mock_context_t mock_ctx = {0};
 #define TEST_TIMEOUT 10 * 1000
 #define TEST_CONFIG_URL(ssid, pwd, ntp, tz, dst) "ssid=" ssid "&pwd=" pwd "&ntp=" ntp "&tz=" STR(tz) "&dst=" STR(dst)
 
-static int run_test(test_func_t func, const char *test_name, const char **expected_log)
+#define CHECK_ICONS_OK()                                                                                               \
+    do {                                                                                                               \
+        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_OK, "Watchdog OK");                                          \
+        assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                                        \
+        assert(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                                     \
+    } while (0)
+#define CHECK_WATCHDOG_RESET_OK()                                                                                      \
+    do {                                                                                                               \
+        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_RESET, "Watchdog reset");                                    \
+        assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                                        \
+        assert(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                                     \
+    } while (0)
+#define CHECK_ICONS_FAIL(N, WATCHDOG, NTP, WIFI)                                                                       \
+    do {                                                                                                               \
+        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG, "Watchdog fail status");                                    \
+        assert(mock_ctx.spy.icon_state.ntp, NTP, "NTP  fail status");                                                  \
+        assert(mock_ctx.spy.icon_state.wifi, WIFI, "Wi-Fi fail status");                                               \
+    } while (0)
+#define EXPECT_FATAL_NTP_ERROR(ERROR)                                                                                  \
+    do {                                                                                                               \
+        CHECK_ICONS_FAIL(0, WATCHDOG_NTP, (ERROR), WIFI_OK);                                                           \
+        assert(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                              \
+        assert(mock_ctx.spy.fatal_wifi_error, WIFI_OK, "Wi-Fi OK");                                                    \
+        assert(mock_ctx.spy.fatal_ntp_error, ERROR, "NTP error type");                                                 \
+    } while (0)
+#define EXPECT_FATAL_WIFI_ERROR(ERROR)                                                                                 \
+    do {                                                                                                               \
+        CHECK_ICONS_FAIL(0, WATCHDOG_WIFI, NTP_OK, (ERROR));                                                           \
+        assert(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                              \
+        assert(mock_ctx.spy.fatal_wifi_error, ERROR, "Wi-Fi error type");                                              \
+    } while (0)
+
+static int run_test(test_func_t func, const char *test_name)
 {
     // Always init the shared test context.
     memset(&mock_ctx, 0, sizeof(mock_ctx));
     mock_ctx.spy.log_buffer = (char **)calloc(sizeof(char *), LOG_BUFFER_SIZE);
     mock_ctx.spy.log_buffer_size = 0;
+    mock_ctx.config.test_verbose = test_verbose;
 
     if (mock_ctx.config.test_verbose) {
         printf("DEBUG: Starting test '%s'\n", test_name);
@@ -50,59 +82,12 @@ static int run_test(test_func_t func, const char *test_name, const char **expect
     // Run test
     int status = func();
 
-    if (status == 1) {
-        printf("TEST %s: FAIL\n", test_name);
-    } else {
-        printf("TEST %s: OK\n", test_name);
-    }
-
-    int log_mismatch = 0;
-    uint32_t expected_log_size = 0;
-    for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
-        if (ii >= expected_log_size) {
-            expected_log_size = ii + 1;
-        }
-    }
-    if (expected_log[0] == NULL && mock_ctx.spy.log_buffer_size > 0) {
-        log_mismatch = 1;
-    }
-    for (unsigned int ii = 0; expected_log[ii] != NULL; ii++) {
-        if (ii >= mock_ctx.spy.log_buffer_size) {
-            log_mismatch = 1;
-            break;
-        }
-        size_t test_len = strlen(mock_ctx.spy.log_buffer[ii]);
-        size_t ref_len = strlen(expected_log[ii]);
-        size_t max_len = (ref_len > test_len) ? test_len : ref_len;
-        if (test_len != ref_len || strncmp(mock_ctx.spy.log_buffer[ii], expected_log[ii], max_len) != 0) {
-            log_mismatch = 1;
-        }
-    }
-
-    if (log_mismatch) {
-        uint32_t heading_width = ((LOG_ERROR_WIDTH * 2) - (uint32_t)strlen(test_name) - 12) / 4;
-        printf("%.*s [REF] %.*s %s %.*s [TEST] %.*s\n", heading_width, "================", heading_width,
-               "================", test_name, heading_width, "================", heading_width, "================");
-        for (unsigned int ii = 0; ii < expected_log_size; ii++) {
-            if (mock_ctx.spy.log_buffer_size > ii) {
-                size_t test_len = strlen(mock_ctx.spy.log_buffer[ii]);
-                size_t ref_len = strlen(expected_log[ii]);
-                size_t max_len = (ref_len > test_len) ? test_len : ref_len;
-                int match = strncmp(mock_ctx.spy.log_buffer[ii], expected_log[ii], max_len) == 0 && test_len == max_len;
-                printf("  %-*s %c %s\n", LOG_ERROR_WIDTH, expected_log[ii], match ? '|' : 'x',
-                       mock_ctx.spy.log_buffer[ii]);
-            } else {
-                printf("  %-*s x \n", LOG_ERROR_WIDTH, expected_log[ii]);
-            }
-        }
-        for (unsigned int ii = expected_log_size; ii < mock_ctx.spy.log_buffer_size; ii++) {
-            printf("  %-*s | %s\n", LOG_ERROR_WIDTH, "", mock_ctx.spy.log_buffer[ii]);
-        }
-    }
     for (unsigned int ii = 0; ii <= mock_ctx.spy.log_buffer_size; ii++) {
         free(mock_ctx.spy.log_buffer[ii]);
     }
     free(mock_ctx.spy.log_buffer);
+
+    printf("TEST %s: %s\n", test_name, (status == 1) ? "FAIL" : "OK");
     return status;
 }
 
@@ -129,9 +114,13 @@ static int test_bad_lcd1(void)
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 1;
     EXECUTE_TEST("LCD alloc (1)", EXPECT_FAIL);
+    assert(mock_ctx.spy.clock_state_alloc_failed, 1, "Clock init failed");
+
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 2;
     EXECUTE_TEST("LCD alloc (2)", EXPECT_FAIL);
+    assert(mock_ctx.spy.lcd_init_failed, 1, "LCD init failed");
+
     mock_ctx.inject.calloc_fail_at = 0;
     return 0;
 }
@@ -140,18 +129,22 @@ static int test_dns_lookups(void)
 {
     mock_ctx.inject.dns_bad_arg = 1;
     EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
 
     mock_ctx.inject.dns_lookup_fail = 1;
     EXECUTE_TEST("DNS bad arg", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
 
     // DNS poll loops every 500ms for 10s
     mock_ctx.inject.dns_lookup_delay = 21;
     mock_ctx.inject.dns_lookup_fail = 0;
     EXECUTE_TEST("DNS lookup failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_TIMEOUT_ERROR);
 
     // DNS poll loops every 500ms for 10s
     mock_ctx.inject.dns_lookup_delay = 20;
     EXECUTE_TEST("DNS delay", EXPECT_OK);
+    CHECK_ICONS_OK();
     return 0;
 }
 
@@ -159,22 +152,27 @@ static int test_wifi_init_errors(void)
 {
     mock_ctx.inject.cyw43_arch_init_fail = 1;
     EXECUTE_TEST("Wi-Fi init failure", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_INIT_ERROR);
 
     mock_ctx.inject.cyw43_arch_init_fail = 0;
     mock_ctx.inject.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
     EXECUTE_TEST("Wi-Fi connect failure", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_CONNECT_ERROR);
 
     mock_ctx.inject.cyw43_arch_wifi_connect_status = -99;
     EXECUTE_TEST("Wi-Fi status failure", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_UNKNOWN_ERROR);
 
     // Try two batches of timeouts: the first one should not quite timeout enough
     mock_ctx.inject.cyw43_arch_wifi_connect_status = 0;
     mock_ctx.inject.cyw43_auth_timeout_count = 4;
     EXECUTE_TEST("Wi-Fi OK timeout", EXPECT_OK);
+    CHECK_ICONS_OK();
 
     mock_ctx.inject.cyw43_arch_wifi_connect_status = 0;
     mock_ctx.inject.cyw43_auth_timeout_count = 6;
     EXECUTE_TEST("Wi-Fi excess timeout", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_TIMEOUT_ERROR);
 
     return 0;
 }
@@ -183,9 +181,10 @@ static int test_wifi_auth_errors(void)
 {
     mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
     EXECUTE_TEST("Wi-Fi OK retry", EXPECT_OK);
+    CHECK_ICONS_OK();
 
     mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
-    EXECUTE_TEST("Wi-Fi bad retry", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_AUTH_ERROR);
 
     return 0;
 }
@@ -276,6 +275,7 @@ static int test_dst(void)
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "17:30:00", 8) != 0)
         return 1;
+    CHECK_ICONS_OK();
 
     // Test Negative Offset: New York (-5:00 -> -300 mins)
     clock_state->clock_config.tz_offset_mins = -300;
@@ -284,6 +284,7 @@ static int test_dst(void)
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "07:00:00", 8) != 0)
         return 1;
+    CHECK_ICONS_OK();
 
     // Display Rollover Tests
     clock_state->clock_config.tz_offset_mins = 0; // Reset to UK base
@@ -297,6 +298,7 @@ static int test_dst(void)
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "00:22:00", 14) != 0)
         return 1;
+    CHECK_ICONS_OK();
 
     // Sun March 25, 2001 at 01:22 (just after EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 1, 22, 0);
@@ -306,6 +308,7 @@ static int test_dst(void)
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "02:22:00 (DST)", 14) != 0)
         return 1;
+    CHECK_ICONS_OK();
 
     // Thu August 23, 2001 at 23:55 (test day rollover in DST)
     set_localtime(clock_state, 2001, 7, 23, 23, 55, 0);
@@ -316,6 +319,7 @@ static int test_dst(void)
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "00:55:00 (DST)", 14) != 0)
         return 1;
+    CHECK_ICONS_OK();
 
     // Exhaustive DST Boundary Math Tests
     struct tm tm_val = {0};
@@ -423,12 +427,22 @@ static int test_ntp_time(void)
             clock_state->watchdog_reset_error = WATCHDOG_NTP;
             clock_state->last_watchdog_error = (time_t)(mock_ctx.spy.system_time_ms / 1000) + NTP_SYNC_INTERVAL_SEC / 2;
         }
+        if (tick == ((7 * seconds_in_day) + 180)) {
+            // NTP checks a day after DNS error insertion, but allow 3 minutes
+            // slip due to drift calculations
+            assert(mock_ctx.spy.icon_state.ntp, NTP_DNS_ERROR, "DNS error icon signalled");
+        }
         if (tick == (8 * seconds_in_day)) {
             if (clock_state->watchdog_reset_error != WATCHDOG_OK) {
                 status = 1;
                 printf("WATCHDOG FAILED TO CLEAR\n");
             }
             mock_ctx.inject.dns_lookup_fail = 0;
+        }
+        if (tick == ((8 * seconds_in_day) + 180)) {
+            // NTP checks a day after DNS error insertion, but allow 3 minutes
+            // slip due to drift calculations
+            assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "DNS error icon signalled");
         }
 
         // Each day gets a different drift
@@ -447,32 +461,40 @@ static int test_ntp_errors(void)
 {
     mock_ctx.inject.udp_response_type = UDP_NTP_INVALID;
     EXECUTE_TEST("NTP UDP invalid", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_response_type = UDP_NTP_BAD_LEN;
     EXECUTE_TEST("NTP UDP bad length failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_response_type = UDP_NTP_BAD_PORT;
     EXECUTE_TEST("NTP UDP bad port failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_new_ip_type_fail = 1;
     EXECUTE_TEST("NTP UDP new IP failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_INIT_ERROR);
 
     mock_ctx.inject.udp_new_ip_type_fail = 0;
     mock_ctx.inject.pbuf_alloc_fail_at = 1;
     EXECUTE_TEST("NTP pbuf alloc failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_MEMORY_ERROR);
 
     mock_ctx.inject.pbuf_alloc_fail_at = 0;
     mock_ctx.inject.udp_sendto_fail = 1;
     EXECUTE_TEST("NTP sendto failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_sendto_fail = 0;
     mock_ctx.inject.udp_invalid_addr = 1;
     EXECUTE_TEST("NTP invalid address", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_invalid_addr = 0;
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
     EXECUTE_TEST("NTP calloc failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_INIT_ERROR);
 
     return 0;
 }
@@ -480,24 +502,30 @@ static int test_ntp_errors(void)
 static int test_watchdog(void)
 {
     EXECUTE_TEST("Watchdog init OK", EXPECT_OK);
+    CHECK_ICONS_OK();
 
     mock_ctx.spy.watchdog_caused_reboot = 1;
     EXECUTE_TEST("Watchdog reboot OK", EXPECT_OK);
+    CHECK_WATCHDOG_RESET_OK();
 
     EXECUTE_TEST("Watchdog boot count", 0 || persistent_state.boot_count != 2);
+    CHECK_WATCHDOG_RESET_OK();
 
     mock_ctx.spy.watchdog_caused_reboot = 0;
     mock_ctx.inject.cyw43_arch_init_fail = 1;
     EXECUTE_TEST("Watchdog reboot on Wi-Fi", 1 || !mock_ctx.spy.watchdog_reboot_called);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_INIT_ERROR);
 
     mock_ctx.spy.watchdog_reboot_called = 0;
     mock_ctx.inject.cyw43_arch_init_fail = 0;
     mock_ctx.inject.dns_lookup_fail = 1;
     EXECUTE_TEST("Watchdog reboot on DNS", 1 || !mock_ctx.spy.watchdog_reboot_called);
+    EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
 
     mock_ctx.spy.watchdog_caused_reboot = 1;
     mock_ctx.inject.dns_lookup_fail = 0;
     EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
+    CHECK_WATCHDOG_RESET_OK();
 
     // Coverage on otherwise invalid status debug values
     if ((strcmp(watchdog_error_to_string((watchdog_error_t)0xff), "UNKNOWN_STATUS") != 0) ||
@@ -672,225 +700,29 @@ int main(const int argc, const char *argv[])
     int status = 0;
     if (argc > 1) {
         if (strcmp(argv[1], "--verbose") == 0) {
-            mock_ctx.config.test_verbose = 1;
+            test_verbose = 1;
         } else {
             fprintf(stderr, "Warning: unknown command-line argument %s\n", argv[1]);
         }
     }
 
-    static const char *test_bad_ldc1_ref[] = {
-        "Test init", "Failed to allocate clock state", "Test init", "LCD 1: failed to initialise", NULL,
-    };
-    status |= run_test(test_bad_lcd1, "LCD1 init error", test_bad_ldc1_ref);
+    status |= run_test(test_bad_lcd1, "LCD1 init error");
 
-    static const char *test_dst_ref[] = {
-        "Icons: OK OK OK",
-        NULL,
-    };
-    status |= run_test(test_dst, "Daylight savings", test_dst_ref);
+    status |= run_test(test_dst, "Daylight savings");
 
-    static const char *test_ntp_recovery_ref[] = {
-        "Icons: NTP OK OK", "Icons: NTP DNS_ERROR OK", "Icons: OK DNS_ERROR OK", "Icons: OK OK OK", NULL,
-    };
-    status |= run_test(test_ntp_time, "NTP time checks", test_ntp_recovery_ref);
+    status |= run_test(test_ntp_time, "NTP time checks");
 
-    static const char *test_wifi_init_errors_ref[] = {
-        // Wi-Fi init fails
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_INIT_ERROR",
-        "Reboot: NTP_OK/WIFI_INIT_ERROR",
-        "Icons: WIFI OK INIT_ERROR",
-        // Wi-Fi connect fails
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_CONNECT_ERROR",
-        "Reboot: NTP_OK/WIFI_CONNECT_ERROR",
-        "Icons: WIFI OK CONNECT_ERROR",
-        // Unknown Wi-Fi error
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_UNKNOWN_ERROR",
-        "Reboot: NTP_OK/WIFI_UNKNOWN_ERROR",
-        "Icons: WIFI OK UNKNOWN_ERROR",
-        // Successful connection after a few timeouts
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "NTP time sync OK",
-        // Failed connection due to timeout
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_TIMEOUT_ERROR",
-        "Reboot: NTP_OK/WIFI_TIMEOUT_ERROR",
-        "Icons: WIFI OK TIMEOUT_ERROR",
-        NULL,
-    };
-    status |= run_test(test_wifi_init_errors, "Wi-Fi init error", test_wifi_init_errors_ref);
+    status |= run_test(test_wifi_init_errors, "Wi-Fi init error");
 
-    static const char *test_wifi_auth_errors_ref[] = {
-        // Wi-Fi auth retries succeed
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "NTP time sync OK",
-        // Wi-Fi auth retries too many
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_AUTH_ERROR",
-        "Reboot: NTP_OK/WIFI_AUTH_ERROR",
-        "Icons: WIFI OK AUTH_ERROR",
-        NULL,
-    };
-    status |= run_test(test_wifi_auth_errors, "Wi-Fi auth", test_wifi_auth_errors_ref);
+    status |= run_test(test_wifi_auth_errors, "Wi-Fi auth");
 
-    static const char *test_dns_lookup_ref[] = {
-        // DNS lookup bad args
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_DNS_ERROR/WIFI_OK",
-        "Reboot: NTP_DNS_ERROR/WIFI_OK",
-        "Icons: NTP DNS_ERROR OK",
-        // DNS lookup failed
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_DNS_ERROR/WIFI_OK",
-        "Reboot: NTP_DNS_ERROR/WIFI_OK",
-        "Icons: NTP DNS_ERROR OK",
-        // DNS lookup times out
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_TIMEOUT_ERROR/WIFI_OK",
-        "Reboot: NTP_TIMEOUT_ERROR/WIFI_OK",
-        "Icons: NTP TIMEOUT_ERROR OK",
-        // DNS lookup OK after delays
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "NTP time sync OK",
-        NULL,
-    };
-    status |= run_test(test_dns_lookups, "DNS lookups", test_dns_lookup_ref);
+    status |= run_test(test_dns_lookups, "DNS lookups");
 
-    static const char *test_ntp_errors_ref[] = {
-        // UDL invalid packets
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Reboot: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Icons: NTP PROTOCOL_ERROR OK",
-        // UDP bad packet length
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Reboot: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Icons: NTP PROTOCOL_ERROR OK",
-        // NTP wrong port
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Reboot: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Icons: NTP PROTOCOL_ERROR OK",
-        // UDP bad IP type
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_INIT_ERROR/WIFI_OK",
-        "Reboot: NTP_INIT_ERROR/WIFI_OK",
-        "Icons: NTP INIT_ERROR OK",
-        // UDP memory alloc fails
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_MEMORY_ERROR/WIFI_OK",
-        "Reboot: NTP_MEMORY_ERROR/WIFI_OK",
-        "Icons: NTP MEMORY_ERROR OK",
-        // UDP sendto() fails
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Reboot: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Icons: NTP PROTOCOL_ERROR OK",
-        // Return address invalid
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Reboot: NTP_PROTOCOL_ERROR/WIFI_OK",
-        "Icons: NTP PROTOCOL_ERROR OK",
-        // Last alloc fails
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_INIT_ERROR/WIFI_OK",
-        "Reboot: NTP_INIT_ERROR/WIFI_OK",
-        "Icons: NTP INIT_ERROR OK",
-        NULL,
-    };
-    status |= run_test(test_ntp_errors, "NTP errors", test_ntp_errors_ref);
+    status |= run_test(test_ntp_errors, "NTP errors");
 
-    static const char *test_watchdog_ref[] = {
-        // Test boot counter
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "NTP time sync OK",
-        // Test watchdog caused reset
-        "Test init",
-        "Icons: RESET OK OK",
-        "Icons: OK OK OK",
-        // Restart clock after watchdog
-        "Test init",
-        "Icons: RESET OK OK",
-        "Icons: OK OK OK",
-        // Normal start with Wi-Fi error
-        "Test init",
-        "LCD init successful",
-        "Watchdog: NTP_OK/WIFI_INIT_ERROR",
-        "Reboot: NTP_OK/WIFI_INIT_ERROR",
-        "Icons: WIFI OK INIT_ERROR",
-        // Restart clock after watchdog for NTP error
-        "Test init",
-        "LCD init successful",
-        "Connected to WiFi",
-        "Icons: OK OK OK",
-        "Watchdog: NTP_DNS_ERROR/WIFI_OK",
-        "Reboot: NTP_DNS_ERROR/WIFI_OK",
-        "Icons: NTP DNS_ERROR OK",
-        // Fake a watchdog reset for unknown cause
-        "Test init",
-        "Icons: RESET OK OK",
-        "Icons: OK OK OK",
-        NULL,
-    };
-    status |= run_test(test_watchdog, "Watchdog", test_watchdog_ref);
+    status |= run_test(test_watchdog, "Watchdog");
 
-    static const char *test_wifi_ap_config_ref[] = {
-        NULL,
-    };
-    status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config", test_wifi_ap_config_ref);
+    status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config");
 
     return status;
 }

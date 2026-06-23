@@ -110,8 +110,6 @@ extern void mock_reset_icons(void);
     (void)line_num;                                                                                                    \
     (void)color;                                                                                                       \
     mock_printf(msg)
-#define lcd_update_icons(state, watchdog, ntp, wifi) mock_update_icons(watchdog, ntp, wifi)
-#define lcd_init(...) mock_lcd_init(__VA_ARGS__)
 #define lcd_clear_screen(...) (void)0
 #define lcd_print_clock_digit(...) (void)0
 
@@ -121,6 +119,8 @@ static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_erro
     mock_printf("Watchdog: %s/%s", ntp_error_to_string(ntp_error), wifi_error_to_string(wifi_error));
     persistent_state.ntp_error = ntp_error;
     persistent_state.wifi_error = wifi_error;
+    mock_ctx.spy.fatal_ntp_error = ntp_error;
+    mock_ctx.spy.fatal_wifi_error = wifi_error;
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
     // Returns into main() which will then exit with status=1
     longjmp(fatal_jmp_buf, 1);
@@ -436,8 +436,7 @@ int test_main(void)
     mock_ctx.spy.watchdog_reboot_called = 0;
     if (setjmp(fatal_jmp_buf)) {
         test_main_watchdog_reentry = 1;
-        mock_printf("Reboot: %s/%s\n", ntp_error_to_string(persistent_state.ntp_error),
-                    wifi_error_to_string(persistent_state.wifi_error));
+        mock_ctx.spy.fatal_reset_caught = 1;
     }
 #else
 int main(void)
@@ -453,6 +452,9 @@ int main(void)
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
+#ifdef TEST_MODE
+        mock_ctx.spy.clock_state_alloc_failed = 1;
+#endif
         printf("Failed to allocate clock state\r\n");
         return 1;
     }
@@ -467,7 +469,9 @@ int main(void)
                                          /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
             // Unrecoverable state and no chance to display status on the LCD
-            printf("LCD %u: failed to initialise\r\n", ii + 1);
+#ifdef TEST_MODE
+            mock_ctx.spy.lcd_init_failed = ii;
+#endif
             return 1;
         }
         lcd_clear_screen(state->lcd_states[ii], BLACK);

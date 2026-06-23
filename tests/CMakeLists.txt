@@ -23,14 +23,10 @@ file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 set(SANITIZER_FLAGS "-fsanitize=address -g -fno-omit-frame-pointer")
 set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
 
-set(COVERED_CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
-# Low-level LCD and frame buffer code is not covered by tests so we exclude from coverage
-# Testing is not performed as these are hardware specific and errors easily seen on the device
-set(NON_COVERED_CLOCK_SRC_FILES
-    ${CMAKE_SOURCE_DIR}/../src/lcd.c
-)
-list(REMOVE_ITEM COVERED_CLOCK_SRC_FILES ${NON_COVERED_CLOCK_SRC_FILES})
-set_source_files_properties(${COVERED_CLOCK_SRC_FILES} 
+set(CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
+# LCD code is too hardware-specific to test
+list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
+set_source_files_properties(${CLOCK_SRC_FILES} 
     PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS} ${SANITIZER_FLAGS}"
 )
 
@@ -43,8 +39,7 @@ include_directories(
 )
 
 add_executable(test_picow_day_clock 
-    ${COVERED_CLOCK_SRC_FILES}
-    ${NON_COVERED_CLOCK_SRC_FILES}
+    ${CLOCK_SRC_FILES}
     ${GENERATED_SRC_FILES}
     ${TEST_SRC_FILES}
 )
