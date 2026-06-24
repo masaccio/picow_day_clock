@@ -210,9 +210,9 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
 
     clock_state->ntp_drift = 0;
     clock_state->ntp_last_sync = t;
-    clock_state->first_clock_tick = 0;
+    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ctx.spy.system_time_ms = (unsigned long long)t * 1000;
-    mock_ctx.spy.ntp_seconds = (unsigned long long)t;
+    mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
 }
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
@@ -327,7 +327,6 @@ static int test_dst(void)
 
     // Thu August 23, 2001 at 23:55 (test day rollover in DST)
     set_localtime(clock_state, 2001, 7, 23, 23, 55, 0);
-    mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
     (void)clock_timer_callback(timer);
     if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0)
         return 1;
@@ -397,9 +396,6 @@ static int test_ntp_time(void)
 
     // Tue January 9, 2001 at 09:28:32
     set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
-    clock_state->ntp_last_sync = mock_time(NULL);
-    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
 
     // Run for 10 simulated days
     // +1d: normal NTP update
@@ -472,6 +468,17 @@ static int test_ntp_time(void)
         }
     }
     mock_ctx.inject.udp_response_type = UDP_NTP_OK;
+
+    // Thu February 7, 2036 at 06:29:00 (NTP Epoch 1)
+    set_localtime(clock_state, 2036, 2, 7, 6, 29, 00);
+    clock_state->ntp_last_sync = (time_t)(mock_ctx.spy.system_time_ms / 1000) - clock_state->ntp_interval;
+    (void)clock_timer_callback(timer);
+    if (strncmp(clock_state->current_lcd_digits, "Fri0629", 7) != 0)
+        return 1;
+    time_t now = mock_time(NULL);
+    if (strncmp(time_as_string(now, clock_state), "06:29:00", 14) != 0)
+        return 1;
+    CHECK_ICONS_OK();
 
     free(timer);
     free_test_clock_state(clock_state);

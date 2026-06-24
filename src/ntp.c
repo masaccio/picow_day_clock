@@ -71,7 +71,15 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 = (uint32_t)(((uint32_t)seconds_buf[0] << 24) | ((uint32_t)seconds_buf[1] << 16) |
                                                  ((uint32_t)seconds_buf[2] << 8) | ((uint32_t)seconds_buf[3]));
-        time_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
+        time_t seconds_since_1970;
+        if (seconds_since_1900 < NTP_DELTA) {
+            // Era 1 (2036-)
+            uint64_t era_seconds = (uint64_t)seconds_since_1900 + 0x100000000ULL;
+            seconds_since_1970 = (time_t)(era_seconds - NTP_DELTA);
+        } else {
+            // Era 0 (1900-2036)
+            seconds_since_1970 = (time_t)(seconds_since_1900 - NTP_DELTA);
+        }
 
         state->status = NTP_DONE;
         CLOCK_DEBUG("NTP: update success timestamp=%llu\r\n", seconds_since_1970);
