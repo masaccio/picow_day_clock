@@ -23,6 +23,28 @@ void mock_reset_icons(void)
     last_wifi_error = (wifi_error_t)0xff;
 }
 
+void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer)
+{
+    (void)state;
+    (void)line_num;
+    (void)color;
+    (void)buffer;
+    mock_printf("%s\n", buffer);
+}
+
+void lcd_clear_screen(lcd_state_t *state, uint16_t color)
+{
+    (void)state;
+    (void)color;
+}
+
+void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
+{
+    (void)state;
+    (void)color;
+    (void)ascii_char;
+}
+
 void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, wifi_error_t wifi)
 {
     (void)state;
@@ -36,22 +58,6 @@ void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, 
     icon_event_t event = {.timestamp_ms = mock_ctx.spy.system_time_ms, .watchdog = wd, .ntp = ntp, .wifi = wifi};
     icon_queue_t_push(&mock_ctx.spy.icon_history, event);
 }
-
-// void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error)
-// {
-//     if (last_watchdog_error == watchdog_error && last_ntp_error == ntp_error && last_wifi_error == wifi_error) {
-//         return;
-//     }
-//     last_watchdog_error = watchdog_error;
-//     last_ntp_error = ntp_error;
-//     last_wifi_error = wifi_error;
-
-//     // Skip name prefix on all status conversions, e.g. "WIFI_OK" -> "OK"
-//     const char *watchdog_error_string = watchdog_error_to_string(watchdog_error) + 9;
-//     const char *ntp_error_string = ntp_error_to_string(ntp_error) + 4;
-//     const char *wifi_error_string = wifi_error_to_string(wifi_error) + 5;
-//     mock_printf("Icons: %s %s %s", watchdog_error_string, ntp_error_string, wifi_error_string);
-// }
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, int reset)
@@ -452,7 +458,7 @@ void watchdog_update(void)
 
 int watchdog_caused_reboot(void)
 {
-    return mock_ctx.spy.watchdog_caused_reboot || mock_ctx.spy.watchdog_reboot_called;
+    return mock_ctx.inject.watchdog_caused_reboot || mock_ctx.spy.watchdog_reboot_called;
 }
 
 void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)

@@ -105,6 +105,7 @@ typedef struct
         int udp_new_ip_type_fail;
         udp_response_type_t udp_response_type;
         int udp_sendto_fail;
+        int watchdog_caused_reboot;
     } inject;
 
     struct
@@ -122,7 +123,6 @@ typedef struct
         ntp_error_t fatal_ntp_error;
         wifi_error_t fatal_wifi_error;
         int watchdog_reboot_called;
-        int watchdog_caused_reboot;
         int fatal_reset_caught;
         // Icons
         icon_queue_t icon_history;

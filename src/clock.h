@@ -173,6 +173,7 @@ typedef struct clock_state_t
     repeating_timer_t timer;
     clock_config_t clock_config;
     // Why watchdog reset happened
+    int cold_boot;
     time_t last_watchdog_error;
     watchdog_error_t watchdog_reset_error;
     ntp_error_t ntp_reset_error;
@@ -196,6 +197,10 @@ extern int config_store_handler(clock_config_t *config);
 
 // Cross-module functions
 extern volatile uint trigger_ap_mode;
+
+extern void on_clock_alloc_failed(void);
+
+extern void on_lcd_init_failed(unsigned int lcd_num);
 
 extern uint wifi_is_initialized;
 
@@ -233,3 +238,9 @@ extern void ntp_request(ntp_state_t *state);
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler);
 
 extern ntp_error_t ntp_get_time(ntp_state_t *ntp_state);
+
+extern void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);
+
+clock_state_t *clock_init(void);
+
+extern int clock_main_loop(clock_state_t *);

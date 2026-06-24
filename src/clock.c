@@ -91,54 +91,6 @@ const char *wifi_error_to_string(wifi_error_t status)
 
 volatile uint trigger_ap_mode = 0;
 
-#ifdef TEST_MODE
-// In test mode, we want to return from main() but fatal_error() cannot return
-// so we use setjmp/longjmp to break out
-#include <setjmp.h>
-
-static jmp_buf fatal_jmp_buf;
-persistent_state_t persistent_state;
-
-extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
-extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
-                                  uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
-extern void mock_reset_icons(void);
-
-// In test mode, key status updates to the LCD are treated like a printf()
-// so that the test harness can check the sequence of events.
-#define lcd_print_line(state, line_num, color, msg)                                                                    \
-    (void)line_num;                                                                                                    \
-    (void)color;                                                                                                       \
-    mock_printf(msg)
-#define lcd_clear_screen(...) (void)0
-#define lcd_print_clock_digit(...) (void)0
-
-static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
-{
-    (void)state;
-    mock_printf("Watchdog: %s/%s", ntp_error_to_string(ntp_error), wifi_error_to_string(wifi_error));
-    persistent_state.ntp_error = ntp_error;
-    persistent_state.wifi_error = wifi_error;
-    mock_ctx.spy.fatal_ntp_error = ntp_error;
-    mock_ctx.spy.fatal_wifi_error = wifi_error;
-    watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
-    // Returns into main() which will then exit with status=1
-    longjmp(fatal_jmp_buf, 1);
-}
-#else // Pico target
-persistent_state_t persistent_state __attribute__((section(".uninitialized_data")));
-
-static void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
-{
-    lcd_update_icons(state->lcd_states[0], WATCHDOG_RESET, ntp_error, wifi_error);
-    persistent_state.ntp_error = ntp_error;
-    persistent_state.wifi_error = wifi_error;
-    watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
-    while (1)
-        __wfi(); // hang until reset
-}
-#endif
-
 static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 // Callback from NTP called when an NTP request is successful
@@ -424,25 +376,8 @@ int config_store_handler(clock_config_t *config)
     return 0;
 }
 
-#ifdef TEST_MODE
-// In test mode, main() always returns, even in the case of a fatal error
-// as we need to that fatal errors happened for the correct reasons.
-int test_main(void)
+clock_state_t *clock_init(void)
 {
-    static int test_main_watchdog_reentry;
-    mock_reset_icons();
-    mock_printf("Test init\n");
-    test_main_watchdog_reentry = 0;
-    mock_ctx.spy.watchdog_reboot_called = 0;
-    if (setjmp(fatal_jmp_buf)) {
-        test_main_watchdog_reentry = 1;
-        mock_ctx.spy.fatal_reset_caught = 1;
-    }
-#else
-int main(void)
-{
-#endif
-
     stdio_init_all();
 
     gpio_init(CONFIG_BUTTON_GPIO);
@@ -452,11 +387,9 @@ int main(void)
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
         // Unrecoverable state and no chance to display status on the LCD
-#ifdef TEST_MODE
-        mock_ctx.spy.clock_state_alloc_failed = 1;
-#endif
+        on_clock_alloc_failed();
         printf("Failed to allocate clock state\r\n");
-        return 1;
+        return (clock_state_t *)0;
     }
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
         // Reset is shared so only need to do this once
@@ -469,16 +402,14 @@ int main(void)
                                          /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
             // Unrecoverable state and no chance to display status on the LCD
-#ifdef TEST_MODE
-            mock_ctx.spy.lcd_init_failed = ii;
-#endif
-            return 1;
+            on_lcd_init_failed(ii);
+            return (clock_state_t *)0;
         }
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
-    int cold_boot = (watchdog_caused_reboot() == 0);
-    if (cold_boot) {
+    state->cold_boot = (watchdog_caused_reboot() == 0);
+    if (state->cold_boot) {
         memset(&persistent_state, 0, sizeof(persistent_state_t));
         persistent_state.magic_marker = CONFIG_MAGIC;
         lcd_print_line(state->lcd_states[0], 2, GREEN, "LCD init successful");
@@ -516,21 +447,20 @@ int main(void)
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 
-#ifdef TEST_MODE
-    // Test has generated a watchdog reset and logged its outcome so we can return to the test harness now
-    if (test_main_watchdog_reentry) {
-        return 1;
-    }
-#endif
+    return state;
+}
+
+int clock_main_loop(clock_state_t *state)
+{
     watchdog_update();
 
     wifi_is_initialized = 0;
     wifi_error_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
     if (wifi_status == WIFI_OK) {
-        if (cold_boot) {
+        if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
         }
-        lcd_update_icons(state->lcd_states[0], WATCHDOG_OK, NTP_OK, WIFI_OK);
+        lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {
         fatal_reset(state, NTP_OK, wifi_status);
         // Never reached: reset happens
@@ -543,10 +473,10 @@ int main(void)
     }
     ntp_error_t ntp_status = ntp_get_time(state->ntp_state);
     if (ntp_status == NTP_OK) {
-        if (cold_boot) {
+        if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");
         }
-        lcd_update_icons(state->lcd_states[0], WATCHDOG_OK, NTP_OK, WIFI_OK);
+        lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {
         fatal_reset(state, ntp_status, WIFI_OK);
         // Never reached: reset happens
@@ -555,7 +485,7 @@ int main(void)
     state->ntp_drift = 0;
     state->ntp_last_sync = state->ntp_time;
     state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    if (!cold_boot) {
+    if (!state->cold_boot) {
         state->last_watchdog_error = state->ntp_time;
     }
 
@@ -568,17 +498,6 @@ int main(void)
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
-
-#ifndef TEST_MODE
-    while (1) {
-        if (trigger_ap_mode) {
-            trigger_ap_mode = 0;
-            printf("Starting access point...\n");
-            start_wifi_access_point(config_store_handler);
-        }
-        sleep_ms(1000);
-    }
-#endif
 
     return 0;
 }
