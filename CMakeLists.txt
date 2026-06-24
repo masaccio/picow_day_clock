@@ -58,7 +58,7 @@ include_directories(
 )
 
 file(GLOB CLOCK_SRC_FILES src/*.c src/dhcpserver/dhcpserver.c  src/dnsserver/dnsserver.c)
-list(REMOVE_ITEM CLOCK_SRC_FILES src/test_main.c)
+list(REMOVE_ITEM CLOCK_SRC_FILES "${CMAKE_SOURCE_DIR}/src/test_main.c")
 
 add_executable(picow_day_clock
     ${CLOCK_SRC_FILES}
