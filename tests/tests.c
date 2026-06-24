@@ -693,6 +693,8 @@ static int test_wifi_ap_config(void)
     //     return 1;
     // }
 
+    free_test_config(con_state);
+
     return 0;
 }
 

@@ -192,3 +192,4 @@ void dns_server_deinit(dns_server_t *d);
 void dns_server_init(dns_server_t *d, ip_addr_t *ip);
 void *create_test_config(void *arg);
 void clear_test_config(void *arg);
+void free_test_config(void *arg);

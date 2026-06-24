@@ -425,6 +425,16 @@ void clear_test_config(void *arg)
     con_state->header_len = 0;
     con_state->result_len = 0;
 }
+
+void free_test_config(void *arg)
+{
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
+
+    if (con_state) {
+        free(con_state->server_state);
+        free(con_state);
+    }
+}
 #endif
 
 wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
@@ -441,6 +451,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
 
     if (!wifi_is_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
+        free(state);
         return WIFI_INIT_ERROR;
     }
     wifi_is_initialized = 1;
@@ -460,6 +471,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
 
     if (!tcp_server_open(state, ssid)) {
         CLOCK_DEBUG("Failed to open server\n");
+        free(state);
         return WIFI_INIT_ERROR;
     }
 
@@ -473,8 +485,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
 
-    free(state);
-
     CLOCK_DEBUG("start_wifi_access_point DONE\r\n");
+    free(state);
     return WIFI_OK;
 }

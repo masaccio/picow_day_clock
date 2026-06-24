@@ -47,7 +47,6 @@ add_executable(test_picow_day_clock
 
 target_compile_options(test_picow_day_clock
     PRIVATE
-    -fsanitize=address -g -fno-omit-frame-pointer
     -Werror
     -Weverything
     # Disable unacceptable warnings for host build
