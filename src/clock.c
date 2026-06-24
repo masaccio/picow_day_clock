@@ -402,8 +402,7 @@ clock_state_t *clock_init(void)
                                          /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
             // Unrecoverable state and no chance to display status on the LCD
-            free(state);
-            on_lcd_init_failed(ii);
+            on_lcd_init_failed(state, ii);
             return (clock_state_t *)0;
         }
         lcd_clear_screen(state->lcd_states[ii], BLACK);

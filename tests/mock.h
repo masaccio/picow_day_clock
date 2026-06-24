@@ -71,6 +71,8 @@ extern int mock_printf(const char *format, ...) __attribute__((format(printf, 1,
 
 extern void *mock_calloc(size_t num, size_t size);
 #define calloc(num, size) mock_calloc(num, size)
+extern void mock_free(void *ptr);
+#define free(ptr) mock_free(ptr)
 
 #define time(tloc) mock_time(tloc)
 extern time_t mock_time(time_t *);

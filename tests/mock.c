@@ -81,6 +81,7 @@ extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gp
 // so that we can call into the system libraries as needed.
 #undef printf
 #undef calloc
+#undef free
 
 // SPI functions
 uint spi_init(spi_inst_t *spi, int baudrate)
@@ -341,7 +342,16 @@ void *mock_calloc(size_t num, size_t size)
             return NULL;
         }
     }
+    mock_ctx.spy.alloced_counter++;
     return calloc(num, size);
+}
+
+void mock_free(void *ptr)
+{
+    if (ptr != NULL) {
+        mock_ctx.spy.free_counter++;
+        free(ptr);
+    }
 }
 
 // lwIP functions

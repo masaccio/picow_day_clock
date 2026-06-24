@@ -200,7 +200,7 @@ extern volatile uint trigger_ap_mode;
 
 extern void on_clock_alloc_failed(void);
 
-extern void on_lcd_init_failed(unsigned int lcd_num);
+extern void on_lcd_init_failed(clock_state_t *state, unsigned int lcd_num);
 
 extern uint wifi_is_initialized;
 

@@ -124,6 +124,8 @@ typedef struct
         wifi_error_t fatal_wifi_error;
         int watchdog_reboot_called;
         int fatal_reset_caught;
+        unsigned int free_counter;
+        unsigned int alloced_counter;
         // Icons
         icon_queue_t icon_history;
         struct

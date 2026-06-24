@@ -13,6 +13,7 @@
 // so that we can call into the system libraries as needed.
 #undef printf
 #undef calloc
+#undef free
 #undef time
 #undef localtime
 #undef settimeofday
@@ -104,6 +105,10 @@ static int run_test(test_func_t func, const char *test_name)
             if (mock_ctx.config.test_verbose) {                                                                        \
                 printf("CHECK: TEST OK: " msg "\n");                                                                   \
             }                                                                                                          \
+        }                                                                                                              \
+        if (mock_ctx.spy.alloced_counter != mock_ctx.spy.free_counter) {                                               \
+            printf("LEAK DETECTED: %u allocs vs %u frees: %s:%d\n", mock_ctx.spy.alloced_counter,                      \
+                   mock_ctx.spy.free_counter, FILENAME, __LINE__);                                                     \
         }                                                                                                              \
     } while (0)
 #define EXECUTE_TEST(msg, status) EXECUTE_TEST_WRAPPER(test_main(), msg, status)

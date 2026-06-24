@@ -41,9 +41,10 @@ void on_clock_alloc_failed(void)
     mock_ctx.spy.clock_state_alloc_failed = 1;
 }
 
-void on_lcd_init_failed(unsigned lcd_num)
+void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
 {
     mock_ctx.spy.lcd_init_failed = lcd_num;
+    free_memory(state);
 }
 
 int test_main(void)
@@ -57,7 +58,8 @@ int test_main(void)
         mock_ctx.spy.fatal_reset_caught = 1;
         // Restart the clock to ensure that fault state is captured
         // but don't enter the main loop and return to test harness.
-        (void)clock_init();
+        clock_state_t *state = clock_init();
+        free_memory(state);
         return 1;
     }
 

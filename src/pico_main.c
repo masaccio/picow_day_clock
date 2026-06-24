@@ -24,8 +24,10 @@ void on_clock_alloc_failed(void)
     // }
 }
 
-void on_lcd_init_failed(unsigned lcd_num)
+void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
 {
+    (void)state;
+    (void)lcd_num;
     // TODO: blink an LED to indicate startup has failed
     // while (1) {
     //     gpio_xor_mask(1 << LED_PIN);
