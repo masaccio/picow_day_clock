@@ -231,6 +231,15 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_co
     return clock_state;
 }
 
+static void free_test_clock_state(clock_state_t *state)
+{
+    free(state->ntp_state);
+    for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
+        if (state->lcd_states[ii])
+            free(state->lcd_states[ii]);
+    free(state);
+}
+
 static clock_config_t *create_clock_config(void)
 {
     static clock_config_t clock_config = {.magic_marker = CONFIG_MAGIC,
@@ -370,6 +379,9 @@ static int test_dst(void)
     TEST_DST_BOUND(2024, 9, 27, 1, 59, DST_RULE_IL, 1);
     TEST_DST_BOUND(2024, 9, 27, 2, 0, DST_RULE_IL, 0);
 
+    free(timer);
+    free_test_clock_state(clock_state);
+
     return 0; // All paths passed
 }
 
@@ -460,6 +472,10 @@ static int test_ntp_time(void)
         }
     }
     mock_ctx.inject.udp_response_type = UDP_NTP_OK;
+
+    free(timer);
+    free_test_clock_state(clock_state);
+
     return status;
 }
 
@@ -603,6 +619,7 @@ static int test_wifi_ap_config(void)
             printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
         }
     }
+    free_test_config(con_state);
 
     // Test happy path (standard fully-populated form)
     con_state = create_test_config((void *)mock_store_config);
