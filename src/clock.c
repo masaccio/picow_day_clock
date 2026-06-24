@@ -91,8 +91,6 @@ const char *wifi_error_to_string(wifi_error_t status)
 
 volatile uint trigger_ap_mode = 0;
 
-static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-
 // Callback from NTP called when an NTP request is successful
 void ntp_timer_callback(void *state, time_t *ntp_time)
 {
@@ -100,7 +98,7 @@ void ntp_timer_callback(void *state, time_t *ntp_time)
     clock_state->ntp_time = *ntp_time;
 }
 
-int last_weekday_of_month(int day, int month, int year)
+int day_of_week(int day, int month, int year)
 {
     // Compute the last day of the month using Zeller's congruence
     // See https://en.wikipedia.org/wiki/Zeller%27s_congruence
@@ -120,7 +118,7 @@ int last_weekday_of_month(int day, int month, int year)
 // n: 1 for 1st, 2 for 2nd... -1 for LAST
 static int nth_weekday(int n, int target_wday, int month, int year)
 {
-    int dow_first = last_weekday_of_month(1, month, year);
+    int dow_first = day_of_week(1, month, year);
     int first_occurrence = 1 + (target_wday - dow_first + 7) % 7;
 
     if (n > 0) {
@@ -322,6 +320,7 @@ bool clock_timer_callback(repeating_timer_t *t)
                     state->ntp_reset_error, state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
 
         static char lcd_digits[NUM_LCDS + 1];
+        static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
         strncpy(lcd_digits, day_of_week_str[local_time.tm_wday], 3);
 
         lcd_digits[3] = '0' + (char)(local_time.tm_hour / 10);

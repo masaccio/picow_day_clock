@@ -102,13 +102,20 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
     state->parent_state = parent_state;
     state->time_handler = time_handler;
 
+    cyw43_arch_lwip_begin();
     state->ntp_pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
+    cyw43_arch_lwip_end();
+
     if (!state->ntp_pcb) {
         CLOCK_DEBUG("Failed to allocate UDP buffer\r\n");
         free(state);
         return NULL;
     }
+
+    cyw43_arch_lwip_begin();
     udp_recv(state->ntp_pcb, ntp_recv, state);
+    cyw43_arch_lwip_end();
+
     return state;
 }
 

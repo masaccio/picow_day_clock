@@ -188,7 +188,7 @@ extern const char *clock_status_to_string(clock_status_t status);
 extern const char *ntp_error_to_string(ntp_error_t status);
 extern const char *wifi_error_to_string(wifi_error_t status);
 extern persistent_state_t persistent_state;
-extern int last_weekday_of_month(int day, int month, int year);
+extern int day_of_week(int day, int month, int year);
 
 // Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);

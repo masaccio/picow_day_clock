@@ -266,7 +266,7 @@ static int test_dst(void)
     time_t now;
 
     // Coverage test for Zeller's congruence
-    if (last_weekday_of_month(28, 2, 2025) != /* Friday */ 5) {
+    if (day_of_week(28, 2, 2025) != /* Friday */ 5) {
         return 1;
     }
 
