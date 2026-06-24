@@ -19,6 +19,7 @@ static void free_memory(clock_state_t *state)
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
         if (state->lcd_states[ii])
             free(state->lcd_states[ii]);
+    free(state);
 }
 
 void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
