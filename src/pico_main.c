@@ -18,11 +18,19 @@ void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp
 void on_clock_alloc_failed(void)
 {
     // TODO: blink an LED to indicate startup has failed
+    // while (1) {
+    //     gpio_xor_mask(1 << LED_PIN);
+    //     sleep_ms(100);
+    // }
 }
 
 void on_lcd_init_failed(unsigned lcd_num)
 {
     // TODO: blink an LED to indicate startup has failed
+    // while (1) {
+    //     gpio_xor_mask(1 << LED_PIN);
+    //     sleep_ms(100);
+    // }
 }
 
 int main(void)
