@@ -13,6 +13,9 @@
             "externalConsole": false,
             "MIMode": "lldb",
             "preLaunchTask": "CMake: build",
+            "sourceFileMap": {
+                "${userHome}/CloudDocs/development/picow_day_clock": "${workspaceFolder}",
+            },
             "logging": {
                 "engineLogging": false
             }
