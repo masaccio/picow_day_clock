@@ -15,24 +15,13 @@ def image_to_bitmap(input_file: TextIO, size: int) -> list[int]:
     Returns:
         A list of ints for the pixels, 8 bits per pixel MSB first.
     """
-    img = Image.open(input_file).convert("1")
+    img = Image.open(input_file).convert("L")
     img = img.resize((size, size), Image.LANCZOS)
     img = img.point(lambda x: 0 if x > 128 else 1, "1")
-    pixels = img.get_flattened_data()
 
-    data = []
-    bytes_per_row = (size + 7) // 8
-    for y in range(size):
-        row_start = y * size
-        for byte_index in range(bytes_per_row):
-            byte = 0
-            for bit in range(8):
-                x = byte_index * 8 + bit
-                if x < size:
-                    # Most significant bit is left-most pixel
-                    byte |= (pixels[row_start + x] & 1) << (7 - bit)
-            data.append(byte)
-    return data
+    # img.tobytes() returns a bytes object.
+    # list() automatically converts a bytes object into a list of integers [0-255].
+    return list(img.tobytes())
 
 
 def format_as_c_array(data: list[int], name: str) -> str:
