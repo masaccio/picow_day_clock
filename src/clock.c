@@ -287,21 +287,11 @@ bool clock_timer_callback(repeating_timer_t *t)
     // uint32_t interrupts = save_and_disable_interrupts();
     // Step clock if drift is huge, otherwise slew a second at a time
     if (state->ntp_drift > 60 || state->ntp_drift < -60) {
-
         state->ntp_drift = 0;
     } else if (state->ntp_drift > 0) {
         state->ntp_drift--;
     } else if (state->ntp_drift < 0) {
         state->ntp_drift++;
-    }
-
-    time_t local_epoch = calculate_local_time(time(NULL), state) + state->ntp_drift;
-    struct tm local_time;
-    gmtime_r(&local_epoch, &local_time);
-
-    // Clear any watchdog error icon after it's been displayed a while
-    if (local_epoch > (state->last_watchdog_error + WATCHDOG_ICON_INTERVAL)) {
-        state->watchdog_reset_error = WATCHDOG_OK;
     }
 
     static uint8_t button_hold_seconds = 0;
@@ -319,23 +309,38 @@ bool clock_timer_callback(repeating_timer_t *t)
         button_hold_seconds = 0;
     }
 
-    if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
+    time_t local_epoch = calculate_local_time(time(NULL), state) + state->ntp_drift;
+    struct tm local_time;
+    gmtime_r(&local_epoch, &local_time);
+
+    // Clear any watchdog error icon after it's been displayed a while
+    if (local_epoch > (state->last_watchdog_error + WATCHDOG_ICON_INTERVAL)) {
+        state->watchdog_reset_error = WATCHDOG_OK;
+    }
+
+    char lcd_digits[NUM_LCDS + 1];
+    static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    strncpy(lcd_digits, day_of_week_str[local_time.tm_wday], 3);
+    lcd_digits[3] = '0' + (char)(local_time.tm_hour / 10);
+    lcd_digits[4] = '0' + (char)(local_time.tm_hour % 10);
+    lcd_digits[5] = '0' + (char)(local_time.tm_min / 10);
+    lcd_digits[6] = '0' + (char)(local_time.tm_min % 10);
+    lcd_digits[7] = '\0';
+
+    bool digits_changed = false;
+    for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
+        if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick == 0) {
+            digits_changed = true;
+            break;
+        }
+    }
+    if (digits_changed) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
                     time_as_string(local_epoch, state), local_epoch, persistent_state.boot_count,
                     state->ntp_reset_error, state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
 
-        static char lcd_digits[NUM_LCDS + 1];
-        static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-        strncpy(lcd_digits, day_of_week_str[local_time.tm_wday], 3);
-
-        lcd_digits[3] = '0' + (char)(local_time.tm_hour / 10);
-        lcd_digits[4] = '0' + (char)(local_time.tm_hour % 10);
-        lcd_digits[5] = '0' + (char)(local_time.tm_min / 10);
-        lcd_digits[6] = '0' + (char)(local_time.tm_min % 10);
-        lcd_digits[7] = '\0';
-
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-            if (state->current_lcd_digits[ii] != lcd_digits[ii]) {
+            if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick == 0) {
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
             }
@@ -344,7 +349,9 @@ bool clock_timer_callback(repeating_timer_t *t)
             }
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
+    }
 
+    if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
         if ((local_epoch - state->ntp_last_sync) >= state->ntp_interval) {
             ntp_error_t ntp_error_status = ntp_get_time(state->ntp_state);
             if (state->ntp_state->status == NTP_KOD) {
