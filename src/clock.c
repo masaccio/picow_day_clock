@@ -284,12 +284,17 @@ bool clock_timer_callback(repeating_timer_t *t)
 
     watchdog_update();
 
-    // Adjust the NTP drift a second at a time
-    if (state->ntp_drift > 0) {
+    // uint32_t interrupts = save_and_disable_interrupts();
+    // Step clock if drift is huge, otherwise slew a second at a time
+    if (state->ntp_drift > 60 || state->ntp_drift < -60) {
+
+        state->ntp_drift = 0;
+    } else if (state->ntp_drift > 0) {
         state->ntp_drift--;
     } else if (state->ntp_drift < 0) {
         state->ntp_drift++;
     }
+
     time_t local_epoch = calculate_local_time(time(NULL), state) + state->ntp_drift;
     struct tm local_time;
     gmtime_r(&local_epoch, &local_time);
@@ -374,6 +379,14 @@ int config_store_handler(clock_config_t *config)
     CLOCK_DEBUG("Stored new config in flash\r\n");
     return 0;
 }
+
+// static time_t get_atomic_time(clock_state_t *state)
+// {
+//     uint32_t interrupts = save_and_disable_interrupts();
+//     time_t safe_time = state->ntp_time;
+//     restore_interrupts(interrupts);
+//     return safe_time;
+// }
 
 clock_state_t *clock_init(void)
 {
