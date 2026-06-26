@@ -399,64 +399,62 @@ static int test_ntp_time(void)
     // +6d: create a DNS error
     // +7d: watchdog error should clear
     // +8d: normal NTP update (NTP error should clear)
-    const int seconds_in_day = 24 * 60 * 60;
-    int last_lcd_hour = -1;
-    int last_lcd_min = -1;
-    int drift = 50;
-    int status = 0;
-    for (unsigned int tick = 0; tick < (10 * seconds_in_day); tick++) {
-        (void)clock_timer_callback(timer);
-        int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
-        int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
-        if (last_lcd_hour >= 0 && last_lcd_hour != lcd_hour && last_lcd_min != lcd_min) {
-            time_t now = mock_ctx.spy.system_time_ms / 1000;
-            struct tm *current_time = gmtime(&now);
-            if (current_time->tm_hour != lcd_hour || current_time->tm_min != lcd_min) {
-                status = 1;
-                test_printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min,
-                            lcd_hour, lcd_min);
-            }
+    // +9d: large NTP drift
+    int drift = 20;
+    for (int day = 0; day <= 10; day++) {
+        switch (day) {
+            case 2:
+                mock_ctx.inject.udp_response_type = UDP_NTP_KOD;
+                break;
+            case 6:
+                mock_ctx.inject.dns_lookup_fail = 1;
+                clock_state->watchdog_reset_error = WATCHDOG_NTP;
+                clock_state->last_watchdog_error =
+                    (time_t)(mock_ctx.spy.system_time_ms / 1000) + NTP_SYNC_INTERVAL_SEC / 2;
+                break;
+            case 7:
+                mock_ctx.inject.dns_lookup_fail = 0;
+                break;
+            default:
+                break;
         }
-        last_lcd_hour = lcd_hour;
-        last_lcd_min = lcd_min;
-        mock_ctx.spy.system_time_ms += 1000;
+        for (int second = 0; second <= 24 * 60 * 60; second++) {
+            time_t now = (time_t)(mock_ctx.spy.system_time_ms / 1000);
+            struct tm *test_time = gmtime(&now);
 
-        if (tick == (2 * seconds_in_day)) {
-            mock_ctx.inject.udp_response_type = UDP_NTP_KOD;
-        }
-        if (tick == (3 * seconds_in_day) && clock_state->ntp_interval != (NTP_SYNC_INTERVAL_SEC * 2)) {
-            printf("TEST FAIL: Interval was not doubled via KoD\n");
-            return 1;
-        }
-        if (tick == (6 * seconds_in_day)) {
-            mock_ctx.inject.dns_lookup_fail = 1;
-            clock_state->watchdog_reset_error = WATCHDOG_NTP;
-            clock_state->last_watchdog_error = (time_t)(mock_ctx.spy.system_time_ms / 1000) + NTP_SYNC_INTERVAL_SEC / 2;
-        }
-        // if (tick == ((7 * seconds_in_day) + 180)) {
-        //     // NTP checks a day after DNS error insertion, but allow 3 minutes
-        //     // slip due to drift calculations
-        //     assert(mock_ctx.spy.icon_state.ntp, NTP_DNS_ERROR, "DNS error icon signalled");
-        // }
-        if (tick == (8 * seconds_in_day)) {
-            if (clock_state->watchdog_reset_error != WATCHDOG_OK) {
-                status = 1;
-                printf("WATCHDOG FAILED TO CLEAR\n");
-            }
-            mock_ctx.inject.dns_lookup_fail = 0;
-        }
-        // if (tick == ((8 * seconds_in_day) + 180)) {
-        //     // NTP checks a day after DNS error insertion, but allow 3 minutes
-        //     // slip due to drift calculations
-        //     assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "DNS error icon signalled");
-        // }
+            (void)clock_timer_callback(timer);
 
-        // Each day gets a different drift
-        if (tick > 0 && (tick % seconds_in_day) == 0) {
+            int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
+            int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
+            assert(test_time->tm_hour, lcd_hour, "LCD time (hours)");
+            assert(test_time->tm_min, lcd_min, "LCD time (mins)");
+            mock_ctx.spy.system_time_ms += 1000;
+            mock_ctx.spy.ntp_seconds++;
+        }
+        switch (day) {
+            case 2:
+                assert(clock_state->ntp_interval, NTP_SYNC_INTERVAL_SEC * 2, "Interval doubled via KoD");
+                break;
+            case 6:
+                assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_NTP, "Watchdog fired for NTP");
+                break;
+            case 7:
+                assert(clock_state->watchdog_reset_error, WATCHDOG_OK, "watchdog cleared");
+                break;
+            case 8:
+                assert(clock_state->ntp_drift, 0, "NTP drift jumped");
+                break;
+            default:
+                CHECK_ICONS_OK();
+                break;
+        }
+        if (day == 7) {
+            // Large drift should force the clock to jump forward
+            mock_ctx.spy.ntp_seconds = (unsigned long long)((long long)mock_ctx.spy.ntp_seconds + 100);
+        } else if ((day % 2) == 0) {
+            // Each day gets a different drift
             mock_ctx.spy.ntp_seconds = (unsigned long long)((long long)mock_ctx.spy.ntp_seconds + drift);
             drift = -drift;
-        } else {
-            mock_ctx.spy.ntp_seconds++;
         }
     }
     mock_ctx.inject.udp_response_type = UDP_NTP_OK;
@@ -475,7 +473,7 @@ static int test_ntp_time(void)
     free(timer);
     free_test_clock_state(clock_state);
 
-    return status;
+    return 0;
 }
 
 static int test_ntp_errors(void)
