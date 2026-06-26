@@ -20,16 +20,10 @@ list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
 file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
 
-set(SANITIZER_FLAGS "-fsanitize=address -g -fno-omit-frame-pointer")
-set(COVERAGE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -O0 -g")
-
 set(CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
 # LCD code is too hardware-specific to test
 list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
 list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/pico_main.c)
-set_source_files_properties(${CLOCK_SRC_FILES} 
-    PROPERTIES COMPILE_FLAGS "${COVERAGE_FLAGS} ${SANITIZER_FLAGS}"
-)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/../tests
@@ -47,6 +41,14 @@ add_executable(test_picow_day_clock
 
 target_compile_options(test_picow_day_clock
     PRIVATE
+    # Additional debug options for test build
+    -fsanitize=address
+    -fno-omit-frame-pointer
+    -fprofile-instr-generate
+    -fcoverage-mapping
+    -O0
+    -g
+    # Pico SDK defaults
     -Werror
     -Weverything
     # Disable unacceptable warnings for host build
@@ -64,6 +66,11 @@ target_compile_definitions(test_picow_day_clock PRIVATE
     WIFI_PASSWORD="my-test-password"
     NTP_SERVER="ntp.test.invalid"
     TEST_MODE=1
+)
+
+target_link_options(test_picow_day_clock PRIVATE
+    -fsanitize=address
+    -fprofile-instr-generate
 )
 
 target_link_libraries(
