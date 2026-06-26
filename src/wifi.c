@@ -322,7 +322,8 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
             // Step past the double line-break boundary
             body += 4;
 
-            char *pair = strtok(body, "&");
+            char *saveptr;
+            char *pair = strtok_r(body, "&", &saveptr);
             while (pair != NULL) {
                 char *eq = strchr(pair, '=');
                 if (eq) {
@@ -359,7 +360,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                     } else if (strcmp(key, "cto") == 0)
                         config.timeout = atoi(value);
                 }
-                pair = strtok(NULL, "&");
+                pair = strtok_r(NULL, "&", &saveptr);
             }
         }
 
