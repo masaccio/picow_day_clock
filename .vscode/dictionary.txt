@@ -50,6 +50,7 @@ STREQUAL
 threadsafe
 TRACEFILE
 UART
+unsynchronized
 USERHOME
 USERPROFILE
 VBUS

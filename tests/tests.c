@@ -34,34 +34,34 @@ static unsigned int test_verbose;
 
 #define CHECK_ICONS_OK()                                                                                               \
     do {                                                                                                               \
-        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_OK, "Watchdog OK");                                          \
-        assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                                        \
-        assert(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                                     \
+        assert_with_msg(mock_ctx.spy.icon_state.watchdog, WATCHDOG_OK, "Watchdog OK");                                 \
+        assert_with_msg(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                               \
+        assert_with_msg(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                            \
     } while (0)
 #define CHECK_WATCHDOG_RESET_OK()                                                                                      \
     do {                                                                                                               \
-        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_RESET, "Watchdog reset");                                    \
-        assert(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                                        \
-        assert(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                                     \
+        assert_with_msg(mock_ctx.spy.icon_state.watchdog, WATCHDOG_RESET, "Watchdog reset");                           \
+        assert_with_msg(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                               \
+        assert_with_msg(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                            \
     } while (0)
 #define CHECK_ICONS_FAIL(N, WATCHDOG, NTP, WIFI)                                                                       \
     do {                                                                                                               \
-        assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG, "Watchdog fail status");                                    \
-        assert(mock_ctx.spy.icon_state.ntp, NTP, "NTP  fail status");                                                  \
-        assert(mock_ctx.spy.icon_state.wifi, WIFI, "Wi-Fi fail status");                                               \
+        assert_with_msg(mock_ctx.spy.icon_state.watchdog, WATCHDOG, "Watchdog fail status");                           \
+        assert_with_msg(mock_ctx.spy.icon_state.ntp, NTP, "NTP  fail status");                                         \
+        assert_with_msg(mock_ctx.spy.icon_state.wifi, WIFI, "Wi-Fi fail status");                                      \
     } while (0)
 #define EXPECT_FATAL_NTP_ERROR(ERROR)                                                                                  \
     do {                                                                                                               \
         CHECK_ICONS_FAIL(0, WATCHDOG_NTP, (ERROR), WIFI_OK);                                                           \
-        assert(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                              \
-        assert(mock_ctx.spy.fatal_wifi_error, WIFI_OK, "Wi-Fi OK");                                                    \
-        assert(mock_ctx.spy.fatal_ntp_error, ERROR, "NTP error type");                                                 \
+        assert_with_msg(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                     \
+        assert_with_msg(mock_ctx.spy.fatal_wifi_error, WIFI_OK, "Wi-Fi OK");                                           \
+        assert_with_msg(mock_ctx.spy.fatal_ntp_error, ERROR, "NTP error type");                                        \
     } while (0)
 #define EXPECT_FATAL_WIFI_ERROR(ERROR)                                                                                 \
     do {                                                                                                               \
         CHECK_ICONS_FAIL(0, WATCHDOG_WIFI, NTP_OK, (ERROR));                                                           \
-        assert(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                              \
-        assert(mock_ctx.spy.fatal_wifi_error, ERROR, "Wi-Fi error type");                                              \
+        assert_with_msg(mock_ctx.spy.fatal_reset_caught, 1, "Fatal reset caught");                                     \
+        assert_with_msg(mock_ctx.spy.fatal_wifi_error, ERROR, "Wi-Fi error type");                                     \
     } while (0)
 
 static int run_test(test_func_t func, const char *test_name)
@@ -113,12 +113,12 @@ static int test_bad_lcd1(void)
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 1;
     EXECUTE_TEST("LCD alloc (1)", EXPECT_FAIL);
-    assert(mock_ctx.spy.clock_state_alloc_failed, 1, "Clock init failed");
+    assert_with_msg(mock_ctx.spy.clock_state_alloc_failed, 1, "Clock init failed");
 
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 3;
     EXECUTE_TEST("LCD alloc (2)", EXPECT_FAIL);
-    assert(mock_ctx.spy.lcd_init_failed, 1, "LCD init failed");
+    assert_with_msg(mock_ctx.spy.lcd_init_failed, 1, "LCD init failed");
 
     mock_ctx.inject.calloc_fail_at = 0;
     return 0;
@@ -391,7 +391,7 @@ static int test_ntp_time(void)
     // Tue January 9, 2001 at 09:28:32
     set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
 
-    // Run for 10 simulated days
+    // Run for 12 simulated days
     // +1d: normal NTP update
     // +2d: generate a KoD
     // +3d: should not update NTP
@@ -426,23 +426,25 @@ static int test_ntp_time(void)
 
             int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
             int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
-            assert(test_time->tm_hour, lcd_hour, "LCD time (hours)");
-            assert(test_time->tm_min, lcd_min, "LCD time (mins)");
+            if (test_time->tm_hour != lcd_hour || test_time->tm_min != lcd_min) {
+                test_printf("FAILED clock state: time=%02d:%02d, lcd=%02d:%02d\n", test_time->tm_hour,
+                            test_time->tm_min, lcd_hour, lcd_min);
+            }
             mock_ctx.spy.system_time_ms += 1000;
             mock_ctx.spy.ntp_seconds++;
         }
         switch (day) {
             case 2:
-                assert(clock_state->ntp_interval, NTP_SYNC_INTERVAL_SEC * 2, "Interval doubled via KoD");
+                assert_with_msg(clock_state->ntp_interval, NTP_SYNC_INTERVAL_SEC * 2, "Interval doubled via KoD");
                 break;
             case 6:
-                assert(mock_ctx.spy.icon_state.watchdog, WATCHDOG_NTP, "Watchdog fired for NTP");
+                assert_with_msg(mock_ctx.spy.icon_state.watchdog, WATCHDOG_NTP, "Watchdog fired for NTP");
                 break;
             case 7:
-                assert(clock_state->watchdog_reset_error, WATCHDOG_OK, "watchdog cleared");
+                assert_with_msg(clock_state->watchdog_reset_error, WATCHDOG_OK, "watchdog cleared");
                 break;
             case 8:
-                assert(clock_state->ntp_drift, 0, "NTP drift jumped");
+                assert_with_msg(clock_state->ntp_drift, 0, "NTP drift jumped");
                 break;
             default:
                 CHECK_ICONS_OK();
@@ -488,6 +490,10 @@ static int test_ntp_errors(void)
 
     mock_ctx.inject.udp_response_type = UDP_NTP_BAD_PORT;
     EXECUTE_TEST("NTP UDP bad port failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
+
+    mock_ctx.inject.udp_response_type = UDP_NTP_LEAP3;
+    EXECUTE_TEST("NTP unsynchronized", EXPECT_FAIL);
     EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     mock_ctx.inject.udp_new_ip_type_fail = 1;
@@ -610,7 +616,7 @@ static int test_wifi_ap_config(void)
     // Flash failure test
     const char *url = TEST_CONFIG_URL("SSID", "password", TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
     if (simulate_form_post(con_state, &client_pcb, url) != 0) {
-        test_printf("FFAILED: lash failure form failed to submit");
+        test_printf("FAILED: lash failure form failed to submit");
         return 1;
     }
     if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {

@@ -55,10 +55,8 @@
         NAME##_init(q);                                                                                                \
     }
 
-#undef assert
-
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define assert(a, b, msg)                                                                                              \
+#define assert_with_msg(a, b, msg)                                                                                     \
     do {                                                                                                               \
         if ((a) != (b)) {                                                                                              \
             printf("ASSERT FAILED: %s:%d: %s\n", FILENAME, __LINE__, (msg));                                           \
@@ -82,6 +80,7 @@ typedef enum
 {
     UDP_NTP_OK,
     UDP_NTP_KOD,
+    UDP_NTP_LEAP3,
     UDP_NTP_INVALID,
     UDP_NTP_BAD_LEN,
     UDP_NTP_BAD_PORT

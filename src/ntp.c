@@ -61,12 +61,30 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 
     watchdog_update();
 
-    uint8_t mode = pbuf_get_at(p, 0) & 0x7;
+    uint8_t first_byte = pbuf_get_at(p, 0);
+    uint8_t mode = first_byte & 0x07;
+    uint8_t leap = (first_byte >> 6) & 0x03;
     uint8_t stratum = pbuf_get_at(p, 1);
 
     int addrs_valid = ip_addr_cmp(addr, &state->ntp_server_address);
     int response_valid = port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4;
-    if (addrs_valid && response_valid && stratum != 0) {
+    int packet_valid = addrs_valid && response_valid;
+
+    if (!packet_valid) {
+        CLOCK_DEBUG("NTP: invalid response: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
+                    addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+        state->error = NTP_PROTOCOL_ERROR;
+    } else if (leap == 3) {
+        CLOCK_DEBUG("NTP: server unsynchronized: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
+                    addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+        state->error = NTP_PROTOCOL_ERROR;
+    } else if (stratum == 0) {
+        // We got a 'kiss of death' from the NTP server for too many requests.
+        state->status = NTP_KOD;
+        CLOCK_DEBUG("NTP: server responded with KoD\r\n");
+    } else {
+        // Also allows leap to be 0b01 or 0b10 and rather than adjusting for leap seconds, we just
+        // get a new timestamp the next day.
         uint8_t seconds_buf[4] = {0};
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 = (uint32_t)(((uint32_t)seconds_buf[0] << 24) | ((uint32_t)seconds_buf[1] << 16) |
@@ -84,17 +102,8 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         state->status = NTP_DONE;
         CLOCK_DEBUG("NTP: update success timestamp=%llu\r\n", seconds_since_1970);
         state->time_handler(state->parent_state, &seconds_since_1970);
-    } else if (addrs_valid && response_valid /* stratum == 0 */) {
-        // We got a 'kiss of death' from the NTP server for too many requests.
-        state->status = NTP_KOD;
-        CLOCK_DEBUG("NTP: server responded with KoD\r\n");
-    } else {
-        CLOCK_DEBUG("NTP: invalid response: addrs %s, port %s, len %s, mode %s, stratum %s\r\n",
-                    addrs_valid ? "valid" : "invalid", port == NTP_PORT ? "valid" : "invalid",
-                    p->tot_len == NTP_MSG_LEN ? "valid" : "invalid", mode == 0x4 ? "valid" : "invalid",
-                    stratum != 0 ? "valid" : "invalid");
-        state->error = NTP_PROTOCOL_ERROR;
     }
+
     pbuf_free(p);
 }
 
