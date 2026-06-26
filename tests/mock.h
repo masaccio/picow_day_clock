@@ -66,6 +66,7 @@ typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p, cons
                             short unsigned int port);
 
 // Standard library functions
+extern int test_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
 #define printf(...) mock_printf(__VA_ARGS__)
 extern int mock_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
 

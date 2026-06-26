@@ -331,7 +331,8 @@ int test_printf(const char *format, ...)
     va_start(args, format);
     (void)vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
-    printf("DEBUG: %s", buffer);
+    if (mock_ctx.config.test_verbose)
+        printf("DEBUG: %s", buffer);
     return 0;
 }
 

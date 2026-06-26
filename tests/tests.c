@@ -72,9 +72,7 @@ static int run_test(test_func_t func, const char *test_name)
     mock_ctx.spy.log_buffer_size = 0;
     mock_ctx.config.test_verbose = test_verbose;
 
-    if (mock_ctx.config.test_verbose) {
-        printf("DEBUG: Starting test '%s'\n", test_name);
-    }
+    test_printf("DEBUG: Starting test '%s'\n", test_name);
 
     // Only happens once on the target
     // TODO: this really should be state in the Wi-Fi code
@@ -97,14 +95,10 @@ static int run_test(test_func_t func, const char *test_name)
 #define EXECUTE_TEST_WRAPPER(test_func, msg, status)                                                                   \
     do {                                                                                                               \
         if (test_func != status) {                                                                                     \
-            if (mock_ctx.config.test_verbose) {                                                                        \
-                printf("CHECK: TEST FAIL: " msg "\n");                                                                 \
-            }                                                                                                          \
+            test_printf("CHECK: TEST FAIL: " msg "\n");                                                                \
             return 1;                                                                                                  \
         } else {                                                                                                       \
-            if (mock_ctx.config.test_verbose) {                                                                        \
-                printf("CHECK: TEST OK: " msg "\n");                                                                   \
-            }                                                                                                          \
+            test_printf("CHECK: TEST OK: " msg "\n");                                                                  \
         }                                                                                                              \
         if (mock_ctx.spy.alloced_counter != mock_ctx.spy.free_counter) {                                               \
             printf("LEAK DETECTED: %u allocs vs %u frees: %s:%d\n", mock_ctx.spy.alloced_counter,                      \
@@ -419,10 +413,8 @@ static int test_ntp_time(void)
             struct tm *current_time = gmtime(&now);
             if (current_time->tm_hour != lcd_hour || current_time->tm_min != lcd_min) {
                 status = 1;
-                if (mock_ctx.config.test_verbose) {
-                    printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min,
-                           lcd_hour, lcd_min);
-                }
+                test_printf("TIME ERROR: %02d:%02d != %02d:%02d\n", current_time->tm_hour, current_time->tm_min,
+                            lcd_hour, lcd_min);
             }
         }
         last_lcd_hour = lcd_hour;
@@ -619,12 +611,12 @@ static int test_wifi_ap_config(void)
 
     // Flash failure test
     const char *url = TEST_CONFIG_URL("SSID", "password", TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
-    if (simulate_form_post(con_state, &client_pcb, url) != 0)
+    if (simulate_form_post(con_state, &client_pcb, url) != 0) {
+        test_printf("FFAILED: lash failure form failed to submit");
         return 1;
+    }
     if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
-        if (mock_ctx.config.test_verbose) {
-            printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
-        }
+        test_printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
     }
     free_test_config(con_state);
 
@@ -632,24 +624,34 @@ static int test_wifi_ap_config(void)
     con_state = create_test_config((void *)mock_store_config);
     const char *happy_path =
         TEST_CONFIG_URL(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
-    if (simulate_form_post(con_state, &client_pcb, happy_path) != 1)
+    if (simulate_form_post(con_state, &client_pcb, happy_path) != 1) {
+        test_printf("FAILED AP test: Happy path form failed to submit");
         return 1;
+    }
     if (strstr(mock_tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
-        if (mock_ctx.config.test_verbose) {
-            printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
-        }
+        test_printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
     }
 
-    if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0)
+    if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0) {
+        test_printf("FAILED AP test: invalid SSID\n");
         return 1;
-    if (strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD) != 0)
+    }
+    if (strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD) != 0) {
+        test_printf("FAILED AP test: invalid password\n");
         return 1;
-    if (strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER) != 0)
+    }
+    if (strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER) != 0) {
+        test_printf("FAILED AP test: invalid NTP\n");
         return 1;
-    if (last_parsed_config.tz_offset_mins != TEST_TZ_OFFSET)
+    }
+    if (last_parsed_config.tz_offset_mins != TEST_TZ_OFFSET) {
+        test_printf("FAILED AP test: invalid TZ\n");
         return 1;
-    if (last_parsed_config.dst_rule != (dst_rule_t)TEST_DST_RULE)
+    }
+    if (last_parsed_config.dst_rule != (dst_rule_t)TEST_DST_RULE) {
+        test_printf("FAILED AP test: invalid DST\n");
         return 1;
+    }
 
     // Stress URL decode
     // ssid: "My Wi-Fi!" (Testing + and %21)
@@ -658,15 +660,11 @@ static int test_wifi_ap_config(void)
     simulate_form_post(con_state, &client_pcb, url_encoded);
 
     if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {
-        if (mock_ctx.config.test_verbose) {
-            printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
-        }
+        test_printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
         return 1;
     }
     if (strcmp(last_parsed_config.wifi_password, "a&b=c%d") != 0) {
-        if (mock_ctx.config.test_verbose) {
-            printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
-        }
+        test_printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
         return 1;
     }
 

@@ -13,12 +13,9 @@
 
 #include "config.h"
 
-#ifdef TEST_MODE
-extern int test_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
-#endif
-
 #ifdef CLOCK_DEBUG_ENABLED
 #ifdef TEST_MODE
+extern int test_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
 #define CLOCK_DEBUG(...) test_printf(__VA_ARGS__)
 #else
 #define CLOCK_DEBUG(format, ...) printf("CLOCK: " format, ##__VA_ARGS__)
