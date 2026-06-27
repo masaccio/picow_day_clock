@@ -48,8 +48,11 @@
 
 #define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
-#define HTTP_TCP_PORT 80
-#define HTTP_POLL_TIME_SEC 5
+#define TCP_IP_BUFFER_SIZE 8192  // Needs to be large enough for the most bloated of POST responses
+#define TCP_IP_MAX_CONNECTIONS 4 // Keep low to avoid RAM exhaustion from browsers making many requests
+#define HTTP_TCP_PORT 80         // Found in the SDK, but define here for portability to the host tests
+#define HTTP_POLL_TIME_SEC 5     // How long to allow a connection to idle
+
 #define HTTP_RESPONSE_REDIRECT_HEADER                                                                                  \
     "HTTP/1.1 302 Found\r\n"                                                                                           \
     "Location: http://%s" HTTP_CONFIG_URL "\r\n"                                                                       \

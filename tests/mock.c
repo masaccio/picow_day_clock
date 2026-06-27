@@ -528,7 +528,7 @@ err_t tcp_recved(struct tcp_pcb *pcb, u16_t len)
     return 0;
 }
 
-char mock_tcp_write_buffer[8192];
+char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
 
 err_t tcp_write(struct tcp_pcb *pcb, const void *dataptr, u16_t len, u8_t apiflags)
 {

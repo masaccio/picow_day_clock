@@ -8,6 +8,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "config.h"
+
 // Define system data types
 typedef unsigned int uint;
 typedef char err_t;
@@ -48,7 +50,7 @@ typedef unsigned int pbuf_layer;
 
 typedef struct pbuf
 {
-    u8_t payload[8192];
+    u8_t payload[TCP_IP_BUFFER_SIZE];
     u16_t tot_len;
 } pbuf;
 #define repeating_timer repeating_timer_t
@@ -87,6 +89,7 @@ enum
 {
     ERR_OK,
     ERR_ARG,
+    ERR_ABRT,
     ERR_INPROGRESS,
     PWM_CHAN_B,
     IPADDR_TYPE_ANY,
@@ -180,7 +183,7 @@ void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
 
 // TCP/IP and Wi-Fi AP
 extern void *mock_tcp_server_state;
-extern char mock_tcp_write_buffer[8192];
+extern char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
 typedef char err_t;
 #define ipaddr_ntoa(ipaddr) ip4addr_ntoa(ipaddr)
 const char *ip4addr_ntoa(ip_addr_t *ipaddr);

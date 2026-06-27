@@ -65,33 +65,13 @@ wifi_error_t connect_to_wifi(const char ssid[], const char password[])
     }
 }
 
-typedef struct
-{
-    struct tcp_pcb *server_pcb;
-    bool complete;
-    ip_addr_t gw;
-    store_config_handler_t store_config;
-} tcp_server_t;
-
-typedef struct
-{
-    struct tcp_pcb *pcb;
-    int sent_len;
-    char headers[8192];
-    char result[8192];
-    int header_len;
-    int result_len;
-    ip_addr_t *gw;
-    store_config_handler_t store_config;
-    tcp_server_t *server_state;
-} tcp_connect_state_t;
-
 // For testing we just call tcp_server_recv() directly with payloads to avoid mocking
 // a lot of lwIP infrastructure. We can also ignore DNS and DHCP.
 #ifndef TEST_MODE
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     if (client_pcb) {
+        con_state->server_state->active_connections--;
         tcp_arg(client_pcb, NULL);
         tcp_poll(client_pcb, NULL, 0);
         tcp_sent(client_pcb, NULL);
@@ -135,7 +115,7 @@ static err_t tcp_server_poll(void *arg, struct tcp_pcb *pcb)
 {
     tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
     CLOCK_DEBUG("tcp_server_poll_fn\n");
-    return tcp_close_client_connection(con_state, pcb, ERR_OK); // Just disconnect client?
+    return tcp_close_client_connection(con_state, pcb, ERR_OK);
 }
 
 static void tcp_server_err(void *arg, err_t err)
@@ -145,9 +125,10 @@ static void tcp_server_err(void *arg, err_t err)
         CLOCK_DEBUG("tcp_client_err_fn %d\n", err);
         tcp_close_client_connection(con_state, con_state->pcb, err);
     }
+    con_state->server_state->active_connections--;
 }
 
-static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
+err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 {
     tcp_server_t *state = (tcp_server_t *)arg;
     if (err != ERR_OK || client_pcb == NULL) {
@@ -155,6 +136,12 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         return ERR_VAL;
     }
     CLOCK_DEBUG("client connected\n");
+
+    state->active_connections++;
+    if (state->active_connections > TCP_IP_MAX_CONNECTIONS) {
+        CLOCK_DEBUG("Number TCP/IP connections exceeded maximum of %d\n", TCP_IP_MAX_CONNECTIONS);
+        return ERR_ABRT;
+    }
 
     // Create the state for the connection
     tcp_connect_state_t *con_state = calloc(1, sizeof(tcp_connect_state_t));

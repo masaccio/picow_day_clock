@@ -5,6 +5,7 @@
 // Pico SDK
 #ifndef TEST_MODE
 #include "hardware/flash.h"
+#include "lwip/err.h"
 #include "lwip/ip_addr.h"
 #include "pico/stdlib.h"
 #else
@@ -24,6 +25,8 @@ extern int test_printf(const char *format, ...) __attribute__((format(printf, 1,
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
 
+// Whilst the display is capable of many more colors, we limit our bitmaps to 4-bit
+// color to save memory
 typedef enum
 {
     BLACK = 0x00,
@@ -37,12 +40,12 @@ typedef enum
 
 typedef enum
 {
-    WIFI_OK,
-    WIFI_INIT_ERROR,
-    WIFI_TIMEOUT_ERROR,
-    WIFI_AUTH_ERROR,
-    WIFI_CONNECT_ERROR,
-    WIFI_UNKNOWN_ERROR,
+    WIFI_OK,            // Everything is OK
+    WIFI_INIT_ERROR,    // Memory allocation failed
+    WIFI_TIMEOUT_ERROR, // Too many Wi-Fi timeouts
+    WIFI_AUTH_ERROR,    // Too many authentication errors
+    WIFI_CONNECT_ERROR, // A TCP/IP connection error
+    WIFI_UNKNOWN_ERROR, // Any other Wi-Fi related error
 } wifi_error_t;
 
 typedef enum
@@ -179,11 +182,34 @@ typedef struct clock_state_t
     int first_clock_tick;
 } clock_state_t;
 
+typedef struct
+{
+    struct tcp_pcb *server_pcb;
+    bool complete;
+    ip_addr_t gw;
+    store_config_handler_t store_config;
+    int active_connections;
+} tcp_server_t;
+
+typedef struct
+{
+    struct tcp_pcb *pcb;
+    int sent_len;
+    char headers[TCP_IP_BUFFER_SIZE];
+    char result[TCP_IP_BUFFER_SIZE];
+    int header_len;
+    int result_len;
+    ip_addr_t *gw;
+    store_config_handler_t store_config;
+    tcp_server_t *server_state;
+} tcp_connect_state_t;
+
 // Clock functions and state that are shared with the test harness
 extern const char *watchdog_error_to_string(watchdog_error_t status);
 extern const char *clock_status_to_string(clock_status_t status);
 extern const char *ntp_error_to_string(ntp_error_t status);
 extern const char *wifi_error_to_string(wifi_error_t status);
+extern err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err);
 extern persistent_state_t persistent_state;
 extern int day_of_week(int day, int month, int year);
 

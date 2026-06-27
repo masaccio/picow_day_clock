@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -718,16 +717,60 @@ static int test_wifi_ap_config(void)
     if (last_parsed_config.tz_offset_mins != 0)
         return 1;
 
-    // simulate_form_post(con_state, &client_pcb, "&&&&=&=ssid=Valid&&");
-    // if (strcmp(last_parsed_config.wifi_ssid, "Valid") != 0) {
-    //     printf("FAILED Malformed Parse: Expected 'Valid', got '%s'\n", last_parsed_config.wifi_ssid);
-    //     return 1;
-    // }
-
     free_test_config(con_state);
 
     return 0;
 }
+
+// static int test_wifi_ap_limits(void)
+// {
+//     // 1. Initialize the mock server state
+//     tcp_server_t mock_server = {0};
+
+//     // 2. Simulate 5 parallel TCP handshakes from a smartphone browser
+//     struct tcp_pcb mock_pcbs[5];
+//     int accepted_count = 0;
+//     int rejected_count = 0;
+
+//     for (int i = 0; i < 5; i++) {
+//         // Assume tcp_server_accept is exposed or tested directly
+//         err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
+//         if (result == ERR_OK) {
+//             accepted_count++;
+//         } else if (result == ERR_ABRT) {
+//             rejected_count++;
+//         }
+//     }
+
+//     // Assert that the gatekeeper protected the heap
+//     assert_with_msg(accepted_count <= 2, 1, "Gatekeeper failed: allowed too many connections!");
+//     assert_with_msg(rejected_count >= 3, 1, "Gatekeeper failed: did not abort excess connections!");
+
+//     // Cleanup mocked states
+//     // ...
+
+//     tcp_connect_state_t con_state = {0};
+
+//     // Create a massive fake pbuf chain (e.g., 3000 bytes of 'A')
+//     struct pbuf mock_pbuf;
+//     char massive_payload[TCP_IP_BUFFER_SIZE * 2];
+//     memset(massive_payload, 'A', sizeof(massive_payload));
+//     massive_payload[TCP_IP_BUFFER_SIZE * 2 - 1] = '\0';
+
+//     mock_pbuf.tot_len = TCP_IP_BUFFER_SIZE * 2;
+//     memcpy(mock_pbuf.payload, massive_payload, TCP_IP_BUFFER_SIZE);
+//     // mock_pbuf.next = NULL;
+
+//     err_t result = tcp_server_recv(&con_state, /*pcb=*/NULL, &mock_pbuf, ERR_OK);
+
+//     assert_with_msg(result, ERR_OK, "Large payload handled");
+
+//     // Assert that the buffer capped at our new 1024 byte limit (minus null terminator)
+//     assert_with_msg(strlen(con_state.headers), TCP_IP_BUFFER_SIZE - 1, "Buffer overflowed or truncated
+//     incorrectly!");
+
+//     return 0;
+// }
 
 int main(const int argc, const char *argv[])
 {
@@ -757,6 +800,8 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_watchdog, "Watchdog");
 
     status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config");
+
+    // status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
 
     return status;
 }
