@@ -15,8 +15,6 @@
 #else
 #include "mock.h"
 #include "test.h"
-
-extern int test_main(void);
 #endif
 
 // Local includes
@@ -82,6 +80,16 @@ const char *wifi_error_to_string(wifi_error_t status)
 }
 
 volatile uint trigger_ap_mode = 0;
+static volatile int clock_tick_updated = false;
+static volatile bool ntp_time_updated = false;
+
+static time_t get_atomic_time(clock_state_t *state)
+{
+    uint32_t interrupts = save_and_disable_interrupts();
+    time_t safe_time = state->ntp_time;
+    restore_interrupts(interrupts);
+    return safe_time;
+}
 
 static void reboot(void)
 {
@@ -97,13 +105,18 @@ static void reboot(void)
 void ntp_timer_callback(void *state, time_t *ntp_time)
 {
     clock_state_t *clock_state = (clock_state_t *)state;
+
+    // Store time atomically so main loop doesn't read a torn 64-bit value
+    uint32_t ints = save_and_disable_interrupts();
     clock_state->ntp_time = *ntp_time;
+    restore_interrupts(ints);
+
+    // Signal the task loop that new NTP data is ready to process
+    ntp_time_updated = true;
 }
 
 int day_of_week(int day, int month, int year)
 {
-    // Compute the last day of the month using Zeller's congruence
-    // See https://en.wikipedia.org/wiki/Zeller%27s_congruence
     if (month < 3) {
         month += 12;
         year -= 1;
@@ -111,13 +124,9 @@ int day_of_week(int day, int month, int year)
     int K = year % 100;
     int J = year / 100;
     int h = (day + (13 * (month + 1)) / 5 + K + K / 4 + J / 4 + 5 * J) % 7;
-
-    // Zeller: 0=Saturday so convert to Unix-offset where 0=Sunday
     return (h + 6) % 7;
 }
 
-// target_wday: 0=Sunday, 1=Monday, ..., 6=Saturday
-// n: 1 for 1st, 2 for 2nd... -1 for LAST
 static int nth_weekday(int n, int target_wday, int month, int year)
 {
     int dow_first = day_of_week(1, month, year);
@@ -139,18 +148,15 @@ static int nth_weekday(int n, int target_wday, int month, int year)
     }
 }
 
-// The Pico SDK doesn't have timegm() for UTC calculations since it doesn't
-// manage timezones, but for testing we need to ensure we stick to UTC
 time_t tm_to_epoch(struct tm *tm)
 {
 #if defined(__APPLE__) || defined(__linux__)
-    return timegm(tm); // UTC on host
+    return timegm(tm);
 #else
-    return mktime(tm); // Pico: local = UTC
+    return mktime(tm);
 #endif
 }
 
-// Generates the Unix Epoch bounds for DST based on the current year
 static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end)
 {
     struct tm ts = {0}, te = {0};
@@ -158,7 +164,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
     te.tm_year = year - 1900;
 
     switch (rule) {
-        case DST_RULE_NA: // 2nd Sun Mar (02:00) to 1st Sun Nov (02:00)
+        case DST_RULE_NA:
             ts.tm_mon = 2;
             ts.tm_mday = nth_weekday(2, 0, 3, year);
             ts.tm_hour = 2;
@@ -166,8 +172,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_mday = nth_weekday(1, 0, 11, year);
             te.tm_hour = 2;
             break;
-
-        case DST_RULE_EU: // Last Sun Mar (01:00) to Last Sun Oct (01:00)
+        case DST_RULE_EU:
             ts.tm_mon = 2;
             ts.tm_mday = nth_weekday(-1, 0, 3, year);
             ts.tm_hour = 1;
@@ -175,8 +180,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_mday = nth_weekday(-1, 0, 10, year);
             te.tm_hour = 1;
             break;
-
-        case DST_RULE_AU: // 1st Sun Oct (02:00) to 1st Sun Apr (03:00)
+        case DST_RULE_AU:
             ts.tm_mon = 9;
             ts.tm_mday = nth_weekday(1, 0, 10, year);
             ts.tm_hour = 2;
@@ -184,8 +188,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_mday = nth_weekday(1, 0, 4, year);
             te.tm_hour = 3;
             break;
-
-        case DST_RULE_NZ: // Last Sun Sep (02:00) to 1st Sun Apr (03:00)
+        case DST_RULE_NZ:
             ts.tm_mon = 8;
             ts.tm_mday = nth_weekday(-1, 0, 9, year);
             ts.tm_hour = 2;
@@ -193,8 +196,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_mday = nth_weekday(1, 0, 4, year);
             te.tm_hour = 3;
             break;
-
-        case DST_RULE_CL: // 1st Sat Sep (24:00) to 1st Sat Apr (24:00)
+        case DST_RULE_CL:
             ts.tm_mon = 8;
             ts.tm_mday = nth_weekday(1, 6, 9, year);
             ts.tm_hour = 23;
@@ -204,8 +206,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_hour = 23;
             te.tm_min = 59;
             break;
-
-        case DST_RULE_IL: // Fri before last Sun Mar to Last Sun Oct (02:00)
+        case DST_RULE_IL:
             ts.tm_mon = 2;
             ts.tm_mday = nth_weekday(-1, 0, 3, year) - 2;
             ts.tm_hour = 2;
@@ -213,7 +214,6 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
             te.tm_mday = nth_weekday(-1, 0, 10, year);
             te.tm_hour = 2;
             break;
-
         case DST_RULE_NONE:
             *start = 0;
             *end = 0;
@@ -224,7 +224,6 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
     *end = tm_to_epoch(&te);
 }
 
-// Determines if a given UTC time requires a 1-hour shift
 int time_is_dst(time_t utc_now, clock_state_t *state)
 {
     dst_rule_t dst_rule = state->clock_config.dst_rule;
@@ -233,25 +232,23 @@ int time_is_dst(time_t utc_now, clock_state_t *state)
 
     struct tm *utc_tm = gmtime(&utc_now);
     int year = utc_tm->tm_year + 1900;
-
     time_t start_time, end_time;
+
     get_dst_bounds(dst_rule, year, &start_time, &end_time);
 
     if (start_time < end_time) {
-        return (utc_now >= start_time && utc_now < end_time); // Northern
+        return (utc_now >= start_time && utc_now < end_time);
     } else {
-        return (utc_now >= start_time || utc_now < end_time); // Southern Wrap
+        return (utc_now >= start_time || utc_now < end_time);
     }
 }
 
 static time_t calculate_local_time(time_t utc_now, clock_state_t *state)
 {
     time_t local_time = utc_now + (state->clock_config.tz_offset_mins * 60);
-
     if (time_is_dst(utc_now, state)) {
         local_time += 3600;
     }
-
     return local_time;
 }
 
@@ -263,19 +260,15 @@ const char *time_as_string(time_t t, clock_state_t *state)
     time_t local_epoch = calculate_local_time(t, state);
     gmtime_r(&local_epoch, &tm_local);
 
-    const char *suffix = "";
-    if (time_is_dst(t, state)) {
-        suffix = " (DST)";
-    }
+    const char *suffix = time_is_dst(t, state) ? " (DST)" : "";
     snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d%s", tm_local.tm_hour, tm_local.tm_min, tm_local.tm_sec, suffix);
-
     return buffer;
 }
 
 static void set_time_of_day(clock_state_t *state)
 {
     struct timeval tv;
-    tv.tv_sec = state->ntp_time;
+    tv.tv_sec = get_atomic_time(state); // Safety constraint: Read atomically
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
 }
@@ -284,10 +277,8 @@ bool clock_timer_callback(repeating_timer_t *t)
 {
     clock_state_t *state = (clock_state_t *)t->user_data;
 
-    watchdog_update();
-
-    // uint32_t interrupts = save_and_disable_interrupts();
     // Step clock if drift is huge, otherwise slew a second at a time
+    // Safe to do here if guarded in main thread, but fast enough for IRQ
     if (state->ntp_drift > 60 || state->ntp_drift < -60) {
         state->ntp_drift = 0;
     } else if (state->ntp_drift > 0) {
@@ -297,21 +288,48 @@ bool clock_timer_callback(repeating_timer_t *t)
     }
 
     static uint8_t button_hold_seconds = 0;
-    // Check the physical state of the button (0 means pressed due to pull-up)
     if (gpio_get(FACTORY_RESET_GPIO) == 0) {
         button_hold_seconds++;
-        CLOCK_DEBUG("Configuration mode selected %d second(s)\n", button_hold_seconds);
-
         if (button_hold_seconds >= (FACTORY_RESET_HOLD_TIME_MS / 1000)) {
             button_hold_seconds = 0;
-            CLOCK_DEBUG("Configuration mode triggered!\n");
             trigger_ap_mode = 1;
         }
     } else {
         button_hold_seconds = 0;
     }
 
-    time_t local_epoch = calculate_local_time(time(NULL), state) + state->ntp_drift;
+    // Flag the main loop to process UI and Networking
+    clock_tick_updated = true;
+    return 1; // Keep repeating
+}
+
+void clock_task(clock_state_t *state)
+{
+    // Process async NTP responses
+    if (ntp_time_updated) {
+        ntp_time_updated = false;
+        time_t safe_ntp_time = get_atomic_time(state);
+        time_t utc_now = time(NULL);
+
+        int drift = (int)safe_ntp_time - (int)utc_now;
+        state->ntp_drift = drift;
+
+        set_time_of_day(state);
+        state->ntp_last_sync = utc_now; // Sync against UTC RTC to fix timezone spam bug
+
+        CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(safe_ntp_time, state), drift);
+    }
+
+    if (!clock_tick_updated) {
+        return;
+    }
+    clock_tick_updated = false;
+
+    watchdog_update();
+
+    int safe_drift = state->ntp_drift;
+    time_t utc_now = time(NULL);
+    time_t local_epoch = calculate_local_time(utc_now, state) + safe_drift;
     struct tm local_time;
     gmtime_r(&local_epoch, &local_time);
 
@@ -336,6 +354,7 @@ bool clock_timer_callback(repeating_timer_t *t)
             break;
         }
     }
+
     if (digits_changed) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
                     time_as_string(local_epoch, state), local_epoch, persistent_state.boot_count,
@@ -353,35 +372,27 @@ bool clock_timer_callback(repeating_timer_t *t)
         }
     }
 
+    // Trigger NTP requests from Thread Context, NOT Interrupt Context
     if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
-        if ((local_epoch - state->ntp_last_sync) >= state->ntp_interval) {
+        if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
             ntp_error_t ntp_error_status = ntp_get_time(state->ntp_state);
             if (state->ntp_state->status == NTP_KOD) {
                 state->ntp_interval *= 2;
                 CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
             } else if (ntp_error_status != NTP_OK) {
-                state->ntp_last_sync = local_epoch;
+                state->ntp_last_sync = utc_now;
                 CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_error_status);
                 lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
-            } else {
-                int drift = (int)state->ntp_time - (int)local_epoch;
-                CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(state->ntp_time, state), drift);
-                state->ntp_last_sync = state->ntp_time;
-                state->ntp_drift = drift;
-                set_time_of_day(state);
             }
         }
         state->first_clock_tick = 1;
     }
-
-    return 1; // Keep repeating
 }
 
 int config_store_handler(clock_config_t *config, int invalidate)
 {
     config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
 
-    // Create a page-aligned buffer and pad it with 0xFF (erased state)
     uint8_t flash_buf[FLASH_PAGE_SIZE];
     memset(flash_buf, 0xFF, FLASH_PAGE_SIZE);
     memcpy(flash_buf, config, sizeof(clock_config_t));
@@ -398,14 +409,6 @@ int config_store_handler(clock_config_t *config, int invalidate)
     return 0;
 }
 
-// static time_t get_atomic_time(clock_state_t *state)
-// {
-//     uint32_t interrupts = save_and_disable_interrupts();
-//     time_t safe_time = state->ntp_time;
-//     restore_interrupts(interrupts);
-//     return safe_time;
-// }
-
 clock_state_t *clock_init(void)
 {
     stdio_init_all();
@@ -416,13 +419,11 @@ clock_state_t *clock_init(void)
 
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
-        // Unrecoverable state and no chance to display status on the LCD
         on_clock_alloc_failed();
         printf("Failed to allocate clock state\r\n");
         return (clock_state_t *)0;
     }
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        // Reset is shared so only need to do this once
         int reset = (ii == 0);
         state->lcd_states[ii] = lcd_init(/* RST  */ LCD_GPIO_RST,
                                          /* DC   */ lcd_pin_config[ii].DC,
@@ -431,7 +432,6 @@ clock_state_t *clock_init(void)
                                          /* CLK  */ LCD_GPIO_CLK,
                                          /* MOSI */ LCD_GPIO_MOSI, reset);
         if (state->lcd_states[ii] == NULL) {
-            // Unrecoverable state and no chance to display status on the LCD
             on_lcd_init_failed(state, ii);
             return (clock_state_t *)0;
         }
@@ -447,8 +447,8 @@ clock_state_t *clock_init(void)
         sleep_ms(100);
     }
     state->cold_boot = (watchdog_caused_reboot() == 0);
+
     if (factory_reset) {
-        // Cold boot with factory reset button resets the flash config
         CLOCK_DEBUG("Erasing flash configuration.\r\n");
         clock_config_t config = {0};
         config_store_handler(&config, 1 /* invalidate */);
@@ -487,17 +487,15 @@ clock_state_t *clock_init(void)
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
         start_wifi_access_point(config_store_handler);
-        reboot(); // will not return
+        reboot();
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 
     return state;
 }
 
-int clock_main_loop(clock_state_t *state)
+int clock_start(clock_state_t *state)
 {
-    watchdog_update();
-
     wifi_is_initialized = 0;
     wifi_error_t wifi_status = connect_to_wifi(state->clock_config.wifi_ssid, state->clock_config.wifi_password);
     if (wifi_status == WIFI_OK) {
@@ -507,14 +505,13 @@ int clock_main_loop(clock_state_t *state)
         lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {
         fatal_reset(state, NTP_OK, wifi_status);
-        // Never reached: reset happens
     }
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
     if (state->ntp_state == NULL) {
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
-        // Never reached: reset happens
     }
+
     ntp_error_t ntp_status = ntp_get_time(state->ntp_state);
     if (ntp_status == NTP_OK) {
         if (state->cold_boot) {
@@ -523,7 +520,6 @@ int clock_main_loop(clock_state_t *state)
         lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {
         fatal_reset(state, ntp_status, WIFI_OK);
-        // Never reached: reset happens
     }
 
     state->ntp_drift = 0;
@@ -532,13 +528,8 @@ int clock_main_loop(clock_state_t *state)
     if (!state->cold_boot) {
         state->last_watchdog_error = state->ntp_time;
     }
-
-    // Set the system clock to the NTP time
     set_time_of_day(state);
 
-    // Call the timer every second to enable us to slowly change the clock if
-    // the system clock drifts from NTP time. Let the watchdog reset the clock
-    // if the timer callback has not happened in a few ticks.
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);
     add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);

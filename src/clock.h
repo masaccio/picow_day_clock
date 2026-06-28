@@ -161,24 +161,30 @@ typedef struct ntp_state_t
 
 typedef struct clock_state_t
 {
+    // Asynchronously modified state
+    volatile int ntp_drift;
+    volatile time_t ntp_time;
+
     // NTP state
     ntp_state_t *ntp_state;
-    time_t ntp_time;
     time_t ntp_last_sync;
     int ntp_interval;
-    int ntp_drift;
+
     // LCD state
     lcd_state_t *lcd_states[NUM_LCDS];
     char current_lcd_digits[NUM_LCDS + 1];
+
     // Timer state
     repeating_timer_t timer;
     clock_config_t clock_config;
+
     // Why watchdog reset happened
     int cold_boot;
     time_t last_watchdog_error;
     watchdog_error_t watchdog_reset_error;
     ntp_error_t ntp_reset_error;
     wifi_error_t wifi_reset_error;
+
     // Forces display update on first tick
     int first_clock_tick;
 } clock_state_t;
@@ -218,6 +224,7 @@ extern int day_of_week(int day, int month, int year);
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
 extern int config_store_handler(clock_config_t *config, int invalidate);
+extern void clock_task(clock_state_t *state);
 
 // Cross-module functions
 extern volatile uint trigger_ap_mode;
@@ -267,4 +274,4 @@ extern void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_erro
 
 clock_state_t *clock_init(void);
 
-extern int clock_main_loop(clock_state_t *);
+extern int clock_start(clock_state_t *);
