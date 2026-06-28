@@ -8,7 +8,13 @@ The clock is now feature complete from a software perspective though if this wer
 
 ![Current prototype](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/prototype.jpeg)
 
-The next steps are to secure the glass domes and build a walnut enclosure.
+Next steps in the project are:
+
+* Move away from the Waveshare LCD as they are quite bulky despite my surgery and I now plan to build my own backlight circuitry and drive a bare LCD
+* Add a factory reset button to the design (software is complete)
+* Add an alarm LED to the design for terminal failure of the LCDs or any other unrecoverable fault
+* Design a 2-layer PCB to host the design as the current soldered design is too fragile
+* Build a walnut enclosure
 
 ## Introduction
 
