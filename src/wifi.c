@@ -352,7 +352,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
         }
 
         // Pass structured variables down into your custom configuration callback
-        if (con_state->store_config(&config) == 0) {
+        if (con_state->store_config(&config, 0 /* !invalidate */) == 0) {
             const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
             tcp_write(pcb, success_msg, (u16_t)strlen(success_msg), 0);
             con_state->server_state->complete = true;

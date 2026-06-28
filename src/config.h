@@ -19,39 +19,30 @@
 #define LCD_GPIO_CLK (uint16_t)10
 #define LCD_GPIO_MOSI (uint16_t)11
 
-#define CONFIG_BUTTON_GPIO (uint16_t)22 // GPIO to control the Wi-Fi mode
-#define CONFIG_BUTTON_HOLD_SECONDS 1    // How long the config button must be held
-
-#define WATCHDOG_TIMEOUT_MS (20 * 1000)     // Watchdog timeout in milliseconds (needs to be longer than timeouts)
-#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000) // Time to allow Wi-Fi driver to connect in milliseconds
-#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000) // How long to keep retrying connection in milliseconds
-#define WIFI_BAD_AUTH_RETRY_COUNT 3         // How many bad auth errors to tolerate
-#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500    // Time to wait before retrying after auth error in milliseconds
-
-#ifndef NTP_SERVER
-#define NTP_SERVER "pool.ntp.org" // Default NTP server
-#endif
-
-#define NTP_MSG_LEN 48                       // NTP message size (fixed by lwIP)
-#define NTP_PORT 123                         // Default NTP port
-#define NTP_DELTA 2208988800                 // Seconds between 1 Jan 1900 and 1 Jan 1970
-#define NTP_TIMEOUT_MS (10 * 1000)           // How long to wait for a single NTP response
-#define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24) // Sync to NTP once per day
-
-#define WATCHDOG_ICON_INTERVAL NTP_SYNC_INTERVAL_SEC // How long to hold a watchdog error icon
-
-#define LCD_COL_START 0  // ST7789 column shift for 1.47" LCD
-#define LCD_ROW_START 34 // ST7789 row shift for 1.47" LCD
-#define LCD_HEIGHT 320   // Length of the short edge of the LCD in pixels
-#define LCD_WIDTH 172    // Length of the long edge of the LCD in pixels
-#define NUM_LCDS 7       // Number of LCDs (3 for day of week, 4 for time)
-
 #define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
-#define TCP_IP_BUFFER_SIZE 8192  // Needs to be large enough for the most bloated of POST responses
-#define TCP_IP_MAX_CONNECTIONS 4 // Keep low to avoid RAM exhaustion from browsers making many requests
-#define HTTP_TCP_PORT 80         // Found in the SDK, but define here for portability to the host tests
-#define HTTP_POLL_TIME_SEC 5     // How long to allow a connection to idle
+#define FACTORY_RESET_GPIO (uint16_t)22       // GPIO to control the Wi-Fi mode
+#define FACTORY_RESET_HOLD_TIME_MS 3000       // How long the factory reset button must be held for
+#define HTTP_POLL_TIME_SEC 5                  // How long to allow a connection to idle
+#define HTTP_TCP_PORT 80                      // Found in the SDK, but define here for portability to the host tests
+#define LCD_COL_START 0                       // ST7789 column shift for 1.47" LCD
+#define LCD_HEIGHT 320                        // Length of the short edge of the LCD in pixels
+#define LCD_ROW_START 34                      // ST7789 row shift for 1.47" LCD
+#define LCD_WIDTH 172                         // Length of the long edge of the LCD in pixels
+#define NTP_DELTA 2208988800                  // Seconds between 1 Jan 1900 and 1 Jan 1970
+#define NTP_MSG_LEN 48                        // NTP message size (fixed by lwIP)
+#define NTP_PORT 123                          // Default NTP port
+#define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24)  // Sync to NTP once per day
+#define NTP_TIMEOUT_MS (10 * 1000)            // How long to wait for a single NTP response
+#define NUM_LCDS 7                            // Number of LCDs (3 for day of week, 4 for time)
+#define TCP_IP_BUFFER_SIZE 8192               // Needs to be large enough for the most bloated of POST responses
+#define TCP_IP_MAX_CONNECTIONS 4              // Keep low to avoid RAM exhaustion from browsers making many requests
+#define WATCHDOG_ICON_INTERVAL (60 * 60 * 24) // How long to hold a watchdog error icon
+#define WATCHDOG_TIMEOUT_MS (20 * 1000)       // Watchdog timeout in milliseconds (needs to be longer than timeouts)
+#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000)   // How long to keep retrying connection in milliseconds
+#define WIFI_BAD_AUTH_RETRY_COUNT 3           // How many bad auth errors to tolerate
+#define WIFI_BAD_AUTH_RETRY_DELAY_MS 500      // Time to wait before retrying after auth error in milliseconds
+#define WIFI_CONNECT_TIMEOUT_MS (10 * 1000)   // Time to allow Wi-Fi driver to connect in milliseconds
 
 #define HTTP_RESPONSE_REDIRECT_HEADER                                                                                  \
     "HTTP/1.1 302 Found\r\n"                                                                                           \

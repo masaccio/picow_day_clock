@@ -1,11 +1,3 @@
-#ifndef WIFI_SSID
-#error "WIFI_SSID is not defined. Please define it in config.cmake or via a compile flag."
-#endif
-
-#ifndef WIFI_PASSWORD
-#error "WIFI_PASSWORD is not defined. Please define it in config.cmake or via a compile flag."
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -90,6 +82,16 @@ const char *wifi_error_to_string(wifi_error_t status)
 }
 
 volatile uint trigger_ap_mode = 0;
+
+static void reboot(void)
+{
+    CLOCK_DEBUG("Rebooting\r\n");
+    watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
+#ifndef TEST_MODE
+    while (1)
+        __wfi(); // hang until reset
+#endif
+}
 
 // Callback from NTP called when an NTP request is successful
 void ntp_timer_callback(void *state, time_t *ntp_time)
@@ -296,11 +298,11 @@ bool clock_timer_callback(repeating_timer_t *t)
 
     static uint8_t button_hold_seconds = 0;
     // Check the physical state of the button (0 means pressed due to pull-up)
-    if (gpio_get(CONFIG_BUTTON_GPIO) == 0) {
+    if (gpio_get(FACTORY_RESET_GPIO) == 0) {
         button_hold_seconds++;
         CLOCK_DEBUG("Configuration mode selected %d second(s)\n", button_hold_seconds);
 
-        if (button_hold_seconds >= CONFIG_BUTTON_HOLD_SECONDS) {
+        if (button_hold_seconds >= (FACTORY_RESET_HOLD_TIME_MS / 1000)) {
             button_hold_seconds = 0;
             CLOCK_DEBUG("Configuration mode triggered!\n");
             trigger_ap_mode = 1;
@@ -375,13 +377,22 @@ bool clock_timer_callback(repeating_timer_t *t)
     return 1; // Keep repeating
 }
 
-int config_store_handler(clock_config_t *config)
+int config_store_handler(clock_config_t *config, int invalidate)
 {
-    config->magic_marker = CONFIG_MAGIC;
+    config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
+
+    // Create a page-aligned buffer and pad it with 0xFF (erased state)
+    uint8_t flash_buf[FLASH_PAGE_SIZE];
+    memset(flash_buf, 0xFF, FLASH_PAGE_SIZE);
+    memcpy(flash_buf, config, sizeof(clock_config_t));
+
     uint32_t interrupts = save_and_disable_interrupts();
     flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-    flash_range_program(FLASH_TARGET_OFFSET, (uint8_t *)config, sizeof(clock_config_t));
+    flash_range_program(FLASH_TARGET_OFFSET, flash_buf, FLASH_PAGE_SIZE);
     restore_interrupts(interrupts);
+
+    if (invalidate)
+        reboot(); // will not return
 
     CLOCK_DEBUG("Stored new config in flash\r\n");
     return 0;
@@ -399,9 +410,9 @@ clock_state_t *clock_init(void)
 {
     stdio_init_all();
 
-    gpio_init(CONFIG_BUTTON_GPIO);
-    gpio_set_dir(CONFIG_BUTTON_GPIO, GPIO_IN);
-    gpio_pull_up(CONFIG_BUTTON_GPIO);
+    gpio_init(FACTORY_RESET_GPIO);
+    gpio_set_dir(FACTORY_RESET_GPIO, GPIO_IN);
+    gpio_pull_up(FACTORY_RESET_GPIO);
 
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
@@ -427,8 +438,21 @@ clock_state_t *clock_init(void)
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
+    int factory_reset = 0;
+    for (int i = 0; i < (FACTORY_RESET_HOLD_TIME_MS / 100); i++) {
+        if (gpio_get(FACTORY_RESET_GPIO) == 0) {
+            factory_reset = 1;
+            break;
+        }
+        sleep_ms(100);
+    }
     state->cold_boot = (watchdog_caused_reboot() == 0);
-    if (state->cold_boot) {
+    if (factory_reset) {
+        // Cold boot with factory reset button resets the flash config
+        CLOCK_DEBUG("Erasing flash configuration.\r\n");
+        clock_config_t config = {0};
+        config_store_handler(&config, 1 /* invalidate */);
+    } else if (state->cold_boot) {
         memset(&persistent_state, 0, sizeof(persistent_state_t));
         persistent_state.magic_marker = CONFIG_MAGIC;
         lcd_print_line(state->lcd_states[0], 2, GREEN, "LCD init successful");
@@ -454,7 +478,7 @@ clock_state_t *clock_init(void)
     }
 
     CLOCK_DEBUG("Checking flash\r\n");
-    clock_config_t *flash_config = (clock_config_t *)FLASH_CONFIG_ADDR;
+    clock_config_t *flash_config = (clock_config_t *)(FLASH_CONFIG_ADDR);
     if (flash_config->magic_marker == CONFIG_MAGIC) {
         CLOCK_DEBUG("Valid config loaded from Flash\r\n");
         memcpy(&state->clock_config, flash_config, sizeof(clock_config_t));
@@ -463,6 +487,7 @@ clock_state_t *clock_init(void)
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
         start_wifi_access_point(config_store_handler);
+        reboot(); // will not return
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 
@@ -474,7 +499,7 @@ int clock_main_loop(clock_state_t *state)
     watchdog_update();
 
     wifi_is_initialized = 0;
-    wifi_error_t wifi_status = connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
+    wifi_error_t wifi_status = connect_to_wifi(state->clock_config.wifi_ssid, state->clock_config.wifi_password);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");

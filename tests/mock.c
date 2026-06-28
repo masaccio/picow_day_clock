@@ -130,9 +130,9 @@ void gpio_pull_up(uint gpio)
 
 int gpio_get(uint gpio)
 {
-    if (gpio == CONFIG_BUTTON_GPIO)
+    if (gpio == FACTORY_RESET_GPIO)
         // 0 means pressed due to pull-up
-        return mock_ctx.inject.config_button_pressed == 0;
+        return mock_ctx.inject.factory_reset_pressed == 0;
     return 0;
 }
 

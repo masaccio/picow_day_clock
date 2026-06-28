@@ -105,7 +105,7 @@ typedef struct
         udp_response_type_t udp_response_type;
         int udp_sendto_fail;
         int watchdog_caused_reboot;
-        int config_button_pressed;
+        int factory_reset_pressed;
     } inject;
 
     struct

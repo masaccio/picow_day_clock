@@ -176,6 +176,7 @@ void restore_interrupts(uint32_t status);
 
 extern void *flash_clock_config;
 #define FLASH_SECTOR_SIZE (uint32_t)0
+#define FLASH_PAGE_SIZE (uint32_t)256
 #define FLASH_CONFIG_ADDR flash_clock_config
 
 void flash_range_erase(uint32_t flash_offs, size_t count);

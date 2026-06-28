@@ -103,8 +103,8 @@ typedef enum
 } dst_rule_t;
 
 #define CONFIG_MAGIC ((uint32_t)'C' << 24 | (uint32_t)'L' << 16 | (uint32_t)'O' << 8 | (uint32_t)'K')
-#define FLASH_TARGET_OFFSET (3 * 1024 * 1024)
-#ifndef FLASH_CONFIG_ADDR
+#define FLASH_TARGET_OFFSET (1024 * 1024)
+#ifndef FLASH_CONFIG_ADDR // defined in mock.h for tests
 #define FLASH_CONFIG_ADDR XIP_BASE + FLASH_TARGET_OFFSET
 #endif
 
@@ -130,7 +130,8 @@ typedef struct
 
 extern clock_config_t current_config;
 
-typedef int (*store_config_handler_t)(clock_config_t *config);
+typedef int (*store_config_handler_t)(clock_config_t *config, int invalidate);
+// extern volatile int factory_reset;
 
 typedef struct lcd_state_t
 {
@@ -216,7 +217,7 @@ extern int day_of_week(int day, int month, int year);
 // Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
-extern int config_store_handler(clock_config_t *config);
+extern int config_store_handler(clock_config_t *config, int invalidate);
 
 // Cross-module functions
 extern volatile uint trigger_ap_mode;

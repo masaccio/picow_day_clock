@@ -35,8 +35,29 @@ void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
     // }
 }
 
+// static volatile uint32_t press_start_time = 0;
+// volatile int factory_reset = 0;
+
+// void gpio_callback(uint gpio, uint32_t events)
+// {
+//     if (gpio == CONFIG_BUTTON_GPIO) {
+//         if (events & GPIO_IRQ_EDGE_FALL) {
+//             press_start_time = to_ms_since_boot(get_absolute_time());
+//         } else if (events & GPIO_IRQ_EDGE_RISE) {
+//             uint32_t press_end_time = to_ms_since_boot(get_absolute_time());
+//             if (press_start_time != 0 && (press_end_time - press_start_time) >= 5000) {
+//                 factory_reset = true;
+//             }
+//             press_start_time = 0;
+//         }
+//     }
+// }
+
 int main(void)
 {
+    // gpio_set_irq_enabled_with_callback(CONFIG_BUTTON_GPIO, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true,
+    //                                    &gpio_callback);
+
     clock_state_t *state = clock_init();
     if (!state)
         return 1;

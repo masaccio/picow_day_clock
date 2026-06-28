@@ -6,9 +6,6 @@ build
 # Temporary files
 *.log
 
-# Password file
-config.cmake
-
 # macOS
 .DS_Store
 .*.icloud

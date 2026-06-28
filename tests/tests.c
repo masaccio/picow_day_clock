@@ -563,8 +563,9 @@ static int test_watchdog(void)
 static clock_config_t last_parsed_config;
 static int config_save_count = 0;
 
-static int mock_store_config(clock_config_t *config)
+static int mock_store_config(clock_config_t *config, int invalidate)
 {
+    (void)invalidate;
     memcpy(&last_parsed_config, config, sizeof(clock_config_t));
     config_save_count++;
     return 0;

@@ -144,7 +144,8 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
     state->error = NTP_OK;
 
     cyw43_arch_lwip_begin();
-    int dns_status = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_callback, state);
+    char *ntp_server = ((clock_state_t *)state->parent_state)->clock_config.ntp_server;
+    int dns_status = dns_gethostbyname(ntp_server, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 
     if (dns_status == ERR_OK) {

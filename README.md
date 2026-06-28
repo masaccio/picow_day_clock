@@ -53,13 +53,19 @@ The software takes into consideration daylight saving time (DST) and timezones a
 
 ## Configuration
 
-Before CMake configuration, the Wi-Fi credentials must be set in `config.cmake` which is not part of the git repository. The project will fail to build without these. The configuration file is also a good place to set the domain name of the NTP server which otherwise defaults to `pool.ntp.org`. An example configuration is:
+Configuration is stored in Flash and the clock will reconfigure itself when:
 
-``` cmake
-set(WIFI_SSID "My SSID)
-set(WIFI_PASSWORD "v3ry-s3cr3et")
-set(NTP_SERVER "uk.pool.ntp.org")
-```
+* an invalid configuration is detected in flash
+* the factory reset button is held for 3 seconds during boot
+* the factory reset button is held for 3 seconds normal operation
+
+If factory reset is hed during boot, the clock will erase the stored flash configuration regardless of whether it is valid or not making holding the reset during normal operation harmless until the configuration is saved.
+
+During configuration, the clock starts a Wi-Fi access point with the prefix `Pico-Day-Clock-Setup` and the last part of the Pico's MAC address. Connecting a device to this Wi-Fi network should start a captive portal, but if not, the clock's default IP address is `192.168.4.1` and you can direct your browser to `http://192.168.4.1/`. The following form configures the clock:
+
+![Example display icons](https://raw.githubusercontent.com/masaccio/picow_day_clock/main/images/clock_config_form.jpeg)
+
+The minimum setup is a valid Wi-Fi SSID and password. If the password is incorrect, you must force a factory reset as the clock will try indefinitely to connect to the configured Wi-Fi.
 
 ## Build and Testing
 
