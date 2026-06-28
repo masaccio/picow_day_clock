@@ -280,6 +280,7 @@ static int test_dst(void)
     clock_state->clock_config.tz_offset_mins = 330;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "17:30:00", 8) != 0)
         return 1;
@@ -289,6 +290,7 @@ static int test_dst(void)
     clock_state->clock_config.tz_offset_mins = -300;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     now = mock_time(NULL);
     if (strncmp(time_as_string(now, clock_state), "07:00:00", 8) != 0)
         return 1;
@@ -301,6 +303,7 @@ static int test_dst(void)
     // Sun March 25, 2001 at 00:22 (just before EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 0, 22, 0);
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     if (strncmp(clock_state->current_lcd_digits, "Sun0022", 7) != 0)
         return 1;
     now = mock_time(NULL);
@@ -311,6 +314,7 @@ static int test_dst(void)
     // Sun March 25, 2001 at 01:22 (just after EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 1, 22, 0);
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     if (strncmp(clock_state->current_lcd_digits, "Sun0222", 7) != 0)
         return 1;
     now = mock_time(NULL);
@@ -321,6 +325,7 @@ static int test_dst(void)
     // Thu August 23, 2001 at 23:55 (test day rollover in DST)
     set_localtime(clock_state, 2001, 7, 23, 23, 55, 0);
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     if (strncmp(clock_state->current_lcd_digits, "Fri0055", 7) != 0)
         return 1;
     now = mock_time(NULL);
@@ -422,6 +427,7 @@ static int test_ntp_time(void)
             struct tm *test_time = gmtime(&now);
 
             (void)clock_timer_callback(timer);
+            clock_task(clock_state);
 
             int lcd_hour = lcd_digits_to_int(&clock_state->current_lcd_digits[3]);
             int lcd_min = lcd_digits_to_int(&clock_state->current_lcd_digits[5]);
@@ -464,6 +470,7 @@ static int test_ntp_time(void)
     set_localtime(clock_state, 2036, 2, 7, 6, 29, 00);
     clock_state->ntp_last_sync = (time_t)(mock_ctx.spy.system_time_ms / 1000) - clock_state->ntp_interval;
     (void)clock_timer_callback(timer);
+    clock_task(clock_state);
     if (strncmp(clock_state->current_lcd_digits, "Fri0629", 7) != 0)
         return 1;
     time_t now = mock_time(NULL);

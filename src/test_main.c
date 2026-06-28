@@ -67,7 +67,7 @@ int test_main(void)
     if (!state)
         return 1;
 
-    int status = clock_main_loop(state);
+    int status = clock_start(state);
     free_memory(state);
     return status != 0;
 }
