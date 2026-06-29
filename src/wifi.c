@@ -86,6 +86,10 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
         if (con_state) {
             free(con_state);
         }
+    } else if (con_state && con_state->server_state) {
+        // If we got here via tcp_server_err, the PCB is gone.
+        // Just decrement our counter and skip touching the dead pcb.
+        con_state->server_state->active_connections--;
     }
     return close_err;
 }
@@ -121,11 +125,9 @@ static err_t tcp_server_poll(void *arg, struct tcp_pcb *pcb)
 static void tcp_server_err(void *arg, err_t err)
 {
     tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
-    if (err != ERR_ABRT) {
-        CLOCK_DEBUG("tcp_client_err_fn %d\n", err);
-        tcp_close_client_connection(con_state, con_state->pcb, err);
+    if (con_state != NULL) {
+        tcp_close_client_connection(con_state, NULL, err);
     }
-    con_state->server_state->active_connections--;
 }
 
 err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
@@ -140,6 +142,7 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     state->active_connections++;
     if (state->active_connections > TCP_IP_MAX_CONNECTIONS) {
         CLOCK_DEBUG("Number TCP/IP connections exceeded maximum of %d\n", TCP_IP_MAX_CONNECTIONS);
+        state->active_connections--;
         return ERR_ABRT;
     }
 
@@ -345,7 +348,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                         else
                             config.dst_rule = DST_RULE_NONE;
                     } else if (strcmp(key, "cto") == 0)
-                        config.timeout = atoi(value);
+                        config.ntp_timeout = atoi(value);
                 }
                 pair = strtok_r(NULL, "&", &saveptr);
             }
