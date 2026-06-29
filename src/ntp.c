@@ -12,6 +12,19 @@
 // Local includes
 #include "clock.h"
 
+const char *ntp_error_to_string(ntp_error_t status)
+{
+    switch (status) {
+        STATUS_CASE(NTP_OK)
+        STATUS_CASE(NTP_INIT_ERROR)
+        STATUS_CASE(NTP_DNS_ERROR)
+        STATUS_CASE(NTP_TIMEOUT_ERROR)
+        STATUS_CASE(NTP_PROTOCOL_ERROR)
+        STATUS_CASE(NTP_MEMORY_ERROR)
+    }
+    return "UNKNOWN_STATUS";
+}
+
 // Make an NTP request
 void ntp_request(ntp_state_t *state)
 {

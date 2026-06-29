@@ -19,15 +19,27 @@
 #include "clock.h"
 #include "config.h"
 
-uint wifi_is_initialized = 0;
+const char *wifi_error_to_string(wifi_error_t status)
+{
+    switch (status) {
+        STATUS_CASE(WIFI_OK)
+        STATUS_CASE(WIFI_INIT_ERROR)
+        STATUS_CASE(WIFI_TIMEOUT_ERROR)
+        STATUS_CASE(WIFI_AUTH_ERROR)
+        STATUS_CASE(WIFI_CONNECT_ERROR)
+        STATUS_CASE(WIFI_UNKNOWN_ERROR)
+    }
+    return "UNKNOWN_STATUS";
+}
+
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
 
-wifi_error_t connect_to_wifi(const char ssid[], const char password[])
+wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[], const char password[])
 {
-    if (!wifi_is_initialized && cyw43_arch_init() != 0) {
+    if (!clock_state->wifi_is_initialized && cyw43_arch_init() != 0) {
         return WIFI_INIT_ERROR;
     }
-    wifi_is_initialized = 1;
+    clock_state->wifi_is_initialized = 1;
 
     cyw43_arch_enable_sta_mode();
 
@@ -428,7 +440,7 @@ void free_test_config(void *arg)
 }
 #endif
 
-wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
+wifi_error_t start_wifi_access_point(clock_state_t *clock_state, store_config_handler_t store_config)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 
@@ -440,12 +452,12 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config)
     state->store_config = store_config;
     state->complete = false;
 
-    if (!wifi_is_initialized && cyw43_arch_init() != 0) {
+    if (!clock_state->wifi_is_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
         free(state);
         return WIFI_INIT_ERROR;
     }
-    wifi_is_initialized = 1;
+    clock_state->wifi_is_initialized = 1;
 
     char *ssid = get_ssid();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
