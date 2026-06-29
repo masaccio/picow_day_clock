@@ -73,10 +73,6 @@ static int run_test(test_func_t func, const char *test_name)
 
     test_printf("DEBUG: Starting test '%s'\n", test_name);
 
-    // Only happens once on the target
-    // TODO: this really should be state in the Wi-Fi code
-    wifi_is_initialized = 0;
-
     // Run test
     int status = func();
 
@@ -84,6 +80,12 @@ static int run_test(test_func_t func, const char *test_name)
         free(mock_ctx.spy.log_buffer[ii]);
     }
     free(mock_ctx.spy.log_buffer);
+
+    if (mock_ctx.spy.alloced_counter != mock_ctx.spy.free_counter) {
+        printf("LEAK DETECTED: %u allocs vs %u frees in %s\n", mock_ctx.spy.alloced_counter, mock_ctx.spy.free_counter,
+               test_name);
+        return 1;
+    }
 
     printf("TEST %s: %s\n", test_name, (status == 1) ? "FAIL" : "OK");
     return status;
@@ -99,14 +101,10 @@ static int run_test(test_func_t func, const char *test_name)
         } else {                                                                                                       \
             test_printf("CHECK: TEST OK: " msg "\n");                                                                  \
         }                                                                                                              \
-        if (mock_ctx.spy.alloced_counter != mock_ctx.spy.free_counter) {                                               \
-            printf("LEAK DETECTED: %u allocs vs %u frees: %s:%d\n", mock_ctx.spy.alloced_counter,                      \
-                   mock_ctx.spy.free_counter, FILENAME, __LINE__);                                                     \
-            return 1;                                                                                                  \
-        }                                                                                                              \
     } while (0)
 #define EXECUTE_TEST(msg, status) EXECUTE_TEST_WRAPPER(test_main(), msg, status)
-#define EXECUTE_AP_TEST(msg, status) EXECUTE_TEST_WRAPPER(start_wifi_access_point(mock_store_config), msg, status)
+#define EXECUTE_AP_TEST(msg, status)                                                                                   \
+    EXECUTE_TEST_WRAPPER(start_wifi_access_point(clock_state, mock_store_config), msg, status)
 
 static int test_bad_lcd1(void)
 {
@@ -226,10 +224,14 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_co
 
 static void free_test_clock_state(clock_state_t *state)
 {
+    // LCD/NTP state is allocated inside the clock so the leak counters are active
+    mock_ctx.spy.free_counter++;
     free(state->ntp_state);
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
-        if (state->lcd_states[ii])
+        if (state->lcd_states[ii]) {
+            mock_ctx.spy.free_counter++;
             free(state->lcd_states[ii]);
+        }
     free(state);
 }
 
@@ -599,6 +601,9 @@ static int simulate_form_post(void *con_state, struct tcp_pcb *pcb, const char *
 
 static int test_wifi_ap_config(void)
 {
+    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
+    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
+
     mock_ctx.spy.calloc_counter = 0;
     mock_ctx.inject.calloc_fail_at = 1;
     EXECUTE_AP_TEST("Wi-Fi AP alloc failure", EXPECT_FAIL);
@@ -617,8 +622,8 @@ static int test_wifi_ap_config(void)
         test_printf("FAILED: flash failure form failed to submit");
         return 1;
     }
-    if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
-        test_printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
+    if (strstr(mock_ctx.inject.tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
+        test_printf("FAILED response: got '%s'\n", mock_ctx.inject.tcp_write_buffer);
     }
     free_test_config(con_state);
 
@@ -630,8 +635,8 @@ static int test_wifi_ap_config(void)
         test_printf("FAILED AP test: Happy path form failed to submit");
         return 1;
     }
-    if (strstr(mock_tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
-        test_printf("FAILED response: got '%s'\n", mock_tcp_write_buffer);
+    if (strstr(mock_ctx.inject.tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
+        test_printf("FAILED response: got '%s'\n", mock_ctx.inject.tcp_write_buffer);
     }
 
     if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0) {
@@ -716,6 +721,8 @@ static int test_wifi_ap_config(void)
     if (last_parsed_config.tz_offset_mins != 0)
         return 1;
 
+    free(timer);
+    free_test_clock_state(clock_state);
     free_test_config(con_state);
 
     return 0;

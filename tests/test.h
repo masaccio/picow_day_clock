@@ -106,6 +106,7 @@ typedef struct
         int udp_sendto_fail;
         int watchdog_caused_reboot;
         int factory_reset_pressed;
+        char tcp_write_buffer[TCP_IP_BUFFER_SIZE];
     } inject;
 
     struct

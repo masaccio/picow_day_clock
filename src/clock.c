@@ -38,10 +38,6 @@ static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
     /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
 };
 
-#define STATUS_CASE(STATUS)                                                                                            \
-    case STATUS:                                                                                                       \
-        return #STATUS;
-
 const char *watchdog_error_to_string(watchdog_error_t status)
 {
     switch (status) {
@@ -49,32 +45,6 @@ const char *watchdog_error_to_string(watchdog_error_t status)
         STATUS_CASE(WATCHDOG_RESET)
         STATUS_CASE(WATCHDOG_NTP)
         STATUS_CASE(WATCHDOG_WIFI)
-    }
-    return "UNKNOWN_STATUS";
-}
-
-const char *ntp_error_to_string(ntp_error_t status)
-{
-    switch (status) {
-        STATUS_CASE(NTP_OK)
-        STATUS_CASE(NTP_INIT_ERROR)
-        STATUS_CASE(NTP_DNS_ERROR)
-        STATUS_CASE(NTP_TIMEOUT_ERROR)
-        STATUS_CASE(NTP_PROTOCOL_ERROR)
-        STATUS_CASE(NTP_MEMORY_ERROR)
-    }
-    return "UNKNOWN_STATUS";
-}
-
-const char *wifi_error_to_string(wifi_error_t status)
-{
-    switch (status) {
-        STATUS_CASE(WIFI_OK)
-        STATUS_CASE(WIFI_INIT_ERROR)
-        STATUS_CASE(WIFI_TIMEOUT_ERROR)
-        STATUS_CASE(WIFI_AUTH_ERROR)
-        STATUS_CASE(WIFI_CONNECT_ERROR)
-        STATUS_CASE(WIFI_UNKNOWN_ERROR)
     }
     return "UNKNOWN_STATUS";
 }
@@ -464,7 +434,7 @@ clock_state_t *clock_init(void)
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
-        start_wifi_access_point(config_store_handler);
+        start_wifi_access_point(state, config_store_handler);
         reboot();
     }
     CLOCK_DEBUG("Checking flash done\r\n");
@@ -474,8 +444,7 @@ clock_state_t *clock_init(void)
 
 int clock_start(clock_state_t *state)
 {
-    wifi_is_initialized = 0;
-    wifi_error_t wifi_status = connect_to_wifi(state->clock_config.wifi_ssid, state->clock_config.wifi_password);
+    wifi_error_t wifi_status = connect_to_wifi(state, state->clock_config.wifi_ssid, state->clock_config.wifi_password);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");

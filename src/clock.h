@@ -25,6 +25,10 @@ extern int test_printf(const char *format, ...) __attribute__((format(printf, 1,
 #define CLOCK_DEBUG(...) ((void)0)
 #endif
 
+#define STATUS_CASE(STATUS)                                                                                            \
+    case STATUS:                                                                                                       \
+        return #STATUS;
+
 // Whilst the display is capable of many more colors, we limit our bitmaps to 4-bit
 // color to save memory
 typedef enum
@@ -166,8 +170,9 @@ typedef struct clock_state_t
     ntp_error_t ntp_reset_error;
     wifi_error_t wifi_reset_error;
 
-    // Forces display update on first tick
-    int first_clock_tick;
+    // Miscellaneous
+    int first_clock_tick;    // Forces display update on first tick
+    int wifi_is_initialized; // Ensures cyw43_arch_init() is not called multiple times
 } clock_state_t;
 
 typedef struct
@@ -210,11 +215,9 @@ extern void on_clock_alloc_failed(void);
 
 extern void on_lcd_init_failed(clock_state_t *state, unsigned int lcd_num);
 
-extern uint wifi_is_initialized;
+extern wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[], const char password[]);
 
-extern wifi_error_t connect_to_wifi(const char ssid[], const char password[]);
-
-extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config);
+extern wifi_error_t start_wifi_access_point(clock_state_t *clock_state, store_config_handler_t store_config);
 
 extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
                              uint16_t MOSI_gpio, int reset);
