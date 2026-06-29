@@ -79,10 +79,6 @@ const char *wifi_error_to_string(wifi_error_t status)
     return "UNKNOWN_STATUS";
 }
 
-volatile uint trigger_ap_mode = 0;
-static volatile int clock_tick_updated = false;
-static volatile bool ntp_time_updated = false;
-
 static time_t get_atomic_time(clock_state_t *state)
 {
     uint32_t interrupts = save_and_disable_interrupts();
@@ -112,7 +108,7 @@ void ntp_timer_callback(void *state, time_t *ntp_time)
     restore_interrupts(ints);
 
     // Signal the task loop that new NTP data is ready to process
-    ntp_time_updated = true;
+    clock_state->ntp_time_updated = 1;
 }
 
 int day_of_week(int day, int month, int year)
@@ -277,65 +273,46 @@ static void set_time_of_day(clock_state_t *state)
 bool clock_timer_callback(repeating_timer_t *t)
 {
     clock_state_t *state = (clock_state_t *)t->user_data;
-
-    // Step clock if drift is huge, otherwise slew a second at a time
-    // Safe to do here if guarded in main thread, but fast enough for IRQ
-    if (state->ntp_drift > 60 || state->ntp_drift < -60) {
-        state->ntp_drift = 0;
-    } else if (state->ntp_drift > 0) {
-        state->ntp_drift--;
-    } else if (state->ntp_drift < 0) {
-        state->ntp_drift++;
-    }
-
     static uint8_t button_hold_seconds = 0;
     if (gpio_get(FACTORY_RESET_GPIO) == 0) {
         button_hold_seconds++;
         if (button_hold_seconds >= (FACTORY_RESET_HOLD_TIME_MS / 1000)) {
             button_hold_seconds = 0;
-            trigger_ap_mode = 1;
+            state->ap_mode_triggered = 1;
         }
     } else {
         button_hold_seconds = 0;
     }
 
     // Flag the main loop to process UI and Networking
-    clock_tick_updated = true;
+    state->clock_tick_updated = true;
     return 1; // Keep repeating
 }
 
 void clock_task(clock_state_t *state)
 {
     // Process async NTP responses
-    if (ntp_time_updated) {
-        ntp_time_updated = false;
-        time_t safe_ntp_time = get_atomic_time(state);
-        time_t utc_now = time(NULL);
-
-        int drift = (int)safe_ntp_time - (int)utc_now;
-        state->ntp_drift = drift;
-
+    if (state->ntp_time_updated) {
+        state->ntp_time_updated = false;
         set_time_of_day(state);
-        state->ntp_last_sync = utc_now; // Sync against UTC RTC to fix timezone spam bug
-
-        CLOCK_DEBUG("NTP sync at %s; drift = %ds\r\n", time_as_string(safe_ntp_time, state), drift);
+        state->ntp_last_sync = time(NULL);
+        CLOCK_DEBUG("NTP sync complete\r\n");
     }
 
-    if (!clock_tick_updated) {
+    if (!state->clock_tick_updated) {
         return;
     }
-    clock_tick_updated = false;
+    state->clock_tick_updated = false;
 
     watchdog_update();
 
-    int safe_drift = state->ntp_drift;
     time_t utc_now = time(NULL);
-    time_t local_epoch = calculate_local_time(utc_now, state) + safe_drift;
+    time_t local_epoch = calculate_local_time(utc_now, state);
     struct tm local_time;
     gmtime_r(&local_epoch, &local_time);
 
     // Clear any watchdog error icon after it's been displayed a while
-    if (local_epoch > (state->last_watchdog_error + WATCHDOG_ICON_INTERVAL)) {
+    if (local_epoch > (state->last_watchdog_error_time + WATCHDOG_ICON_INTERVAL)) {
         state->watchdog_reset_error = WATCHDOG_OK;
     }
 
@@ -373,15 +350,15 @@ void clock_task(clock_state_t *state)
         }
     }
 
-    // Trigger NTP requests from Thread Context, NOT Interrupt Context
     if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
         if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
+            state->ntp_last_sync = utc_now;
+
             ntp_error_t ntp_error_status = ntp_get_time(state->ntp_state);
             if (state->ntp_state->status == NTP_KOD) {
                 state->ntp_interval *= 2;
                 CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
             } else if (ntp_error_status != NTP_OK) {
-                state->ntp_last_sync = utc_now;
                 CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_error_status);
                 lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
             }
@@ -514,20 +491,14 @@ int clock_start(clock_state_t *state)
     }
 
     ntp_error_t ntp_status = ntp_get_time(state->ntp_state);
-    if (ntp_status == NTP_OK) {
-        if (state->cold_boot) {
-            lcd_print_line(state->lcd_states[0], 4, GREEN, "NTP time sync OK");
-        }
-        lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
-    } else {
+    if (ntp_status != NTP_OK) {
         fatal_reset(state, ntp_status, WIFI_OK);
     }
 
-    state->ntp_drift = 0;
     state->ntp_last_sync = state->ntp_time;
     state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     if (!state->cold_boot) {
-        state->last_watchdog_error = state->ntp_time;
+        state->last_watchdog_error_time = state->ntp_time;
     }
     set_time_of_day(state);
 

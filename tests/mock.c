@@ -12,13 +12,13 @@ extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t 
                                   uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
 extern void mock_reset_icons(void);
 
-static watchdog_error_t last_watchdog_error = (watchdog_error_t)0xff;
+static watchdog_error_t last_watchdog_error_time = (watchdog_error_t)0xff;
 static ntp_error_t last_ntp_error = (ntp_error_t)0xff;
 static wifi_error_t last_wifi_error = (wifi_error_t)0xff;
 
 void mock_reset_icons(void)
 {
-    last_watchdog_error = (watchdog_error_t)0xff;
+    last_watchdog_error_time = (watchdog_error_t)0xff;
     last_ntp_error = (ntp_error_t)0xff;
     last_wifi_error = (wifi_error_t)0xff;
 }

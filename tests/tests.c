@@ -202,7 +202,6 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
     tm_val.tm_isdst = 0;
     time_t t = tm_to_epoch(&tm_val);
 
-    clock_state->ntp_drift = 0;
     clock_state->ntp_last_sync = t;
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ctx.spy.system_time_ms = (unsigned long long)t * 1000;
@@ -404,8 +403,6 @@ static int test_ntp_time(void)
     // +6d: create a DNS error
     // +7d: watchdog error should clear
     // +8d: normal NTP update (NTP error should clear)
-    // +9d: large NTP drift
-    int drift = 20;
     for (int day = 0; day <= 10; day++) {
         switch (day) {
             case 2:
@@ -414,7 +411,7 @@ static int test_ntp_time(void)
             case 6:
                 mock_ctx.inject.dns_lookup_fail = 1;
                 clock_state->watchdog_reset_error = WATCHDOG_NTP;
-                clock_state->last_watchdog_error =
+                clock_state->last_watchdog_error_time =
                     (time_t)(mock_ctx.spy.system_time_ms / 1000) + NTP_SYNC_INTERVAL_SEC / 2;
                 break;
             case 7:
@@ -449,20 +446,13 @@ static int test_ntp_time(void)
             case 7:
                 assert_with_msg(clock_state->watchdog_reset_error, WATCHDOG_OK, "watchdog cleared");
                 break;
-            case 8:
-                assert_with_msg(clock_state->ntp_drift, 0, "NTP drift jumped");
-                break;
             default:
                 CHECK_ICONS_OK();
                 break;
         }
         if (day == 7) {
-            // Large drift should force the clock to jump forward
+            // NTP drift should force the clock to jump forward
             mock_ctx.spy.ntp_seconds = (unsigned long long)((long long)mock_ctx.spy.ntp_seconds + 100);
-        } else if ((day % 2) == 0) {
-            // Each day gets a different drift
-            mock_ctx.spy.ntp_seconds = (unsigned long long)((long long)mock_ctx.spy.ntp_seconds + drift);
-            drift = -drift;
         }
     }
     mock_ctx.inject.udp_response_type = UDP_NTP_OK;

@@ -47,8 +47,8 @@ int main(void)
     while (1) {
         clock_task(state);
 
-        if (trigger_ap_mode) {
-            trigger_ap_mode = 0;
+        if (state->ap_mode_triggered) {
+            state->ap_mode_triggered = 0;
             start_wifi_access_point(config_store_handler);
         }
 

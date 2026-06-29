@@ -141,8 +141,10 @@ typedef struct ntp_state_t
 typedef struct clock_state_t
 {
     // Asynchronously modified state
-    volatile int ntp_drift;
     volatile time_t ntp_time;
+    volatile int clock_tick_updated;
+    volatile int ntp_time_updated;
+    volatile uint ap_mode_triggered;
 
     // NTP state
     ntp_state_t *ntp_state;
@@ -159,7 +161,7 @@ typedef struct clock_state_t
 
     // Why watchdog reset happened
     int cold_boot;
-    time_t last_watchdog_error;
+    time_t last_watchdog_error_time;
     watchdog_error_t watchdog_reset_error;
     ntp_error_t ntp_reset_error;
     wifi_error_t wifi_reset_error;
@@ -203,9 +205,6 @@ extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
 extern int config_store_handler(clock_config_t *config, int invalidate);
 extern void clock_task(clock_state_t *state);
-
-// Cross-module functions
-extern volatile uint trigger_ap_mode;
 
 extern void on_clock_alloc_failed(void);
 
