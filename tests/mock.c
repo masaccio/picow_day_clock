@@ -275,7 +275,7 @@ bool add_repeating_timer_ms(uint32_t ms, bool (*callback)(repeating_timer_t *), 
     (void)ms;
     (void)callback;
     out_timer->user_data = user_data;
-    return 0;
+    return true;
 }
 
 int mock_printf(const char *format, ...)
