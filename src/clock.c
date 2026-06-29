@@ -230,7 +230,8 @@ int time_is_dst(time_t utc_now, clock_state_t *state)
     if (dst_rule == DST_RULE_NONE)
         return 0;
 
-    struct tm *utc_tm = gmtime(&utc_now);
+    struct tm tm_local;
+    struct tm *utc_tm = gmtime_r(&utc_now, &tm_local);
     int year = utc_tm->tm_year + 1900;
     time_t start_time, end_time;
 
@@ -268,7 +269,7 @@ const char *time_as_string(time_t t, clock_state_t *state)
 static void set_time_of_day(clock_state_t *state)
 {
     struct timeval tv;
-    tv.tv_sec = get_atomic_time(state); // Safety constraint: Read atomically
+    tv.tv_sec = get_atomic_time(state);
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
 }
@@ -438,10 +439,10 @@ clock_state_t *clock_init(void)
         lcd_clear_screen(state->lcd_states[ii], BLACK);
     }
 
-    int factory_reset = 0;
+    int factory_reset = 1;
     for (int i = 0; i < (FACTORY_RESET_HOLD_TIME_MS / 100); i++) {
-        if (gpio_get(FACTORY_RESET_GPIO) == 0) {
-            factory_reset = 1;
+        if (gpio_get(FACTORY_RESET_GPIO) != 0) {
+            factory_reset = 0;
             break;
         }
         sleep_ms(100);
@@ -532,7 +533,9 @@ int clock_start(clock_state_t *state)
 
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);
-    add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer);
+    if (add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer) != true) {
+        fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
+    }
 
     return 0;
 }
