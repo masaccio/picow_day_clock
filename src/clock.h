@@ -50,24 +50,6 @@ typedef enum
 
 typedef enum
 {
-    STATUS_NONE,
-    STATUS_WIFI_OK,
-    STATUS_NTP_OK,
-    STATUS_WIFI_INIT,
-    STATUS_WIFI_TIMEOUT,
-    STATUS_WIFI_AUTH,
-    STATUS_WIFI_CONNECT,
-    STATUS_WIFI_ERROR,
-    STATUS_NTP_INIT,
-    STATUS_NTP_DNS,
-    STATUS_NTP_TIMEOUT,
-    STATUS_NTP_MEMORY,
-    STATUS_NTP_INVALID,
-    STATUS_WATCHDOG_RESET,
-} clock_status_t;
-
-typedef enum
-{
     NTP_OK,
     NTP_INIT_ERROR,
     NTP_DNS_ERROR,
@@ -125,13 +107,10 @@ typedef struct
     char ntp_server[HOSTNAME_MAX_LEN + 1];
     int16_t tz_offset_mins;
     dst_rule_t dst_rule;
-    int timeout;
+    int ntp_timeout;
 } clock_config_t;
 
-extern clock_config_t current_config;
-
 typedef int (*store_config_handler_t)(clock_config_t *config, int invalidate);
-// extern volatile int factory_reset;
 
 typedef struct lcd_state_t
 {
@@ -213,7 +192,6 @@ typedef struct
 
 // Clock functions and state that are shared with the test harness
 extern const char *watchdog_error_to_string(watchdog_error_t status);
-extern const char *clock_status_to_string(clock_status_t status);
 extern const char *ntp_error_to_string(ntp_error_t status);
 extern const char *wifi_error_to_string(wifi_error_t status);
 extern err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err);
