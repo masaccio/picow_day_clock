@@ -102,6 +102,7 @@ static int run_test(test_func_t func, const char *test_name)
         if (mock_ctx.spy.alloced_counter != mock_ctx.spy.free_counter) {                                               \
             printf("LEAK DETECTED: %u allocs vs %u frees: %s:%d\n", mock_ctx.spy.alloced_counter,                      \
                    mock_ctx.spy.free_counter, FILENAME, __LINE__);                                                     \
+            return 1;                                                                                                  \
         }                                                                                                              \
     } while (0)
 #define EXECUTE_TEST(msg, status) EXECUTE_TEST_WRAPPER(test_main(), msg, status)
@@ -240,7 +241,7 @@ static clock_config_t *create_clock_config(void)
                                           .wifi_password = TEST_AP_PASSWORD,
                                           .tz_offset_mins = TEST_TZ_OFFSET,
                                           .dst_rule = (dst_rule_t)TEST_DST_RULE,
-                                          .timeout = TEST_TIMEOUT};
+                                          .ntp_timeout = TEST_TIMEOUT};
     return &clock_config;
 }
 
@@ -623,7 +624,7 @@ static int test_wifi_ap_config(void)
     // Flash failure test
     const char *url = TEST_CONFIG_URL("SSID", "password", TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
     if (simulate_form_post(con_state, &client_pcb, url) != 0) {
-        test_printf("FAILED: lash failure form failed to submit");
+        test_printf("FAILED: flash failure form failed to submit");
         return 1;
     }
     if (strstr(mock_tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
