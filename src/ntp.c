@@ -145,6 +145,7 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
 
     cyw43_arch_lwip_begin();
     char *ntp_server = ((clock_state_t *)state->parent_state)->clock_config.ntp_server;
+    int ntp_timeout_ms = ((clock_state_t *)state->parent_state)->clock_config.ntp_timeout;
     int dns_status = dns_gethostbyname(ntp_server, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 
@@ -160,8 +161,8 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
         watchdog_update();
         sleep_ms(500);
 
-        if (absolute_time_diff_us(start_time, get_absolute_time()) > NTP_TIMEOUT_MS * 1000) {
-            CLOCK_DEBUG("NTP: DNS timed out after %d seconds\r\n", NTP_TIMEOUT_MS / 1000);
+        if (absolute_time_diff_us(start_time, get_absolute_time()) > ntp_timeout_ms * 1000) {
+            CLOCK_DEBUG("NTP: DNS timed out after %d seconds\r\n", ntp_timeout_ms / 1000);
             return NTP_TIMEOUT_ERROR;
         }
     }
