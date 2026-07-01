@@ -8,8 +8,7 @@
 
 // LCD functions
 extern void mock_update_icons(watchdog_error_t watchdog_error, ntp_error_t ntp_error, wifi_error_t wifi_error);
-extern lcd_state_t *mock_lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio,
-                                  uint16_t CLK_gpio, uint16_t MOSI_gpio, int reset);
+extern lcd_state_t *lcd_init(uint16_t lcd_num, int reset);
 extern void mock_reset_icons(void);
 
 static watchdog_error_t last_watchdog_error_time = (watchdog_error_t)0xff;
@@ -59,15 +58,9 @@ void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, 
     icon_queue_t_push(&mock_ctx.spy.icon_history, event);
 }
 
-extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                             uint16_t MOSI_gpio, int reset)
+lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
 {
-    (void)RST_gpio;
-    (void)DC_gpio;
-    (void)BL_gpio;
-    (void)CS_gpio;
-    (void)CLK_gpio;
-    (void)MOSI_gpio;
+    (void)lcd_num;
     (void)reset;
 
     lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));

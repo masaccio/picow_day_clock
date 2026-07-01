@@ -47,8 +47,7 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
                    color_t fg_color, color_t bg_color);
 
-lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                      uint16_t MOSI_gpio, int reset)
+lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
 
 {
     lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
@@ -56,12 +55,12 @@ lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uin
         return NULL;
     }
 
-    state->RST_gpio = RST_gpio;
-    state->DC_gpio = DC_gpio;
-    state->BL_gpio = BL_gpio;
-    state->CS_gpio = CS_gpio;
-    state->CLK_gpio = CLK_gpio;
-    state->MOSI_gpio = MOSI_gpio;
+    state->RST_gpio = LCD_GPIO_RST;
+    state->DC_gpio = LCD_GPIO_DC;
+    state->BL_gpio = LCD_GPIO_BL;
+    state->CS_gpio = LCD_GPIO_CS_BASE + lcd_num;
+    state->CLK_gpio = LCD_GPIO_CLK;
+    state->MOSI_gpio = LCD_GPIO_MOSI;
 
     lcd_init_peripherals(state, reset);
     lcd_set_backlight(state, 90);

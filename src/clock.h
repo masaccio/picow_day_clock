@@ -219,8 +219,7 @@ extern wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[
 
 extern wifi_error_t start_wifi_access_point(clock_state_t *clock_state, store_config_handler_t store_config);
 
-extern lcd_state_t *lcd_init(uint16_t RST_gpio, uint16_t DC_gpio, uint16_t BL_gpio, uint16_t CS_gpio, uint16_t CLK_gpio,
-                             uint16_t MOSI_gpio, int reset);
+extern lcd_state_t *lcd_init(uint16_t lcd_num, int reset);
 
 extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 

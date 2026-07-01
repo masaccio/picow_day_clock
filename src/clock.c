@@ -22,22 +22,6 @@
 #include "clock.h"
 #include "config.h"
 
-typedef struct
-{
-    uint16_t DC;
-    uint16_t CS;
-} lcd_pin_config_t;
-
-static lcd_pin_config_t lcd_pin_config[NUM_LCDS] = {
-    /* LCD 1 */ {.DC = LCD1_GPIO_DC, .CS = LCD1_GPIO_CS},
-    /* LCD 2 */ {.DC = LCD2_GPIO_DC, .CS = LCD2_GPIO_CS},
-    /* LCD 3 */ {.DC = LCD3_GPIO_DC, .CS = LCD3_GPIO_CS},
-    /* LCD 4 */ {.DC = LCD4_GPIO_DC, .CS = LCD4_GPIO_CS},
-    /* LCD 5 */ {.DC = LCD5_GPIO_DC, .CS = LCD5_GPIO_CS},
-    /* LCD 6 */ {.DC = LCD6_GPIO_DC, .CS = LCD6_GPIO_CS},
-    /* LCD 7 */ {.DC = LCD7_GPIO_DC, .CS = LCD7_GPIO_CS},
-};
-
 const char *watchdog_error_to_string(watchdog_error_t status)
 {
     switch (status) {
@@ -373,12 +357,7 @@ clock_state_t *clock_init(void)
     }
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
         int reset = (ii == 0);
-        state->lcd_states[ii] = lcd_init(/* RST  */ LCD_GPIO_RST,
-                                         /* DC   */ lcd_pin_config[ii].DC,
-                                         /* BL   */ LCD_GPIO_BL,
-                                         /* CS   */ lcd_pin_config[ii].CS,
-                                         /* CLK  */ LCD_GPIO_CLK,
-                                         /* MOSI */ LCD_GPIO_MOSI, reset);
+        state->lcd_states[ii] = lcd_init((uint16_t)ii, reset);
         if (state->lcd_states[ii] == NULL) {
             on_lcd_init_failed(state, ii);
             return (clock_state_t *)0;

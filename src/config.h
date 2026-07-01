@@ -1,27 +1,22 @@
 #pragma once
 
-#define LCD1_GPIO_DC (uint16_t)6
-#define LCD1_GPIO_CS (uint16_t)7
-#define LCD2_GPIO_DC (uint16_t)8
-#define LCD2_GPIO_CS (uint16_t)9
-#define LCD3_GPIO_DC (uint16_t)2
-#define LCD3_GPIO_CS (uint16_t)3
-#define LCD4_GPIO_DC (uint16_t)4
-#define LCD4_GPIO_CS (uint16_t)5
-#define LCD5_GPIO_DC (uint16_t)14
-#define LCD5_GPIO_CS (uint16_t)15
-#define LCD6_GPIO_DC (uint16_t)16
-#define LCD6_GPIO_CS (uint16_t)17
-#define LCD7_GPIO_DC (uint16_t)18
-#define LCD7_GPIO_CS (uint16_t)19
-#define LCD_GPIO_RST (uint16_t)12
-#define LCD_GPIO_BL (uint16_t)13
-#define LCD_GPIO_CLK (uint16_t)10
-#define LCD_GPIO_MOSI (uint16_t)11
+#define LCD_GPIO_CS_BASE (uint16_t)2      // LCD 1 chip select
+#define LCD1_GPIO_CS LCD_GPIO_CS_BASE     // LCD 1 chip select
+#define LCD2_GPIO_CS LCD_GPIO_CS_BASE + 1 // LCD 2 chip select
+#define LCD3_GPIO_CS LCD_GPIO_CS_BASE + 2 // LCD 3 chip select
+#define LCD4_GPIO_CS LCD_GPIO_CS_BASE + 3 // LCD 4 chip select
+#define LCD5_GPIO_CS LCD_GPIO_CS_BASE + 4 // LCD 5 chip select
+#define LCD6_GPIO_CS LCD_GPIO_CS_BASE + 5 // LCD 6 chip select
+#define LCD7_GPIO_CS LCD_GPIO_CS_BASE + 6 // LCD 7 chip select
+#define FACTORY_RESET_GPIO (uint16_t)9    // Factor reset enable (Wi-Fi AP)
+#define LCD_GPIO_CLK (uint16_t)10         // Shared clock
+#define LCD_GPIO_MOSI (uint16_t)11        // Shared MOSI (DIN)
+#define LCD_GPIO_RST (uint16_t)12         // Shared LCD reset
+#define LCD_GPIO_BL (uint16_t)13          // Shared LCD back light enable
+#define LCD_GPIO_DC (uint16_t)14          // Shared data/command
 
 #define LCD_COLOR_TABLE {0x0000 /* black */, 0xF800 /* red */, 0x07E0 /* green */, 0x2E9C /* cyan */}
 
-#define FACTORY_RESET_GPIO (uint16_t)22       // GPIO to control the Wi-Fi mode
 #define FACTORY_RESET_HOLD_TIME_MS 3000       // How long the factory reset button must be held for
 #define HTTP_POLL_TIME_SEC 5                  // How long to allow a connection to idle
 #define HTTP_TCP_PORT 80                      // Found in the SDK, but define here for portability to the host tests

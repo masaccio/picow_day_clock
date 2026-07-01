@@ -209,8 +209,8 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
-    for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        clock_state->lcd_states[ii] = lcd_init(0, 0, 0, 0, 0, 0, 0);
+    for (uint16_t ii = 0; ii < NUM_LCDS; ii++) {
+        clock_state->lcd_states[ii] = lcd_init(ii, 0);
     }
     clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
     clock_state->ntp_last_sync = mock_time(NULL);

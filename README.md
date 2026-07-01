@@ -96,28 +96,28 @@ On boot, all LCDs are initialized first and diagnostic messages are displayed on
 
 The pinout for the LCD is defined in `config.h` using a series of C macros `LCD1_GPIO_xxx`. The backlight is shared across all of the LCDs as there is no need to control the dimming of the LCDs individually.
 
-| Pin to device mapping   | Name      | Pin | Pico  | Pin | Name      | Pin to device mapping   |
-|-------------------------|-----------|-----| ----- |-----|-----------|-------------------------|
-| Debug Probe RX          | GP0       | 1   | XXXXX | 40  | VBUS 5V   |                         |
-| Debug Probe TX          | GP1       | 2   | XXXXX | 39  | VSYS 5V   | DollaTek VIN            |
-| Debug Probe GND         | GND       | 3   | XXXXX | 38  | GND       | LCD GND                 |
-| LCD 3 data/command (DC) | GP2       | 4   | XXXXX | 37  | 3V3 En    |                         |
-| LCD 3 chip select (CS)  | GP3       | 5   | XXXXX | 36  | 3V3 Out   |                         |
-| LCD 4 data/command (DC) | GP4       | 6   | XXXXX | 35  | ADC VRef  |                         |
-| LCD 4 chip select (CS)  | GP5       | 7   | XXXXX | 34  | GP28 A2   |                         |
-|                         | GND       | 8   | XXXXX | 33  | ADC Gnd   |                         |
-| LCD 1 data/command (DC) | GP6       | 9   | XXXXX | 32  | GP27 A1   |                         |
-| LCD 1 chip select (CS)  | GP7       | 10  | XXXXX | 31  | GP26 A0   |                         |
-| LCD 2 data/command (DC) | GP8       | 11  | XXXXX | 30  | RUN       |                         |
-| LCD 2 chip select (CS)  | GP9       | 12  | XXXXX | 29  | GP22      |                         |
-|                         | GND       | 13  | XXXXX | 28  | GND       |                         |
-| Shared clock (CLK)      | GP10      | 14  | XXXXX | 27  | GP21      |                         |
-| Shared MOSI (DIN)       | GP11      | 15  | XXXXX | 26  | GP20      |                         |
-| Shared reset (RST)      | GP12      | 16  | XXXXX | 25  | GP19      | LCD 7 chip select (CS)  |
-| Shared backlight (BL)   | GP13      | 17  | XXXXX | 24  | GP18      | LCD 7 data/command (DC) |
-|                         | GND       | 18  | XXXXX | 23  | GND       |                         |
-| LCD 5 data/command (DC) | GP14      | 19  | XXXXX | 22  | GP17      | LCD 6 chip select (CS)  |
-| LCD 5 chip select (CS)  | GP15      | 20  | XXXXX | 21  | GP16      | LCD 6 data/command (DC) |
+| Pin to device mapping    | Name      | Pin | Pico  | Pin | Name      | Pin to device mapping   |
+|--------------------------|-----------|-----| ----- |-----|-----------|-------------------------|
+| Debug Probe RX           | GP0       | 1   | XXXXX | 40  | VBUS 5V   |                         |
+| Debug Probe TX           | GP1       | 2   | XXXXX | 39  | VSYS 5V   | DollaTek VIN            |
+| Debug Probe GND          | GND       | 3   | XXXXX | 38  | GND       | LCD GND                 |
+| LCD 1 chip select (CS)   | GP2       | 4   | XXXXX | 37  | 3V3 En    |                         |
+| LCD 2 chip select (CS)   | GP3       | 5   | XXXXX | 36  | 3V3 Out   |                         |
+| LCD 3 chip select (CS)   | GP4       | 6   | XXXXX | 35  | ADC VRef  |                         |
+| LCD 4 chip select (CS)   | GP5       | 7   | XXXXX | 34  | GP28 A2   |                         |
+|                          | GND       | 8   | XXXXX | 33  | ADC Gnd   |                         |
+| LCD 5 chip select (CS)   | GP6       | 9   | XXXXX | 32  | GP27 A1   |                         |
+| LCD 6 chip select (CS)   | GP7       | 10  | XXXXX | 31  | GP26 A0   |                         |
+| LCD 7 chip select (CS)   | GP8       | 11  | XXXXX | 30  | RUN       |                         |
+| Factory reset            | GP9       | 12  | XXXXX | 29  | GP22      |                         |
+|                          | GND       | 13  | XXXXX | 28  | GND       |                         |
+| Shared clock (CLK)       | GP10      | 14  | XXXXX | 27  | GP21      |                         |
+| Shared MOSI (DIN)        | GP11      | 15  | XXXXX | 26  | GP20      |                         |
+| Shared reset (RST)       | GP12      | 16  | XXXXX | 25  | GP19      |                         |
+| Shared backlight (BL)    | GP13      | 17  | XXXXX | 24  | GP18      |                         |
+|                          | GND       | 18  | XXXXX | 23  | GND       |                         |
+| Shared data/command (DC) | GP14      | 19  | XXXXX | 22  | GP17      |                         |
+|                          | GP15      | 20  | XXXXX | 21  | GP16      |                         |
 
 ## Electrical Design
 
