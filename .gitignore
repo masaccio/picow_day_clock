@@ -20,3 +20,4 @@ build
 # KiCad
 kicad/**/~*.lck
 kicad/**/*.bak
+kicad/**/*.kicad_pcb.zip
