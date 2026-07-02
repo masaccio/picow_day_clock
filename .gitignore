@@ -18,4 +18,5 @@ build
 *.profdata
 
 # KiCad
-~*.lck
+kicad/**/~*.lck
+kicad/**/*.bak
