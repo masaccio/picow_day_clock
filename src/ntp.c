@@ -5,6 +5,7 @@
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 #include "pico/cyw43_arch.h"
+#include "pico/time.h"
 #else
 #include "mock.h"
 #endif
@@ -51,8 +52,7 @@ void ntp_request(ntp_state_t *state)
     cyw43_arch_lwip_end();
 }
 
-// Called by dns_gethostbyname() after a DNS request completes
-// having previously returned ERR_INPROGRESS to ntp_get_time()
+// Called by dns_gethostbyname() after a DNS request completes having previously returned ERR_INPROGRESS
 static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
@@ -66,13 +66,11 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
     }
 }
 
-// NTP data received
+// Called by lwIP when a UDP datagram is received
 static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
     (void)pcb;
-
-    watchdog_update();
 
     uint8_t first_byte = pbuf_get_at(p, 0);
     uint8_t mode = first_byte & 0x07;
@@ -86,10 +84,12 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     if (!packet_valid) {
         CLOCK_DEBUG("NTP: invalid response: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
                     addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+        state->status = NTP_FAILED;
         state->error = NTP_PROTOCOL_ERROR;
     } else if (leap == 3) {
         CLOCK_DEBUG("NTP: server unsynchronized: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
                     addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+        state->status = NTP_FAILED;
         state->error = NTP_PROTOCOL_ERROR;
     } else if (stratum == 0) {
         // We got a 'kiss of death' from the NTP server for too many requests.
@@ -112,15 +112,14 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
             seconds_since_1970 = (time_t)(seconds_since_1900 - NTP_DELTA);
         }
 
-        state->status = NTP_DONE;
-        CLOCK_DEBUG("NTP: update success timestamp=%llu\r\n", seconds_since_1970);
+        state->status = NTP_SUCCESS;
+        CLOCK_DEBUG("NTP: update success ntp=%lu, epoch=%llu\r\n", seconds_since_1900, seconds_since_1970);
         state->time_handler(state->parent_state, &seconds_since_1970);
     }
 
     pbuf_free(p);
 }
 
-// Perform initialisation
 extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler)
 {
     ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
@@ -149,16 +148,14 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
     return state;
 }
 
-ntp_error_t ntp_get_time(ntp_state_t *state)
+ntp_error_t ntp_request_async(ntp_state_t *state)
 {
-    absolute_time_t start_time = get_absolute_time();
-
     state->status = NTP_PENDING;
     state->error = NTP_OK;
+    state->request_start_ms = to_ms_since_boot(get_absolute_time());
 
     cyw43_arch_lwip_begin();
     char *ntp_server = ((clock_state_t *)state->parent_state)->clock_config.ntp_server;
-    int ntp_timeout_ms = ((clock_state_t *)state->parent_state)->clock_config.ntp_timeout;
     int dns_status = dns_gethostbyname(ntp_server, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 
@@ -169,15 +166,5 @@ ntp_error_t ntp_get_time(ntp_state_t *state)
         return NTP_DNS_ERROR;
     }
 
-    // Wait for async NTP request to complete or timeout
-    while (state->status == NTP_PENDING && state->error == NTP_OK) {
-        watchdog_update();
-        sleep_ms(500);
-
-        if (absolute_time_diff_us(start_time, get_absolute_time()) > ntp_timeout_ms * 1000) {
-            CLOCK_DEBUG("NTP: DNS timed out after %d seconds\r\n", ntp_timeout_ms / 1000);
-            return NTP_TIMEOUT_ERROR;
-        }
-    }
-    return state->error;
+    return NTP_OK;
 }

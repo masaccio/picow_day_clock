@@ -289,8 +289,8 @@ void clock_task(clock_state_t *state)
 
     if (digits_changed) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
-                    time_as_string(local_epoch, state), local_epoch, persistent_state.boot_count,
-                    state->ntp_reset_error, state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
+                    time_as_string(utc_now, state), local_epoch, persistent_state.boot_count, state->ntp_reset_error,
+                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick == 0) {
@@ -304,20 +304,20 @@ void clock_task(clock_state_t *state)
         }
     }
 
-    if (state->first_clock_tick == 0 || local_time.tm_sec == 0) {
-        if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
-            state->ntp_last_sync = utc_now;
-
-            ntp_error_t ntp_error_status = ntp_get_time(state->ntp_state);
-            if (state->ntp_state->status == NTP_KOD) {
-                state->ntp_interval *= 2;
-                CLOCK_DEBUG("NTP: backing off: new delay is %d minutes\r\n", state->ntp_interval);
-            } else if (ntp_error_status != NTP_OK) {
-                CLOCK_DEBUG("NTP: get time failed with error %d\r\n", ntp_error_status);
-                lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
-            }
+    if (state->ntp_state->status == NTP_PENDING) {
+        // Check for Timeout
+        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+        if ((now_ms - state->ntp_state->request_start_ms) > state->clock_config.ntp_timeout) {
+            CLOCK_DEBUG("NTP Async Timeout!\r\n");
+            fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
         }
-        state->first_clock_tick = 1;
+    } else if (state->ntp_state->status == NTP_FAILED) {
+        // Check for explicit network/protocol failure
+        CLOCK_DEBUG("NTP Async Failed with error %d\r\n", state->ntp_state->error);
+        fatal_reset(state, state->ntp_state->error, WIFI_OK);
+    } else if (state->ntp_state->status == NTP_SUCCESS) {
+        // Reset to idle so we don't process this success again
+        state->ntp_state->status = NTP_IDLE;
     }
 }
 
@@ -438,17 +438,7 @@ int clock_start(clock_state_t *state)
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
 
-    ntp_error_t ntp_status = ntp_get_time(state->ntp_state);
-    if (ntp_status != NTP_OK) {
-        fatal_reset(state, ntp_status, WIFI_OK);
-    }
-
-    state->ntp_last_sync = state->ntp_time;
-    state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    if (!state->cold_boot) {
-        state->last_watchdog_error_time = state->ntp_time;
-    }
-    set_time_of_day(state);
+    ntp_request_async(state->ntp_state);
 
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);

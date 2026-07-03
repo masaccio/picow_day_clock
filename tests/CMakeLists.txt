@@ -16,14 +16,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 
 file(GLOB CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/*.c)
-list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
 file(GLOB GENERATED_SRC_FILES ${CMAKE_SOURCE_DIR}/../generated/*.c)
 file(GLOB TEST_SRC_FILES ${CMAKE_SOURCE_DIR}/*.c)
-
-set(CLOCK_SRC_FILES ${CLOCK_SRC_FILES})
-# LCD code is too hardware-specific to test
 list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/lcd.c)
 list(REMOVE_ITEM CLOCK_SRC_FILES ${CMAKE_SOURCE_DIR}/../src/pico_main.c)
+
+message(STATUS "CLOCK_SRC_FILES=${CLOCK_SRC_FILES}")
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/../tests

@@ -360,7 +360,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                         else
                             config.dst_rule = DST_RULE_NONE;
                     } else if (strcmp(key, "cto") == 0)
-                        config.ntp_timeout = atoi(value);
+                        config.ntp_timeout = (uint32_t)atoi(value);
                 }
                 pair = strtok_r(NULL, "&", &saveptr);
             }
