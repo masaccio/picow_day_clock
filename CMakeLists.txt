@@ -10,28 +10,23 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.2.0)
-set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.2.0)
+set(sdkVersion 2.3.0)
+set(toolchainVersion 15_2_Rel1)
+set(picotoolVersion 2.3.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if(EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
 
-# ====================================================================================
-# Pico target build
-# ====================================================================================
-set(PICO_BOARD pico2_w CACHE STRING "Board type")
+set(PICO_BOARD pico2_w CACHE STRING "Board type" FORCE)
+set(PICO_PLATFORM rp2350 CACHE STRING "Pico platform" FORCE)
 
-# Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
-
-project(picow_day_clock C CXX ASM)
+project(picow_day_clock C CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -61,6 +56,13 @@ add_executable(picow_day_clock
     ${GENERATED_HTML_SRC_FILES}
 )
 
+target_include_directories(picow_day_clock PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/dhcpserver
+    ${CMAKE_SOURCE_DIR}/src/dnsserver
+    ${CMAKE_SOURCE_DIR}/generated
+)
+
 # Configuration options for the clock.
 target_compile_definitions(picow_day_clock PRIVATE
     PICO_CYW43_ARCH_DEBUG_ENABLED=0     # CYW43 Wi-Fi debug
@@ -74,10 +76,15 @@ pico_set_program_version(picow_day_clock "0.1")
 
 # Add any user requested libraries
 target_link_libraries(picow_day_clock
-    pico_cyw43_arch_lwip_threadsafe_background
     pico_stdlib
+    pico_time
+    pico_lwip
+    pico_cyw43_arch_lwip_threadsafe_background
+    hardware_flash
+    hardware_gpio
     hardware_pwm
     hardware_spi
+    hardware_sync
     hardware_watchdog
 )
 
