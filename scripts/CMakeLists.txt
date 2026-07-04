@@ -20,7 +20,7 @@ set(CLOCK_TTF ${CMAKE_SOURCE_DIR}/fonts/Oswald.ttf)
 set(CLOCK_C_SRC ${GENERATED_DIR}/${CLOCK_C_NAME}.c)
 
 set(ICONS_LIST watchdog watchdog_ntp watchdog_wifi memory
-               wifi wifi_init wifi_timeout wifi_password wifi_connect wifi_error 
+               wifi wifi_init wifi_timeout wifi_password wifi_connect wifi_error
                ntp ntp_init ntp_dns ntp_timeout ntp_memory ntp_error)
 set(ICON_SIZE 36)
 set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-icon-bitmaps.py)
@@ -28,7 +28,6 @@ set(ICON_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-icon-bitmaps.py)
 # GitHub runner's CMake doesn't set WIN32
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     set(PYTHON_EXECUTABLE ${VENV_DIR}/Scripts/python.exe)
-    set(PIL_PACKAGE_DIR ${VENV_DIR}/Lib/site-packages/PIL)
 else()
     set(PYTHON_EXECUTABLE ${VENV_DIR}/bin/python3)
     execute_process(
@@ -36,21 +35,18 @@ else()
         OUTPUT_VARIABLE PYTHON_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    set(PIL_PACKAGE_DIR ${VENV_DIR}/lib/python${PYTHON_VERSION}/site-packages/PIL)
 endif()
 
-add_custom_command(
-    OUTPUT ${PYTHON_EXECUTABLE}
-    COMMAND python3 -m venv ${VENV_DIR}
-    COMMENT "Creating Python virtual environment for font generation"
-)
+set(VENV_STAMP ${VENV_DIR}/.venv-ready)
 
 add_custom_command(
-    OUTPUT ${PIL_PACKAGE_DIR}
-    DEPENDS ${PYTHON_EXECUTABLE}
+    OUTPUT ${VENV_STAMP}
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${VENV_DIR}
+    COMMAND python3 -m venv ${VENV_DIR}
     COMMAND ${PYTHON_EXECUTABLE} -m pip install --upgrade pip
     COMMAND ${PYTHON_EXECUTABLE} -m pip install --force Pillow
-    COMMENT "Installing Pillow in virtual environment"
+    COMMAND ${CMAKE_COMMAND} -E touch ${VENV_STAMP}
+    COMMENT "Creating Python virtual environment"
 )
 
 set(GENERATED_FONT_SRC_FILES "")
@@ -60,7 +56,7 @@ set(GENERATED_HTML_SRC_FILES "")
 list(APPEND GENERATED_FONT_SRC_FILES ${TEXT_C_SRC})
 add_custom_command(
     OUTPUT ${TEXT_C_SRC}
-    DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${PIL_PACKAGE_DIR}
+    DEPENDS ${FONT_SCRIPT} ${TEXT_TTF} ${VENV_STAMP}
     COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT}
             --c-name=${TEXT_C_NAME}
             --height=${TEXT_HEIGHT}
@@ -71,8 +67,8 @@ add_custom_command(
 list(APPEND GENERATED_FONT_SRC_FILES ${CLOCK_C_SRC})
 add_custom_command(
     OUTPUT ${CLOCK_C_SRC}
-    DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${PIL_PACKAGE_DIR}
-    COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT} 
+    DEPENDS ${FONT_SCRIPT} ${CLOCK_TTF} ${VENV_STAMP}
+    COMMAND ${PYTHON_EXECUTABLE} ${FONT_SCRIPT}
             --clock
             --c-name=${CLOCK_C_NAME}
             --height=${LCD_HEIGHT}
@@ -87,7 +83,7 @@ foreach(ICON_NAME IN ITEMS ${ICONS_LIST})
 
     add_custom_command(
         OUTPUT ${ICON_C_FILE}
-        DEPENDS ${ICON_SCRIPT} ${PIL_PACKAGE_DIR}
+        DEPENDS ${ICON_SCRIPT} ${VENV_STAMP}
         COMMAND ${PYTHON_EXECUTABLE} ${ICON_SCRIPT}
             --size=${ICON_SIZE}
             --c-name=${ICON_NAME}_icon
@@ -100,10 +96,10 @@ endforeach()
 list(APPEND GENERATED_HTML_SRC_FILES ${HTML_C_SRC})
 add_custom_command(
     OUTPUT ${HTML_C_SRC}
-    DEPENDS ${HTML_SCRIPT} ${HTML_SOURCE} ${PIL_PACKAGE_DIR}
+    DEPENDS ${HTML_SCRIPT} ${HTML_SOURCE} ${VENV_STAMP}
     COMMAND ${PYTHON_EXECUTABLE} ${HTML_SCRIPT}
             ${HTML_SOURCE} ${HTML_C_SRC}
-    COMMENT "Generating font file ${HTML_C_SRC}"
+    COMMENT "Generating HTML blob ${HTML_C_SRC}"
 )
 
 add_custom_target(generate_fonts
@@ -122,7 +118,7 @@ add_custom_target(generate_html
 )
 
 add_custom_target(clean_generated
-    COMMAND ${CMAKE_COMMAND} -E rm -rf ${PIL_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${VENV_DIR}
     COMMAND ${CMAKE_COMMAND} -E rm -f
         ${GENERATED_FONT_SRC_FILES}
         ${GENERATED_ICON_SRC_FILES}
