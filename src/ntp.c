@@ -33,6 +33,7 @@ void ntp_request(ntp_state_t *state)
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     if (!p) {
         CLOCK_DEBUG("NTP: failed to allocate PBUF\r\n");
+        state->status = NTP_FAILED;
         state->error = NTP_MEMORY_ERROR;
         cyw43_arch_lwip_end();
         return;
@@ -40,9 +41,12 @@ void ntp_request(ntp_state_t *state)
     uint8_t *req = (uint8_t *)p->payload;
     memset(req, 0, NTP_MSG_LEN);
     req[0] = 0x1b;
-    int err = udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, NTP_PORT);
+
+    CLOCK_DEBUG("NTP request to %s:%d\r\n", ipaddr_ntoa(&state->ntp_server_address), state->ntp_port);
+    int err = udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, state->ntp_port);
     if (err != 0) {
         CLOCK_DEBUG("NTP: send error %d\r\n", err);
+        state->status = NTP_FAILED;
         state->error = NTP_PROTOCOL_ERROR;
         pbuf_free(p);
         cyw43_arch_lwip_end();
@@ -57,11 +61,12 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
 {
     ntp_state_t *state = (ntp_state_t *)arg;
     (void)hostname;
-    if (ipaddr) {
+    if (ipaddr && ipaddr->addr) {
         state->ntp_server_address = *ipaddr;
         ntp_request(state);
     } else {
         CLOCK_DEBUG("NTP: DNS error for %s\r\n", hostname);
+        state->status = NTP_FAILED;
         state->error = NTP_DNS_ERROR;
     }
 }
@@ -78,16 +83,15 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     uint8_t stratum = pbuf_get_at(p, 1);
 
     int addrs_valid = ip_addr_cmp(addr, &state->ntp_server_address);
-    int response_valid = port == NTP_PORT && p->tot_len == NTP_MSG_LEN && mode == 0x4;
+    int response_valid = port == state->ntp_port && p->tot_len == NTP_MSG_LEN && mode == 0x4;
     int packet_valid = addrs_valid && response_valid;
 
-    if (!packet_valid) {
-        CLOCK_DEBUG("NTP: invalid response: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
-                    addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+    if (!addrs_valid) {
+        CLOCK_DEBUG("NTP: DNS lookup failed\r\n");
         state->status = NTP_FAILED;
-        state->error = NTP_PROTOCOL_ERROR;
-    } else if (leap == 3) {
-        CLOCK_DEBUG("NTP: server unsynchronized: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
+        state->error = NTP_DNS_ERROR;
+    } else if (!packet_valid) {
+        CLOCK_DEBUG("NTP: invalid response: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
                     addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
         state->status = NTP_FAILED;
         state->error = NTP_PROTOCOL_ERROR;
@@ -95,6 +99,11 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         // We got a 'kiss of death' from the NTP server for too many requests.
         state->status = NTP_KOD;
         CLOCK_DEBUG("NTP: server responded with KoD\r\n");
+    } else if (leap == 3) {
+        CLOCK_DEBUG("NTP: server unsynchronized: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
+                    addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
+        state->status = NTP_FAILED;
+        state->error = NTP_PROTOCOL_ERROR;
     } else {
         // Also allows leap to be 0b01 or 0b10 and rather than adjusting for leap seconds, we just
         // get a new timestamp the next day.

@@ -66,7 +66,7 @@ typedef enum
 {
     NTP_IDLE,    // No NTP request is currently active
     NTP_KOD,     // Server sent 'kiss of death' to tell us to back off
-    NTP_SUCCESS, // NTP lookup completed successfully or with an error
+    NTP_SUCCESS, // NTP lookup completed successfully
     NTP_PENDING, // Waiting for NTP until timeout
     NTP_FAILED,  // Unable to update NTP
 } ntp_status_t;
@@ -114,6 +114,7 @@ typedef struct
     int16_t tz_offset_mins;
     dst_rule_t dst_rule;
     uint32_t ntp_timeout;
+    uint16_t ntp_port;
 } clock_config_t;
 
 typedef int (*store_config_handler_t)(clock_config_t *config, int invalidate);
@@ -137,6 +138,7 @@ typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 typedef struct ntp_state_t
 {
     ntp_time_handler_t time_handler;
+    uint16_t ntp_port;
     ip_addr_t ntp_server_address;
     struct udp_pcb *ntp_pcb;
     void *parent_state;
@@ -156,7 +158,7 @@ typedef struct clock_state_t
     // NTP state
     ntp_state_t *ntp_state;
     time_t ntp_last_sync;
-    int ntp_interval;
+    uint32_t ntp_interval;
 
     // LCD state
     lcd_state_t *lcd_states[NUM_LCDS];
@@ -252,10 +254,14 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
 
 extern ntp_error_t ntp_request_async(ntp_state_t *state);
 
-// extern ntp_error_t ntp_get_time(ntp_state_t *ntp_state);
-
+#ifdef TEST_MODE
+extern void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);
+#else
 extern void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);
+#endif
 
 clock_state_t *clock_init(void);
 
 extern int clock_start(clock_state_t *);
+
+extern void reboot(void);

@@ -26,14 +26,13 @@
 #define LCD_WIDTH 172                         // Length of the long edge of the LCD in pixels
 #define NTP_DELTA 2208988800                  // Seconds between 1 Jan 1900 and 1 Jan 1970
 #define NTP_MSG_LEN 48                        // NTP message size (fixed by lwIP)
-#define NTP_PORT 123                          // Default NTP port
 #define NTP_SYNC_INTERVAL_SEC (60 * 60 * 24)  // Sync to NTP once per day
 #define NUM_LCDS 7                            // Number of LCDs (3 for day of week, 4 for time)
 #define TCP_IP_BUFFER_SIZE 8192               // Needs to be large enough for the most bloated of POST responses
 #define TCP_IP_MAX_CONNECTIONS 4              // Keep low to avoid RAM exhaustion from browsers making many requests
 #define WATCHDOG_ICON_INTERVAL (60 * 60 * 24) // How long to hold a watchdog error icon
 #define WATCHDOG_TIMEOUT_MS (5 * 1000)        // Watchdog timeout in milliseconds (HW max is ~8s)
-#define WIFI_ABANDON_TIMEOUT_MS (60 * 1000)   // How long to keep retrying connection in milliseconds
+#define WIFI_ABANDON_TIMEOUT_MS (30 * 1000)   // How long to keep retrying connection in milliseconds
 #define WIFI_BAD_AUTH_RETRY_COUNT 3           // How many bad auth errors to tolerate
 #define WIFI_BAD_AUTH_RETRY_DELAY_MS 500      // Time to wait before retrying after auth error in milliseconds
 #define WIFI_CONNECT_TIMEOUT_MS (10 * 1000)   // Time to allow Wi-Fi driver to connect in milliseconds

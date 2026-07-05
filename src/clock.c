@@ -41,7 +41,7 @@ static time_t get_atomic_time(clock_state_t *state)
     return safe_time;
 }
 
-static void reboot(void)
+void reboot(void)
 {
     CLOCK_DEBUG("Rebooting\r\n");
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
@@ -247,7 +247,7 @@ void clock_task(clock_state_t *state)
 {
     // Process async NTP responses
     if (state->ntp_time_updated) {
-        state->ntp_time_updated = false;
+        state->ntp_time_updated = 0;
         set_time_of_day(state);
         state->ntp_last_sync = time(NULL);
         CLOCK_DEBUG("NTP sync complete\r\n");
@@ -305,19 +305,31 @@ void clock_task(clock_state_t *state)
     }
 
     if (state->ntp_state->status == NTP_PENDING) {
-        // Check for Timeout
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
         if ((now_ms - state->ntp_state->request_start_ms) > state->clock_config.ntp_timeout) {
             CLOCK_DEBUG("NTP Async Timeout!\r\n");
             fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
         }
     } else if (state->ntp_state->status == NTP_FAILED) {
-        // Check for explicit network/protocol failure
-        CLOCK_DEBUG("NTP Async Failed with error %d\r\n", state->ntp_state->error);
+        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state->error));
         fatal_reset(state, state->ntp_state->error, WIFI_OK);
-    } else if (state->ntp_state->status == NTP_SUCCESS) {
-        // Reset to idle so we don't process this success again
+    } else if (state->ntp_state->status == NTP_KOD) {
+        state->ntp_interval *= 2;
         state->ntp_state->status = NTP_IDLE;
+        CLOCK_DEBUG("NTP: KoD received, doubling interval to %d seconds\r\n", state->ntp_interval);
+    } else if (state->ntp_state->status == NTP_SUCCESS) {
+        state->ntp_state->status = NTP_IDLE;
+    }
+
+    if (state->ntp_state->status == NTP_IDLE) {
+        if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
+            CLOCK_DEBUG("NTP starting new check\r\n");
+            state->ntp_last_sync = utc_now;
+
+            ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
+            if (ntp_status != NTP_OK)
+                fatal_reset(state, ntp_status, WIFI_OK);
+        }
     }
 }
 
@@ -418,6 +430,9 @@ clock_state_t *clock_init(void)
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 
+    state->ntp_last_sync = state->ntp_time;
+    state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
+
     return state;
 }
 
@@ -434,15 +449,18 @@ int clock_start(clock_state_t *state)
     }
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
+    state->ntp_state->ntp_port = state->clock_config.ntp_port;
     if (state->ntp_state == NULL) {
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
 
-    ntp_request_async(state->ntp_state);
+    ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
+    if (ntp_status != NTP_OK)
+        fatal_reset(state, ntp_status, WIFI_OK);
 
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);
-    if (add_repeating_timer_ms(1 * 1000, clock_timer_callback, state, &state->timer) != true) {
+    if (add_repeating_timer_ms(1000, clock_timer_callback, state, &state->timer) != true) {
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
 
