@@ -8,7 +8,6 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     message(FATAL_ERROR "Host builds for testing are unsupported on Windows")
 endif()
 
-cmake_minimum_required(VERSION 4.3)
 project(test_picow_day_clock C CXX)
 
 set(CMAKE_C_STANDARD 11)
