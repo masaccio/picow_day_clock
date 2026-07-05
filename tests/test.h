@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "clock.h"
+#include "mock.h"
 
 #define LOG_BUFFER_SIZE 256
 
@@ -55,20 +56,9 @@
         NAME##_init(q);                                                                                                \
     }
 
-#define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define assert_with_msg(a, b, msg)                                                                                     \
-    do {                                                                                                               \
-        if ((a) != (b)) {                                                                                              \
-            printf("ASSERT FAILED: %s:%d: %s\n", FILENAME, __LINE__, (msg));                                           \
-            return 1;                                                                                                  \
-        } else if (mock_ctx.config.test_verbose) {                                                                     \
-            printf("ASSERT OK: %s:%d: %s\n", FILENAME, __LINE__, (msg));                                               \
-        }                                                                                                              \
-    } while (0)
-
 typedef struct
 {
-    uint64_t timestamp_ms;
+    time_t timestamp_ms;
     watchdog_error_t watchdog;
     ntp_error_t ntp;
     wifi_error_t wifi;
@@ -83,11 +73,18 @@ typedef enum
     UDP_NTP_LEAP3,
     UDP_NTP_INVALID,
     UDP_NTP_BAD_LEN,
-    UDP_NTP_BAD_PORT
+    UDP_NTP_BAD_PORT,
+    UDP_TIMEOUT,
 } udp_response_type_t;
 
 typedef struct
 {
+    struct
+    {
+        char **buffer;
+        unsigned int buffer_size;
+    } logs;
+
     struct
     {
         unsigned int calloc_fail_at;
@@ -96,37 +93,88 @@ typedef struct
         int cyw43_auth_error_count;
         int cyw43_auth_timeout_count;
         int dns_bad_arg;
-        int dns_lookup_delay;
         int dns_lookup_fail;
+        uint32_t dns_latency_ms;
         unsigned int pbuf_alloc_fail_at;
         int tcp_open_fail;
         int udp_invalid_addr;
         int udp_new_ip_type_fail;
         udp_response_type_t udp_response_type;
         int udp_sendto_fail;
+        uint32_t udp_latency_ms;
         int watchdog_caused_reboot;
         int factory_reset_pressed;
+        int fatal_reset_no_longjmp;
+        int exit_on_ntp_success;
         char tcp_write_buffer[TCP_IP_BUFFER_SIZE];
     } inject;
 
+    // The Discrete Event Simulator State
     struct
     {
-        char **log_buffer;
-        unsigned int log_buffer_size;
+        // DNS Simulation
+        bool dns_pending;
+        time_t dns_fire_time;
+        void (*dns_cb)(const char *name, const ip_addr_t *ipaddr, void *callback_arg);
+        void *dns_arg;
+        char dns_hostname[256];
+
+        // UDP/NTP Simulation
+        bool udp_pending;
+        time_t udp_fire_time;
+        struct udp_pcb *udp_pcb;
+        udp_recv_fn udp_recv_cb;
+        void *udp_recv_arg;
+
+        // TCP/Captive Portal Simulation
+        tcp_accept_fn tcp_accept_cb;
+        tcp_recv_fn tcp_recv_cb;
+        void *tcp_arg;
+        time_t tcp_next_fire_time;
+        char tcp_payloads[10][2048]; // Encapsulated TCP payloads
+        int tcp_payload_count;
+        int tcp_payload_idx;
+
+        tcp_poll_fn tcp_poll_cb;
+        uint8_t tcp_poll_interval;
+        time_t tcp_next_poll_time;
+
+        // TCP Sent (ACK) Simulation
+        tcp_sent_fn tcp_sent_cb;
+        bool tcp_sent_pending;
+        time_t tcp_sent_fire_time;
+        u16_t tcp_sent_len;
+
+        // TCP Error Simulation
+        tcp_err_fn tcp_err_cb;
+        bool tcp_err_pending;
+        time_t tcp_err_fire_time;
+        err_t tcp_err_code;
+
+        // Hardware Timer Simulation
+        bool timer_active;
+        time_t timer_delay;
+        time_t timer_next_fire;
+        bool (*timer_cb)(repeating_timer_t *rt);
+        repeating_timer_t *timer_arg;
+    } sim;
+
+    struct
+    {
         unsigned int clock_state_alloc_failed;
         unsigned int lcd_init_failed;
         unsigned int calloc_counter;
         unsigned int pbuf_alloc_counter;
-        unsigned long long system_time_ms;
-        unsigned long long boot_time_ms;
-        unsigned long long watchdog_time_ms;
-        unsigned long long ntp_seconds;
+        time_t system_time_ms;
+        time_t boot_time_ms;
+        time_t watchdog_time_ms;
+        time_t ntp_seconds;
         ntp_error_t fatal_ntp_error;
         wifi_error_t fatal_wifi_error;
         int watchdog_reboot_called;
         int fatal_reset_caught;
-        unsigned int free_counter;
-        unsigned int alloced_counter;
+        int ntp_packet_sent;
+
         // Icons
         icon_queue_t icon_history;
         struct
@@ -139,7 +187,14 @@ typedef struct
 
     struct
     {
+        unsigned int frees;
+        unsigned int allocs;
+    } leak_checker;
+
+    struct
+    {
         unsigned int test_verbose;
+        uint16_t udp_port;
     } config;
 } mock_context_t;
 

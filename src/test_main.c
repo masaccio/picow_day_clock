@@ -8,8 +8,6 @@ extern int test_main(void);
 static jmp_buf fatal_jmp_buf;
 persistent_state_t persistent_state;
 
-extern void mock_reset_icons(void);
-
 static void free_memory(clock_state_t *state)
 {
     if (!state)
@@ -22,13 +20,16 @@ static void free_memory(clock_state_t *state)
     free(state);
 }
 
-void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
+void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
     persistent_state.ntp_error = ntp_error;
     persistent_state.wifi_error = wifi_error;
     mock_ctx.spy.fatal_ntp_error = ntp_error;
     mock_ctx.spy.fatal_wifi_error = wifi_error;
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
+
+    if (mock_ctx.inject.fatal_reset_no_longjmp)
+        return;
 
     free_memory(state);
 
@@ -49,15 +50,14 @@ void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
 
 int test_main(void)
 {
-    mock_reset_icons();
     mock_printf("Test init\n");
 
     mock_ctx.spy.watchdog_reboot_called = 0;
 
     if (setjmp(fatal_jmp_buf)) {
         mock_ctx.spy.fatal_reset_caught = 1;
-        // Restart the clock to ensure that fault state is captured
-        // but don't enter the main loop and return to test harness.
+        // Reboot the clock to ensure that fault state is captured.
+        // Don't enter the main loop and instead return to test harness.
         clock_state_t *state = clock_init();
         free_memory(state);
         return 1;
@@ -68,6 +68,29 @@ int test_main(void)
         return 1;
 
     int status = clock_start(state);
+    if (status != 0) {
+        free_memory(state);
+        return 1;
+    }
+
+    status = 0;
+    while (1) {
+        if (mock_ctx.spy.fatal_reset_caught) {
+            status = 1;
+            break;
+        } else if (state->ntp_state->status == NTP_FAILED) {
+            fatal_reset(state, state->ntp_state->error, WIFI_OK);
+        } else if (state->ntp_state->status != NTP_SUCCESS && state->ntp_state->status != NTP_PENDING) {
+            break;
+        } else if (mock_ctx.inject.exit_on_ntp_success && state->ntp_state->status == NTP_SUCCESS) {
+            // Some tests expect normal operation, but we still need to return to the test harness
+            break;
+        }
+        clock_task(state);
+        // Yield to allow handling of 1Hz tick and NTP responses
+        sleep_ms(10);
+    }
+
     free_memory(state);
-    return status != 0;
+    return status;
 }
