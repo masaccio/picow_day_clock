@@ -50,6 +50,7 @@ int main(void)
         if (state->ap_mode_triggered) {
             state->ap_mode_triggered = 0;
             start_wifi_access_point(state, config_store_handler);
+            reboot();
         }
 
         // Yield to allow  handling of 1Hz tick and NTP responses
