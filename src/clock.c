@@ -449,10 +449,10 @@ int clock_start(clock_state_t *state)
     }
 
     state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
-    state->ntp_state->ntp_port = state->clock_config.ntp_port;
     if (state->ntp_state == NULL) {
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
+    state->ntp_state->ntp_port = state->clock_config.ntp_port;
 
     ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
     if (ntp_status != NTP_OK)
