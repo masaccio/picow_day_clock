@@ -11,13 +11,13 @@
 #include "mock.h"
 #include "test.h"
 #endif
-#include "html_form.h"
 
 #include <string.h>
 
 // Local includes
 #include "clock.h"
 #include "config.h"
+#include "html_form.h"
 
 const char *wifi_error_to_string(wifi_error_t status)
 {
@@ -53,7 +53,7 @@ wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[], cons
             CLOCK_DEBUG("Wi-Fi: connected to %s\r\n", ssid);
             return WIFI_OK;
         } else if (ret == PICO_ERROR_TIMEOUT) {
-            if (absolute_time_diff_us(start_time_us, get_absolute_time()) >= (WIFI_ABANDON_TIMEOUT_MS * 1000)) {
+            if (absolute_time_diff_us(start_time_us, get_absolute_time()) > (WIFI_ABANDON_TIMEOUT_MS * 1000)) {
                 CLOCK_DEBUG("Wi-Fi: exceeded maximum timeout; giving up\r\n");
                 return WIFI_TIMEOUT_ERROR;
             }
@@ -77,9 +77,6 @@ wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[], cons
     }
 }
 
-// For testing we just call tcp_server_recv() directly with payloads to avoid mocking
-// a lot of lwIP infrastructure. We can also ignore DNS and DHCP.
-#ifndef TEST_MODE
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     if (client_pcb) {
@@ -159,7 +156,7 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     }
 
     // Create the state for the connection
-    tcp_connect_state_t *con_state = calloc(1, sizeof(tcp_connect_state_t));
+    tcp_connect_state_t *con_state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
     if (!con_state) {
         CLOCK_DEBUG("failed to allocate connect state\n");
         return ERR_MEM;
@@ -181,6 +178,7 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 
 static bool tcp_server_open(void *arg, const char *ssid)
 {
+    (void)ssid;
     tcp_server_t *state = (tcp_server_t *)arg;
     CLOCK_DEBUG("starting server on port %d\n", HTTP_TCP_PORT);
 
@@ -210,33 +208,6 @@ static bool tcp_server_open(void *arg, const char *ssid)
 
     return true;
 }
-#else
-
-static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
-{
-    (void)con_state;
-    (void)client_pcb;
-    return close_err;
-}
-
-extern mock_context_t mock_ctx;
-
-static bool tcp_server_open(void *arg, const char *ssid)
-{
-    (void)arg;
-    (void)ssid;
-    if (mock_ctx.inject.tcp_open_fail) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-static void tcp_server_close(tcp_server_t *state)
-{
-    (void)state;
-}
-#endif // !TEST_MODE
 
 static char hex_to_int(char c)
 {
@@ -336,15 +307,15 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                     urldecode_inplace(value);
                     CLOCK_DEBUG("Config: %s=%s\r\n", key, value);
 
-                    if (strcmp(key, "ssid") == 0)
+                    if (strcmp(key, "ssid") == 0) {
                         strncpy(config.wifi_ssid, value, sizeof(config.wifi_ssid) - 1);
-                    else if (strcmp(key, "pwd") == 0)
+                    } else if (strcmp(key, "pwd") == 0) {
                         strncpy(config.wifi_password, value, sizeof(config.wifi_password) - 1);
-                    else if (strcmp(key, "ntp") == 0)
+                    } else if (strcmp(key, "ntp") == 0) {
                         strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
-                    else if (strcmp(key, "tz") == 0)
+                    } else if (strcmp(key, "tz") == 0) {
                         config.tz_offset_mins = (int16_t)atoi(value);
-                    else if (strcmp(key, "dst") == 0) {
+                    } else if (strcmp(key, "dst") == 0) {
                         if (strcmp(value, "NA") == 0)
                             config.dst_rule = DST_RULE_NA;
                         else if (strcmp(value, "EU") == 0)
@@ -359,8 +330,11 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                             config.dst_rule = DST_RULE_IL;
                         else
                             config.dst_rule = DST_RULE_NONE;
-                    } else if (strcmp(key, "cto") == 0)
+                    } else if (strcmp(key, "cto") == 0) {
                         config.ntp_timeout = (uint32_t)atoi(value);
+                    } else if (strcmp(key, "port") == 0) {
+                        config.ntp_port = (uint16_t)atoi(value);
+                    }
                 }
                 pair = strtok_r(NULL, "&", &saveptr);
             }
