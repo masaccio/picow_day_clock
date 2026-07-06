@@ -350,6 +350,9 @@ static int test_dst(void)
     EXPECT_LCD_DIGITS("Fri0055");
     CHECK_ICONS_OK();
 
+    const char *test_time = time_as_string(mock_time(NULL), clock_state);
+    ASSERT_WITH_MESSAGE(strncmp(test_time, "00:55:00 (DST)", 12), 0, "Check time as string");
+
     // Exhaustive DST Boundary Math Tests
     struct tm tm_val = {0};
     time_t t;
@@ -377,6 +380,16 @@ static int test_dst(void)
     TEST_DST_BOUND(2024, 3, 7, 2, 59, DST_RULE_AU, 1);   // Autumn: Before Apr end
     TEST_DST_BOUND(2024, 3, 7, 3, 0, DST_RULE_AU, 0);    // Autumn: DST ends (Winter begins)
     TEST_DST_BOUND(2024, 6, 15, 12, 0, DST_RULE_AU, 0);  // Deep Winter: July is Standard Time
+
+    // NZ: Last Sun Sep (02:00) to 1st Sun Apr (03:00) -> 2024: Sep 29, Apr 7
+    TEST_DST_BOUND(2024, 8, 29, 1, 59, DST_RULE_NZ, 0); // Spring: Before Sep start
+    TEST_DST_BOUND(2024, 8, 29, 2, 0, DST_RULE_NZ, 1);  // Spring: DST starts
+    TEST_DST_BOUND(2024, 3, 7, 2, 59, DST_RULE_NZ, 1);  // Autumn: Before Apr end
+    TEST_DST_BOUND(2024, 3, 7, 3, 0, DST_RULE_NZ, 0);   // Autumn: DST ends
+
+    // --- No DST ---
+    TEST_DST_BOUND(2024, 0, 15, 12, 0, DST_RULE_NONE, 0); // January 15th (Mid-winter/summer)
+    TEST_DST_BOUND(2024, 5, 15, 12, 0, DST_RULE_NONE, 0); // June 15th (Mid-summer/winter)
 
     // --- Complex Edge Cases ---
 
@@ -679,26 +692,12 @@ static int test_wifi_ap_config(void)
         test_printf("FAILED response: got '%s'\n", mock_ctx.inject.tcp_write_buffer);
     }
 
-    if (strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID) != 0) {
-        test_printf("FAILED AP test: invalid SSID\n");
-        return 1;
-    }
-    if (strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD) != 0) {
-        test_printf("FAILED AP test: invalid password\n");
-        return 1;
-    }
-    if (strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER) != 0) {
-        test_printf("FAILED AP test: invalid NTP\n");
-        return 1;
-    }
-    if (last_parsed_config.tz_offset_mins != TEST_TZ_OFFSET) {
-        test_printf("FAILED AP test: invalid TZ\n");
-        return 1;
-    }
-    if (last_parsed_config.dst_rule != (dst_rule_t)TEST_DST_RULE) {
-        test_printf("FAILED AP test: invalid DST\n");
-        return 1;
-    }
+    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID), 0, "URL decode SSID");
+    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD), 0, "URL decode password");
+    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER), 0, "URL NTP server");
+    ASSERT_WITH_MESSAGE(last_parsed_config.tz_offset_mins, TEST_TZ_OFFSET, "URL TZ offset");
+    ASSERT_WITH_MESSAGE(last_parsed_config.dst_rule, TEST_DST_RULE, "URL DST rule");
+    ASSERT_WITH_MESSAGE(last_parsed_config.ntp_port, NTP_DEFAULT_PORT, "URL decode NTP port");
 
     // Stress URL decode
     // ssid: "My Wi-Fi!" (Testing + and %21)
@@ -706,14 +705,8 @@ static int test_wifi_ap_config(void)
     const char *url_encoded = TEST_CONFIG_URL("My+Wi-Fi%21", "a%26b%3Dc%25d", TEST_NTP_SERVER, 0, 0);
     simulate_form_post(con_state, &client_pcb, url_encoded);
 
-    if (strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!") != 0) {
-        test_printf("FAILED URL Decode: Expected 'My Wi-Fi!', got '%s'\n", last_parsed_config.wifi_ssid);
-        return 1;
-    }
-    if (strcmp(last_parsed_config.wifi_password, "a&b=c%d") != 0) {
-        test_printf("FAILED URL Decode: Expected 'a&b=c%%d', got '%s'\n", last_parsed_config.wifi_password);
-        return 1;
-    }
+    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!"), 0, "URL decode SSID stress");
+    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_password, "a&b=c%d"), 0, "URL decode password stress");
 
     // Buffer overflow tests
     const char *overflow = "ssid=1234567890123456789012345678901234567890"                                // 40 chars
@@ -768,55 +761,52 @@ static int test_wifi_ap_config(void)
     return 0;
 }
 
-// static int test_wifi_ap_limits(void)
-// {
-//     // 1. Initialize the mock server state
-//     tcp_server_t mock_server = {0};
+static int test_wifi_ap_limits(void)
+{
+    // 1. Initialize the mock server state
+    tcp_server_t mock_server = {0};
 
-//     // 2. Simulate 5 parallel TCP handshakes from a smartphone browser
-//     struct tcp_pcb mock_pcbs[5];
-//     int accepted_count = 0;
-//     int rejected_count = 0;
+    // 2. Simulate 5 parallel TCP handshakes from a smartphone browser
+    struct tcp_pcb mock_pcbs[TCP_IP_MAX_CONNECTIONS];
+    int accepted_count = 0;
+    int rejected_count = 0;
 
-//     for (int i = 0; i < 5; i++) {
-//         // Assume tcp_server_accept is exposed or tested directly
-//         err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
-//         if (result == ERR_OK) {
-//             accepted_count++;
-//         } else if (result == ERR_ABRT) {
-//             rejected_count++;
-//         }
-//     }
+    for (int i = 0; i < TCP_IP_MAX_CONNECTIONS + 2; i++) {
+        // Assume tcp_server_accept is exposed or tested directly
+        err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
+        if (result == ERR_OK) {
+            mock_free(mock_ctx.sim.tcp_arg);
+            accepted_count++;
+        } else if (result == ERR_ABRT) {
+            rejected_count++;
+        }
+    }
 
-//     // Assert that the gatekeeper protected the heap
-//     ASSERT_WITH_MESSAGE(accepted_count <= 2, 1, "Gatekeeper failed: allowed too many connections!");
-//     ASSERT_WITH_MESSAGE(rejected_count >= 3, 1, "Gatekeeper failed: did not abort excess connections!");
+    // Assert that the gatekeeper protected the heap
+    ASSERT_WITH_MESSAGE(accepted_count, TCP_IP_MAX_CONNECTIONS, "Gatekeeper failed: allowed too many connections!");
+    ASSERT_WITH_MESSAGE(rejected_count, 2, "Gatekeeper failed: did not abort excess connections!");
 
-//     // Cleanup mocked states
-//     // ...
+    tcp_connect_state_t con_state = {0};
 
-//     tcp_connect_state_t con_state = {0};
+    // Create a massive fake pbuf chain (e.g., 3000 bytes of 'A')
+    struct pbuf mock_pbuf;
+    char massive_payload[TCP_IP_BUFFER_SIZE * 2];
+    memset(massive_payload, 'A', sizeof(massive_payload));
+    massive_payload[TCP_IP_BUFFER_SIZE * 2 - 1] = '\0';
 
-//     // Create a massive fake pbuf chain (e.g., 3000 bytes of 'A')
-//     struct pbuf mock_pbuf;
-//     char massive_payload[TCP_IP_BUFFER_SIZE * 2];
-//     memset(massive_payload, 'A', sizeof(massive_payload));
-//     massive_payload[TCP_IP_BUFFER_SIZE * 2 - 1] = '\0';
+    mock_pbuf.tot_len = TCP_IP_BUFFER_SIZE * 2;
+    memcpy(mock_pbuf.payload, massive_payload, TCP_IP_BUFFER_SIZE);
 
-//     mock_pbuf.tot_len = TCP_IP_BUFFER_SIZE * 2;
-//     memcpy(mock_pbuf.payload, massive_payload, TCP_IP_BUFFER_SIZE);
-//     // mock_pbuf.next = NULL;
+    err_t result = tcp_server_recv(&con_state, /*pcb=*/NULL, &mock_pbuf, ERR_OK);
 
-//     err_t result = tcp_server_recv(&con_state, /*pcb=*/NULL, &mock_pbuf, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "Large payload handled");
 
-//     ASSERT_WITH_MESSAGE(result, ERR_OK, "Large payload handled");
+    // Assert that the buffer capped at our new 1024 byte limit (minus null terminator)
+    ASSERT_WITH_MESSAGE(strlen(con_state.headers), TCP_IP_BUFFER_SIZE - 1,
+                        "Buffer overflowed or truncated   incorrectly!");
 
-//     // Assert that the buffer capped at our new 1024 byte limit (minus null terminator)
-//     ASSERT_WITH_MESSAGE(strlen(con_state.headers), TCP_IP_BUFFER_SIZE - 1, "Buffer overflowed or truncated
-//     incorrectly!");
-
-//     return 0;
-// }
+    return 0;
+}
 
 int main(const int argc, const char *argv[])
 {
@@ -845,7 +835,7 @@ int main(const int argc, const char *argv[])
 
     status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config");
 
-    // status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
+    status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
 
     return status;
 }
