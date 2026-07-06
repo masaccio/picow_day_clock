@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.13)
+
 set(SCRIPTS_DIR ${CMAKE_SOURCE_DIR}/scripts)
 set(FONT_SCRIPT ${SCRIPTS_DIR}/create-font-bitmaps.py)
 set(GENERATED_DIR ${CMAKE_SOURCE_DIR}/generated)
