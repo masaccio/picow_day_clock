@@ -169,8 +169,7 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
 }
 
 static char mock_payloads[10][2048];
-static int mock_count = 0;
-static int mock_idx = 0;
+
 static struct tcp_pcb mock_pcb_instance;
 char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
 
@@ -194,7 +193,8 @@ void sleep_ms(uint32_t ms)
             next_event = mock_ctx.sim.udp_fire_time;
 
         if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
-            mock_ctx.sim.tcp_next_fire_time > mock_ctx.spy.boot_time_ms && mock_ctx.sim.tcp_next_fire_time < next_event)
+            mock_ctx.sim.tcp_next_fire_time < mock_ctx.spy.system_time_ms &&
+            mock_ctx.sim.tcp_next_fire_time < next_event)
             next_event = mock_ctx.sim.tcp_next_fire_time;
 
         if (mock_ctx.sim.tcp_poll_cb && mock_ctx.sim.tcp_poll_interval > 0 &&
@@ -290,13 +290,13 @@ void sleep_ms(uint32_t ms)
         }
 
         // 4. Process TCP/Captive Portal Requests
-        if (mock_ctx.sim.tcp_accept_cb && mock_idx < mock_count &&
+        if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
             mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_next_fire_time) {
             mock_ctx.sim.tcp_accept_cb(mock_ctx.sim.tcp_arg, &mock_pcb_instance, ERR_OK);
             if (mock_ctx.sim.tcp_recv_cb) {
                 struct pbuf p;
                 memset(&p, 0, sizeof(p));
-                strncpy((char *)p.payload, mock_payloads[mock_idx++], sizeof(p.payload) - 1);
+                strncpy((char *)p.payload, mock_payloads[mock_ctx.sim.tcp_payload_idx++], sizeof(p.payload) - 1);
                 p.tot_len = (u16_t)strlen((char *)p.payload);
                 p.len = p.tot_len;
                 mock_ctx.sim.tcp_recv_cb(mock_ctx.sim.tcp_arg, &mock_pcb_instance, &p, ERR_OK);
@@ -355,6 +355,8 @@ struct tcp_pcb *tcp_new(void)
 void tcp_arg(struct tcp_pcb *pcb, void *arg)
 {
     (void)pcb;
+    if (arg == NULL)
+        mock_free(mock_ctx.sim.tcp_arg);
     mock_ctx.sim.tcp_arg = arg;
 }
 void tcp_accept(struct tcp_pcb *pcb, tcp_accept_fn accept)
@@ -455,14 +457,14 @@ void tcp_abort(struct tcp_pcb *pcb)
 
 void mock_queue_tcp_payload(const char *body)
 {
-    if (mock_count < 10)
-        snprintf(mock_payloads[mock_count++], 2048, "%s", body);
+    if (mock_ctx.sim.tcp_payload_count < 10)
+        snprintf(mock_payloads[mock_ctx.sim.tcp_payload_count++], 2048, "%s", body);
 }
 
 void mock_clear_tcp_payloads(void)
 {
-    mock_count = 0;
-    mock_idx = 0;
+    mock_ctx.sim.tcp_payload_count = 0;
+    mock_ctx.sim.tcp_payload_idx = 0;
     memset(mock_tcp_write_buffer, 0, TCP_IP_BUFFER_SIZE);
 }
 
