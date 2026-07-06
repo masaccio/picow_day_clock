@@ -85,7 +85,7 @@ mock_context_t mock_ctx = {0};
 #define EXECUTE_TEST_WRAPPER(test_func, msg, status)                                                                   \
     do {                                                                                                               \
         if (test_func != status) {                                                                                     \
-            test_printf("CHECK: TEST FAIL: " msg "\n");                                                                \
+            test_printf("CHECK: TEST FAIL: " msg ", %s:%d\n", FILENAME, __LINE__);                                     \
             return 1;                                                                                                  \
         } else {                                                                                                       \
             test_printf("CHECK: TEST OK: " msg "\n");                                                                  \
@@ -193,12 +193,23 @@ static int test_wifi_errors(void)
     EXPECT_FATAL_WIFI_ERROR(WIFI_UNKNOWN_ERROR);
 
     RESET_MOCK_CONFIG();
-    mock_ctx.inject.cyw43_auth_timeout_count = WIFI_BAD_AUTH_RETRY_COUNT + 1;
+    mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
+    EXECUTE_TEST("Wi-Fi excess auth errors", EXPECT_FAIL);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_AUTH_ERROR);
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT - 1;
+    mock_ctx.inject.exit_on_ntp_success = 1;
+    EXECUTE_TEST("Wi-Fi auth errors OK", EXPECT_OK);
+    CHECK_ICONS_OK();
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_auth_timeout_count = 99;
     EXECUTE_TEST("Wi-Fi excess timeout", EXPECT_FAIL);
     EXPECT_FATAL_WIFI_ERROR(WIFI_TIMEOUT_ERROR);
 
     RESET_MOCK_CONFIG();
-    mock_ctx.inject.cyw43_auth_timeout_count = WIFI_BAD_AUTH_RETRY_COUNT;
+    mock_ctx.inject.cyw43_auth_timeout_count = (WIFI_ABANDON_TIMEOUT_MS / WIFI_CONNECT_TIMEOUT_MS) - 1;
     mock_ctx.inject.exit_on_ntp_success = 1;
     EXECUTE_TEST("Wi-Fi OK timeout", EXPECT_OK);
     CHECK_ICONS_OK();
