@@ -47,6 +47,7 @@ RAMWR
 RASET
 RCTRL
 recved
+Roboto
 SLPOUT
 stdlib
 STREQUAL
