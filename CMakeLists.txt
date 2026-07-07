@@ -135,33 +135,21 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
     add_test(NAME picow_day_clock_test
         COMMAND ${TEST_BINARY_DIR}/test_picow_day_clock)
 
-    add_custom_target(coverage_llvm
-        DEPENDS test_picow_day_clock
-        COMMAND llvm-profdata merge
-        -sparse ${TEST_BINARY_DIR}/coverage.profraw
-        -o ${TEST_BINARY_DIR}/coverage.profdata
-        COMMAND llvm-cov report
-        ${TEST_BINARY_DIR}/test_picow_day_clock
-        --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-        --show-region-summary=false
-        --show-branch-summary=true
-        --ignore-filename-regex=".*\.h"
-        COMMAND llvm-cov show
-        ${TEST_BINARY_DIR}/test_picow_day_clock
-        --instr-profile=${TEST_BINARY_DIR}/coverage.profdata
-        --ignore-filename-regex=".*\.h"
-        --show-branches=count
-        --format=html > ${TEST_BINARY_DIR}/coverage.html
-        WORKING_DIRECTORY ${TEST_BINARY_DIR}
-        COMMENT "Running coverage analysis..."
-    )
-
     set(LCOV_TRACEFILE "${TEST_BINARY_DIR}/coverage.info")
-    add_custom_target(coverage_gcc
-        DEPENDS test_picow_day_clock
-        COMMAND lcov --capture --branch-coverage --directory ${TEST_BINARY_DIR} --output-file ${LCOV_TRACEFILE}
-        COMMAND lcov --remove ${LCOV_TRACEFILE} --output-file ${LCOV_TRACEFILE}
-        COMMAND lcov --list ${LCOV_TRACEFILE}
+    add_custom_target(coverage_reports
+        DEPENDS run_tests
+        COMMAND llvm-profdata merge 
+            -sparse ${TEST_BINARY_DIR}/coverage.profraw 
+            -o ${TEST_BINARY_DIR}/coverage.profdata
+        COMMAND llvm-cov export 
+            ${TEST_BINARY_DIR}/test_picow_day_clock
+            -instr-profile=${TEST_BINARY_DIR}/coverage.profdata
+            -format=lcov > ${TEST_BINARY_DIR}/coverage.info
+        COMMAND genhtml --quiet --branch-coverage
+            --rc check_data_consistency=0
+            --ignore-errors unsupported
+            ${TEST_BINARY_DIR}/coverage.info
+            --output-directory ${TEST_BINARY_DIR}/coverage_report/
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running coverage analysis..."
     )

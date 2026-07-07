@@ -65,11 +65,11 @@ jobs:
         run: |
           ninja -v -C build test_picow_day_clock
           cmake --build build --target run_tests
-          cmake --build build --target coverage_llvm
+          cmake --build build --target coverage_reports
 
       - name: Build native target and run tests (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           ninja -v -C build test_picow_day_clock
           cmake --build build --target run_tests
-          cmake --build build --target coverage_llvm
+          cmake --build build --target coverage_reports
