@@ -237,6 +237,12 @@ static void urldecode_inplace(char *str)
             *dst++ = *src++;
         }
     }
+
+    // Backtrack the destination pointer to strip any trailing \r or \n
+    while (dst > str && (*(dst - 1) == '\r' || *(dst - 1) == '\n')) {
+        dst--;
+    }
+
     *dst = '\0';
 }
 
@@ -288,7 +294,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     // Route A: Form submitted with new configuration parameters
     if (strncmp(request, "POST ", 5) == 0) {
         clock_config_t config = {0};
-        config.dst_rule = DST_RULE_EU;
+        config.dst_rule = DST_RULE_NONE;
         config.ntp_timeout = NTP_DEFAULT_TIMEOUT_MS;
         config.ntp_port = NTP_DEFAULT_PORT;
         strncpy(config.ntp_server, NTP_DEFAULT_SERVER, sizeof(config.ntp_server) - 1);

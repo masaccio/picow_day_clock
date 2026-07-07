@@ -27,15 +27,13 @@ mock_context_t mock_ctx = {0};
         mock_ctx.sim.timer_active = false;                                                                             \
     } while (0)
 
-#define STR(x) #x
 #define TEST_AP_SSID "HomeNet"
 #define TEST_AP_PASSWORD "s3cr3t"
 #define TEST_NTP_SERVER "time.apple.com"
 #define TEST_TZ_OFFSET 0
-#define TEST_DST_RULE 0
+#define TEST_DST_RULE DST_RULE_NONE
 #define TEST_TIMEOUT 10 * 1000
 #define TEST_NTP_PORT 8123
-#define TEST_CONFIG_URL(ssid, pwd, ntp, tz, dst) "ssid=" ssid "&pwd=" pwd "&ntp=" ntp "&tz=" STR(tz) "&dst=" STR(dst)
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define ASSERT_WITH_MESSAGE(a, b, msg)                                                                                 \
@@ -92,8 +90,6 @@ mock_context_t mock_ctx = {0};
         }                                                                                                              \
     } while (0)
 #define EXECUTE_TEST(msg, status) EXECUTE_TEST_WRAPPER(test_main(), msg, status)
-#define EXECUTE_AP_TEST(msg, status)                                                                                   \
-    EXECUTE_TEST_WRAPPER(start_wifi_access_point(clock_state, mock_store_config), msg, status)
 
 #define EXPECT_LCD_DIGITS(str)                                                                                         \
     do {                                                                                                               \
@@ -102,6 +98,71 @@ mock_context_t mock_ctx = {0};
             return 1;                                                                                                  \
         }                                                                                                              \
     } while (0)
+static void set_localtime(clock_state_t *clock_state, int year, int mon, int mday, int hour, int min, int sec)
+{
+
+    struct tm tm_val = {0};
+    tm_val.tm_year = year - 1900;
+    tm_val.tm_mon = mon;
+    tm_val.tm_mday = mday;
+    tm_val.tm_hour = hour;
+    tm_val.tm_min = min;
+    tm_val.tm_sec = sec;
+    tm_val.tm_isdst = 0;
+    time_t t = tm_to_epoch(&tm_val);
+
+    clock_state->ntp_last_sync = t;
+    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
+    mock_ctx.spy.system_time_ms = t * 1000;
+    mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
+    mock_ctx.sim.timer_next_fire = mock_ctx.spy.system_time_ms + 1000;
+}
+
+static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
+{
+    clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
+    for (uint16_t ii = 0; ii < NUM_LCDS; ii++) {
+        clock_state->lcd_states[ii] = lcd_init(ii, 0);
+    }
+    clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
+    clock_state->ntp_last_sync = mock_time(NULL);
+    clock_state->ntp_time = clock_state->ntp_last_sync;
+    clock_state->ntp_state->ntp_port = TEST_NTP_PORT;
+    clock_state->first_clock_tick = 0;
+    timer->user_data = clock_state;
+
+    memcpy(&clock_state->clock_config, clock_config, sizeof(clock_config_t));
+    memcpy(flash_clock_config, clock_config, sizeof(clock_config_t));
+
+    add_repeating_timer_ms(1000, clock_timer_callback, clock_state, timer);
+
+    return clock_state;
+}
+
+static void free_test_clock_state(clock_state_t *state)
+{
+    // LCD/NTP state is allocated inside the clock so the leak counters are active
+    mock_ctx.leak_checker.frees++;
+    free(state->ntp_state);
+    for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
+        if (state->lcd_states[ii]) {
+            mock_ctx.leak_checker.frees++;
+            free(state->lcd_states[ii]);
+        }
+    free(state);
+}
+
+static clock_config_t *create_clock_config(void)
+{
+    static clock_config_t clock_config = {.magic_marker = CONFIG_MAGIC,
+                                          .wifi_ssid = TEST_AP_SSID,
+                                          .wifi_password = TEST_AP_PASSWORD,
+                                          .tz_offset_mins = TEST_TZ_OFFSET,
+                                          .dst_rule = (dst_rule_t)TEST_DST_RULE,
+                                          .ntp_timeout = TEST_TIMEOUT,
+                                          .ntp_port = TEST_NTP_PORT};
+    return &clock_config;
+}
 
 static int run_test(test_func_t func, const char *test_name)
 {
@@ -215,72 +276,6 @@ static int test_wifi_errors(void)
     CHECK_ICONS_OK();
 
     return 0;
-}
-
-static void set_localtime(clock_state_t *clock_state, int year, int mon, int mday, int hour, int min, int sec)
-{
-
-    struct tm tm_val = {0};
-    tm_val.tm_year = year - 1900;
-    tm_val.tm_mon = mon;
-    tm_val.tm_mday = mday;
-    tm_val.tm_hour = hour;
-    tm_val.tm_min = min;
-    tm_val.tm_sec = sec;
-    tm_val.tm_isdst = 0;
-    time_t t = tm_to_epoch(&tm_val);
-
-    clock_state->ntp_last_sync = t;
-    clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
-    mock_ctx.spy.system_time_ms = t * 1000;
-    mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
-    mock_ctx.sim.timer_next_fire = mock_ctx.spy.system_time_ms + 1000;
-}
-
-static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
-{
-    clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
-    for (uint16_t ii = 0; ii < NUM_LCDS; ii++) {
-        clock_state->lcd_states[ii] = lcd_init(ii, 0);
-    }
-    clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
-    clock_state->ntp_last_sync = mock_time(NULL);
-    clock_state->ntp_time = clock_state->ntp_last_sync;
-    clock_state->ntp_state->ntp_port = TEST_NTP_PORT;
-    clock_state->first_clock_tick = 0;
-    timer->user_data = clock_state;
-
-    memcpy(&clock_state->clock_config, clock_config, sizeof(clock_config_t));
-    memcpy(flash_clock_config, clock_config, sizeof(clock_config_t));
-
-    add_repeating_timer_ms(1000, clock_timer_callback, clock_state, timer);
-
-    return clock_state;
-}
-
-static void free_test_clock_state(clock_state_t *state)
-{
-    // LCD/NTP state is allocated inside the clock so the leak counters are active
-    mock_ctx.leak_checker.frees++;
-    free(state->ntp_state);
-    for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
-        if (state->lcd_states[ii]) {
-            mock_ctx.leak_checker.frees++;
-            free(state->lcd_states[ii]);
-        }
-    free(state);
-}
-
-static clock_config_t *create_clock_config(void)
-{
-    static clock_config_t clock_config = {.magic_marker = CONFIG_MAGIC,
-                                          .wifi_ssid = TEST_AP_SSID,
-                                          .wifi_password = TEST_AP_PASSWORD,
-                                          .tz_offset_mins = TEST_TZ_OFFSET,
-                                          .dst_rule = (dst_rule_t)TEST_DST_RULE,
-                                          .ntp_timeout = TEST_TIMEOUT,
-                                          .ntp_port = TEST_NTP_PORT};
-    return &clock_config;
 }
 
 // Note: 'mo' is 0-indexed (2 = March, 9 = October, etc.)
@@ -613,150 +608,166 @@ static int test_watchdog(void)
     return 0;
 }
 
-static clock_config_t last_parsed_config;
-static int config_save_count = 0;
+static char *config_post_url(const char *ssid, const char *pwd, const char *ntp, int16_t tz, dst_rule_t dst,
+                             uint32_t cto, uint16_t port)
+{
+    static char body[2000];
+    static char payload[2048];
 
-static int mock_store_config(clock_config_t *config, int invalidate)
+    size_t max_len = sizeof(body) - 1;
+    char *body_ptr = body;
+    if (ssid) {
+        int len = snprintf(body_ptr, max_len, "&ssid=%s", ssid);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (pwd) {
+        int len = snprintf(body_ptr, max_len, "&pwd=%s", pwd);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (ntp) {
+        int len = snprintf(body_ptr, max_len, "&ntp=%s", ntp);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (tz) {
+        int len = snprintf(body_ptr, max_len, "&tz=%d", tz);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (dst) {
+        int len = snprintf(body_ptr, max_len, "&dst=%d", (int)dst);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (cto) {
+        int len = snprintf(body_ptr, max_len, "&cto=%u", cto);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (port) {
+        int len = snprintf(body_ptr, max_len, "&port=%d", port);
+        body_ptr += len;
+        max_len -= (size_t)len;
+    }
+    if (body[0] == '&')
+        body_ptr = body + 1;
+    else
+        body_ptr = body;
+    size_t content_length = strlen(body_ptr);
+    snprintf(payload, sizeof(payload), "POST / HTTP/1.1\r\nContent-Length: %d\r\n\r\n%s", (int)content_length,
+             body_ptr);
+    return (char *)payload;
+}
+
+// ============================================================================
+// Wi-Fi & AP TCP-IP Mock Config & State
+// ============================================================================
+
+static int config_save_count = 0;
+static clock_config_t last_config;
+
+static int mock_store_config_success(clock_config_t *config, int invalidate)
 {
     (void)invalidate;
-    memcpy(&last_parsed_config, config, sizeof(clock_config_t));
     config_save_count++;
-    return 0;
+    last_config = *config;
+    return 0; // Return success
 }
 
-static int mock_store_config_failure(clock_config_t *config)
+static int mock_store_config_fail_then_success(clock_config_t *config, int invalidate)
 {
-    (void)config;
-    return 1;
+    (void)invalidate;
+    config_save_count++;
+    if (config_save_count == 1) {
+        return -1; // Simulate a Flash write failure on first try
+    }
+    last_config = *config;
+    return 0; // Succeed on subsequent tries
 }
 
-static int simulate_form_post(void *con_state, struct tcp_pcb *pcb, const char *post_body)
+static void reset_wifi_test_state(void)
 {
+    RESET_MOCK_CONFIG();
     config_save_count = 0;
-    clear_test_config(con_state);
-    memset(&last_parsed_config, 0, sizeof(clock_config_t));
-
-    char headers[256];
-    snprintf(headers, sizeof(headers), "POST / HTTP/1.1\r\nContent-Length: %zu\r\n\r\n", strlen(post_body));
-
-    struct pbuf p_head = {0};
-    p_head.tot_len = (u16_t)strlen(headers);
-    memcpy(p_head.payload, headers, p_head.tot_len);
-    tcp_server_recv(con_state, pcb, &p_head, 0);
-
-    struct pbuf p_body = {0};
-    p_body.tot_len = (u16_t)strlen(post_body);
-    memcpy(p_body.payload, post_body, p_body.tot_len);
-    tcp_server_recv(con_state, pcb, &p_body, 0);
-
-    return config_save_count;
+    memset(&last_config, 0, sizeof(last_config));
+    mock_clear_tcp_payloads();
 }
 
-static int test_wifi_ap_config(void)
+// ============================================================================
+// Access Point (AP) & TCP Server Tests
+// ============================================================================
+
+static int test_wifi_config_urls(void)
 {
-    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
 
-    RESET_MOCK_CONFIG();
-    mock_ctx.inject.calloc_fail_at = 1;
-    EXECUTE_AP_TEST("Wi-Fi AP alloc failure", EXPECT_FAIL);
-
-    // RESET_MOCK_CONFIG();
-    // mock_ctx.inject.tcp_open_fail = 1;
-    // EXECUTE_AP_TEST("Wi-Fi TCP open failure", EXPECT_FAIL);
-
-    RESET_MOCK_CONFIG();
-    void *con_state = create_test_config((void *)mock_store_config_failure);
-    struct tcp_pcb client_pcb = {0};
-
-    // Flash failure test
-    const char *url = TEST_CONFIG_URL("SSID", "password", TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
-    if (simulate_form_post(con_state, &client_pcb, url) != 0) {
-        test_printf("FAILED: flash failure form failed to submit");
-        return 1;
-    }
-    if (strstr(mock_ctx.inject.tcp_write_buffer, "Failed to save to Flash") == (char *)0) {
-        test_printf("FAILED response: got '%s'\n", mock_ctx.inject.tcp_write_buffer);
-    }
-    free_test_config(con_state);
-
-    // Test happy path (standard fully-populated form)
-    con_state = create_test_config((void *)mock_store_config);
-    const char *happy_path =
-        TEST_CONFIG_URL(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET, TEST_DST_RULE);
-    if (simulate_form_post(con_state, &client_pcb, happy_path) != 1) {
-        test_printf("FAILED AP test: Happy path form failed to submit");
-        return 1;
-    }
-    if (strstr(mock_ctx.inject.tcp_write_buffer, "Saved! Rebooting...") == (char *)0) {
-        test_printf("FAILED response: got '%s'\n", mock_ctx.inject.tcp_write_buffer);
-    }
-
-    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_ssid, TEST_AP_SSID), 0, "URL decode SSID");
-    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_password, TEST_AP_PASSWORD), 0, "URL decode password");
-    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.ntp_server, TEST_NTP_SERVER), 0, "URL NTP server");
-    ASSERT_WITH_MESSAGE(last_parsed_config.tz_offset_mins, TEST_TZ_OFFSET, "URL TZ offset");
-    ASSERT_WITH_MESSAGE(last_parsed_config.dst_rule, TEST_DST_RULE, "URL DST rule");
-    ASSERT_WITH_MESSAGE(last_parsed_config.ntp_port, NTP_DEFAULT_PORT, "URL decode NTP port");
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET,
+                                           TEST_DST_RULE, TEST_TIMEOUT, TEST_NTP_PORT));
+    clock_state_t state = {0};
+    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, TEST_AP_SSID), 0, "URL decode SSID");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_password, TEST_AP_PASSWORD), 0, "URL decode password");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.ntp_server, TEST_NTP_SERVER), 0, "URL NTP server");
+    ASSERT_WITH_MESSAGE(last_config.tz_offset_mins, TEST_TZ_OFFSET, "URL TZ offset");
+    ASSERT_WITH_MESSAGE(last_config.ntp_timeout, TEST_TIMEOUT, "URL timeout");
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, TEST_DST_RULE, "URL DST rule");
+    ASSERT_WITH_MESSAGE(last_config.ntp_port, TEST_NTP_PORT, "URL decode NTP port");
 
     // Stress URL decode
     // ssid: "My Wi-Fi!" (Testing + and %21)
     // pwd:  "a&b=c%d"   (Testing %26, %3D, %25)
-    const char *url_encoded = TEST_CONFIG_URL("My+Wi-Fi%21", "a%26b%3Dc%25d", TEST_NTP_SERVER, 0, 0);
-    simulate_form_post(con_state, &client_pcb, url_encoded);
-
-    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_ssid, "My Wi-Fi!"), 0, "URL decode SSID stress");
-    ASSERT_WITH_MESSAGE(strcmp(last_parsed_config.wifi_password, "a&b=c%d"), 0, "URL decode password stress");
+    // Newlines should be removed from the password.
+    static char url[256];
+    static char body[] = "ssid=My+Wi-Fi%21&pwd=a%26b%3Dc%25d\r\n";
+    snprintf(url, sizeof(url), "POST / HTTP/1.1\r\nContent-Length: %d\r\n\r\n%s", (int)sizeof(body) - 1, body);
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(url);
+    err = start_wifi_access_point(&state, mock_store_config_success);
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "My Wi-Fi!"), 0, "URL decode SSID stress");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_password, "a&b=c%d"), 0, "URL decode password stress");
 
     // Buffer overflow tests
-    const char *overflow = "ssid=1234567890123456789012345678901234567890"                                // 40 chars
-                           "&pwd=1234567890123456789012345678901234567890123456789012345678901234567890"; // 70 chars
-
-    simulate_form_post(con_state, &client_pcb, overflow);
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(
+        config_post_url("1234567890123456789012345678901234567890",                               // 40 chars
+                        "1234567890123456789012345678901234567890123456789012345678901234567890", // 70 chars
+                        NULL, 0, DST_RULE_NONE, 0, 0));
 
     // Assert strictly null-terminated and truncated correctly
-    if (strlen(last_parsed_config.wifi_ssid) > 32)
+    if (strlen(last_config.wifi_ssid) > 32)
         return 1;
-    if (strlen(last_parsed_config.wifi_password) > 63)
+    if (strlen(last_config.wifi_password) > 63)
         return 1;
-    if (strncmp(last_parsed_config.wifi_ssid, "12345678901234567890123456789012", 32) != 0)
-        return 1;
-
-    // Exhaustive DST Enumeration Mapping
-    simulate_form_post(con_state, &client_pcb, "dst=EU");
-    if (last_parsed_config.dst_rule != DST_RULE_EU)
-        return 1;
-    simulate_form_post(con_state, &client_pcb, "dst=AU");
-    if (last_parsed_config.dst_rule != DST_RULE_AU)
-        return 1;
-    simulate_form_post(con_state, &client_pcb, "dst=NZ");
-    if (last_parsed_config.dst_rule != DST_RULE_NZ)
-        return 1;
-    simulate_form_post(con_state, &client_pcb, "dst=CL");
-    if (last_parsed_config.dst_rule != DST_RULE_CL)
-        return 1;
-    simulate_form_post(con_state, &client_pcb, "dst=IL");
-    if (last_parsed_config.dst_rule != DST_RULE_IL)
+    if (strncmp(last_config.wifi_ssid, "12345678901234567890123456789012", 32) != 0)
         return 1;
 
-    // Invalid / Catch-all cases must default to NONE
-    simulate_form_post(con_state, &client_pcb, "dst=GARBAGE");
-    if (last_parsed_config.dst_rule != DST_RULE_NONE)
-        return 1;
-    simulate_form_post(con_state, &client_pcb, "dst=");
-    if (last_parsed_config.dst_rule != DST_RULE_NONE)
-        return 1;
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_EU, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_EU, "EU DST config");
 
-    // Malformed data and missing fields
-    simulate_form_post(con_state, &client_pcb, "ssid=&pwd=&tz=");
-    if (strlen(last_parsed_config.wifi_ssid) != 0)
-        return 1;
-    if (last_parsed_config.tz_offset_mins != 0)
-        return 1;
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_AU, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_AU, "AU DST config");
 
-    free(timer);
-    free_test_clock_state(clock_state);
-    free_test_config(con_state);
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_NZ, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NZ, "NZ DST config");
+
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_CL, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_CL, "CL DST config");
+
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_IL, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_IL, "IL DST config");
+
+    reset_wifi_test_state();
+    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, (dst_rule_t)0xff, 0, 0));
+    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
 
     return 0;
 }
@@ -807,44 +818,6 @@ static int test_wifi_ap_limits(void)
 
     return 0;
 }
-
-// ============================================================================
-// Wi-Fi & AP TCP-IP Mock Config & State
-// ============================================================================
-
-static int store_calls = 0;
-static clock_config_t last_config;
-
-static int mock_store_config_success(clock_config_t *config, int invalidate)
-{
-    (void)invalidate;
-    store_calls++;
-    last_config = *config;
-    return 0; // Return success
-}
-
-static int mock_store_config_fail_then_success(clock_config_t *config, int invalidate)
-{
-    (void)invalidate;
-    store_calls++;
-    if (store_calls == 1) {
-        return -1; // Simulate a Flash write failure on first try
-    }
-    last_config = *config;
-    return 0; // Succeed on subsequent tries
-}
-
-static void reset_wifi_test_state(void)
-{
-    RESET_MOCK_CONFIG();
-    store_calls = 0;
-    memset(&last_config, 0, sizeof(last_config));
-    mock_clear_tcp_payloads();
-}
-
-// ============================================================================
-// Access Point (AP) & TCP Server Tests
-// ============================================================================
 
 static int test_ap_init_fails_cyw43(void)
 {
@@ -900,7 +873,7 @@ static int test_ap_success_full_post(void)
     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
-    ASSERT_WITH_MESSAGE(store_calls, 1, "Config should be stored exactly once");
+    ASSERT_WITH_MESSAGE(config_save_count, 1, "Config should be stored exactly once");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "MyNetwork"), 0, "SSID string parsing failed");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_password, "MyPassword"), 0, "Password string parsing failed");
     ASSERT_WITH_MESSAGE(strcmp(last_config.ntp_server, "pool.ntp.org"), 0, "NTP string parsing failed");
@@ -935,20 +908,20 @@ static int test_ap_url_decoding(void)
     return 0;
 }
 
-// static int test_ap_url_decode_malformed(void)
-// {
-//     reset_wifi_test_state();
-//     // %ZZ is invalid hex. `hex_to_int` returns 0, terminating the string early.
-//     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 13\r\n\r\nssid=Abc%ZZd");
+static int test_ap_url_decode_malformed(void)
+{
+    reset_wifi_test_state();
+    // %ZZ is invalid hex. `hex_to_int` returns 0, terminating the string early.
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 12\r\n\r\nssid=Abc%ZZd");
 
-//     clock_state_t state = {0};
-//     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {0};
+    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
-//     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should handle malformed hex strings");
-//     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Abc"), 0, "Should terminate safely at invalid hex");
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should handle malformed hex strings");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Abc"), 0, "Should terminate safely at invalid hex");
 
-//     return 0;
-// }
+    return 0;
+}
 
 static int test_ap_dst_rule_fallback(void)
 {
@@ -964,37 +937,36 @@ static int test_ap_dst_rule_fallback(void)
     return 0;
 }
 
-// static int test_ap_get_config_page(void)
-// {
-//     reset_wifi_test_state();
+static int test_ap_get_config_page(void)
+{
+    reset_wifi_test_state();
 
-//     // 1. GET request for config page
-//     mock_queue_tcp_payload("GET /config HTTP/1.1\r\n\r\n");
-//     // 2. Queue a valid POST to subsequently break the infinite loop
-//     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
+    mock_queue_tcp_payload("GET /invalid HTTP/1.1\r\n\r\n");
+    mock_queue_tcp_payload("GET /clock-config HTTP/1.1\r\n\r\n");
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
 
-//     clock_state_t state = {0};
-//     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {0};
+    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
-//     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive GET request and exit on POST");
-//     return 0;
-// }
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive GET request and exit on POST");
+    return 0;
+}
 
-// static int test_ap_get_redirect(void)
-// {
-//     reset_wifi_test_state();
+static int test_ap_get_redirect(void)
+{
+    reset_wifi_test_state();
 
-//     // 1. GET request for unknown page (Route C - Captive Portal Redirect)
-//     mock_queue_tcp_payload("GET /generate_204 HTTP/1.1\r\n\r\n");
-//     // 2. Queue valid POST to exit loop
-//     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
+    // 1. GET request for unknown page (Route C - Captive Portal Redirect)
+    mock_queue_tcp_payload("GET /generate_204 HTTP/1.1\r\n\r\n");
+    // 2. Queue valid POST to exit loop
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
 
-//     clock_state_t state = {0};
-//     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {0};
+    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
-//     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive redirect request and exit on POST");
-//     return 0;
-// }
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive redirect request and exit on POST");
+    return 0;
+}
 
 static int test_ap_post_save_fails(void)
 {
@@ -1009,31 +981,32 @@ static int test_ap_post_save_fails(void)
     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_fail_then_success);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should recover from a failed config store");
-    ASSERT_WITH_MESSAGE(store_calls, 2, "Store config should have been called twice");
-    // ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Pass"), 0, "Last config stored should be the passing one");
+    ASSERT_WITH_MESSAGE(config_save_count, 2, "Store config should have been called twice");
+    // ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Pass"), 0, "Last config stored should be the passing
+    // one");
 
     return 0;
 }
 
-// static int test_ap_incomplete_requests(void)
-// {
-//     reset_wifi_test_state();
+static int test_ap_incomplete_requests(void)
+{
+    reset_wifi_test_state();
 
-//     // 1. Missing double \r\n boundary (Headers incomplete)
-//     mock_queue_tcp_payload("GET / HTTP/1.1");
-//     // 2. POST with missing body payload
-//     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 100\r\n\r\nshort");
-//     // 3. Valid POST to exit the loop
-//     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
+    // 1. Missing double \r\n boundary (Headers incomplete)
+    mock_queue_tcp_payload("GET / HTTP/1.1");
+    // 2. POST with missing body payload
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 100\r\n\r\nshort");
+    // 3. Valid POST to exit the loop
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
 
-//     clock_state_t state = {0};
-//     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {0};
+    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
-//     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should ignore incomplete packets and wait for valid one");
-//     ASSERT_WITH_MESSAGE(store_calls, 1, "Should only store the valid payload");
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should ignore incomplete packets and wait for valid one");
+    ASSERT_WITH_MESSAGE(config_save_count, 1, "Should only store the valid payload");
 
-//     return 0;
-// }
+    return 0;
+}
 
 static int test_ap_accept_calloc_fails(void)
 {
@@ -1051,7 +1024,7 @@ static int test_ap_accept_calloc_fails(void)
     wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should handle accept ERR_MEM gracefully");
-    ASSERT_WITH_MESSAGE(store_calls, 1, "Only the second payload should have triggered a store");
+    ASSERT_WITH_MESSAGE(config_save_count, 1, "Only the second payload should have triggered a store");
 
     return 0;
 }
@@ -1084,36 +1057,25 @@ int main(const int argc, const char *argv[])
     }
 
     status |= run_test(test_bad_lcd1, "LCD1 init error");
-
     status |= run_test(test_dst, "Daylight savings");
-
     status |= run_test(test_ntp_time, "NTP time checks");
-
     status |= run_test(test_wifi_errors, "Wi-Fi init error");
-
     status |= run_test(test_dns_lookups, "DNS lookups");
-
     status |= run_test(test_ntp_errors, "NTP errors");
-
     status |= run_test(test_watchdog, "Watchdog");
-
-    status |= run_test(test_wifi_ap_config, "Wi-Fi AP Config");
-
+    status |= run_test(test_wifi_config_urls, "Wi-Fi AP Config");
     status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
-
-    // ... inside main()
-
     status |= run_test(test_ap_init_fails_cyw43, "Wi-Fi AP: CYW43 init fails");
     status |= run_test(test_ap_init_fails_calloc, "Wi-Fi AP: Calloc fails during init");
     status |= run_test(test_ap_wifi_already_initialized, "Wi-Fi AP: Short-circuit already initialized");
     status |= run_test(test_ap_success_full_post, "Wi-Fi AP: Successful POST payload processing");
     status |= run_test(test_ap_url_decoding, "Wi-Fi AP: URL encoded payload logic");
-    // status |= run_test(test_ap_url_decode_malformed, "Wi-Fi AP: Malformed URL hex decoding");
+    status |= run_test(test_ap_url_decode_malformed, "Wi-Fi AP: Malformed URL hex decoding");
     status |= run_test(test_ap_dst_rule_fallback, "Wi-Fi AP: DST Rule fallback mapping");
-    // status |= run_test(test_ap_get_config_page, "Wi-Fi AP: Handle GET config requests");
-    // status |= run_test(test_ap_get_redirect, "Wi-Fi AP: Handle captive portal redirects");
+    status |= run_test(test_ap_get_config_page, "Wi-Fi AP: Handle GET config requests");
+    status |= run_test(test_ap_get_redirect, "Wi-Fi AP: Handle captive portal redirects");
     status |= run_test(test_ap_post_save_fails, "Wi-Fi AP: Flash write failure recovery");
-    // status |= run_test(test_ap_incomplete_requests, "Wi-Fi AP: Ignore incomplete TCP streams");
+    status |= run_test(test_ap_incomplete_requests, "Wi-Fi AP: Ignore incomplete TCP streams");
     status |= run_test(test_ap_accept_calloc_fails, "Wi-Fi AP: Recover from tcp_accept ERR_MEM");
     status |= run_test(test_ap_tcp_error_handling, "Wi-Fi AP: Handle TCP reset/abort events");
 

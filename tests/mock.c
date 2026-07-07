@@ -170,7 +170,12 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
 
 static char mock_payloads[10][2048];
 
-static struct tcp_pcb mock_pcb_instance;
+static struct tcp_pcb mock_listen_pcb;
+static struct tcp_pcb mock_conn_pcb;
+static void *mock_listen_arg = NULL;
+static void *mock_conn_arg = NULL;
+
+// static struct tcp_pcb mock_pcb_instance;
 char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
 
 // -----------------------------------------------------------------------------
@@ -292,16 +297,32 @@ void sleep_ms(uint32_t ms)
         // 4. Process TCP/Captive Portal Requests
         if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
             mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_next_fire_time) {
-            mock_ctx.sim.tcp_accept_cb(mock_ctx.sim.tcp_arg, &mock_pcb_instance, ERR_OK);
-            if (mock_ctx.sim.tcp_recv_cb) {
+
+            // Pass the LISTEN arg to accept, and provide the CONN pcb
+            err_t accept_err = mock_ctx.sim.tcp_accept_cb(mock_listen_arg, &mock_conn_pcb, ERR_OK);
+
+            // Only deliver the payload if the server actually accepted the connection
+            if (accept_err == ERR_OK && mock_ctx.sim.tcp_recv_cb) {
                 struct pbuf p;
                 memset(&p, 0, sizeof(p));
-                strncpy((char *)p.payload, mock_payloads[mock_ctx.sim.tcp_payload_idx++], sizeof(p.payload) - 1);
+                strncpy((char *)p.payload, mock_payloads[mock_ctx.sim.tcp_payload_idx], sizeof(p.payload) - 1);
                 p.tot_len = (u16_t)strlen((char *)p.payload);
                 p.len = p.tot_len;
-                mock_ctx.sim.tcp_recv_cb(mock_ctx.sim.tcp_arg, &mock_pcb_instance, &p, ERR_OK);
+
+                // Deliver the payload to the CONN arg
+                mock_ctx.sim.tcp_recv_cb(mock_conn_arg, &mock_conn_pcb, &p, ERR_OK);
             }
-            mock_ctx.sim.tcp_next_fire_time = mock_ctx.spy.system_time_ms + 100; // Small delay between payloads
+
+            mock_ctx.sim.tcp_payload_idx++; // Advance regardless of success to prevent infinite loops
+            mock_ctx.sim.tcp_next_fire_time = mock_ctx.spy.system_time_ms + 100;
+        }
+
+        // 5. Process TCP Sent (Ensures the server cleanly frees con_state)
+        if (mock_ctx.sim.tcp_sent_pending && mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_sent_fire_time) {
+            mock_ctx.sim.tcp_sent_pending = false;
+            if (mock_ctx.sim.tcp_sent_cb) {
+                mock_ctx.sim.tcp_sent_cb(mock_conn_arg, &mock_conn_pcb, mock_ctx.sim.tcp_sent_len);
+            }
         }
     }
 }
@@ -350,15 +371,17 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
 
 struct tcp_pcb *tcp_new(void)
 {
-    return &mock_pcb_instance;
+    return &mock_listen_pcb;
 }
 void tcp_arg(struct tcp_pcb *pcb, void *arg)
 {
-    (void)pcb;
-    if (arg == NULL)
-        mock_free(mock_ctx.sim.tcp_arg);
-    mock_ctx.sim.tcp_arg = arg;
+    if (pcb == &mock_listen_pcb) {
+        mock_listen_arg = arg;
+    } else {
+        mock_conn_arg = arg;
+    }
 }
+
 void tcp_accept(struct tcp_pcb *pcb, tcp_accept_fn accept)
 {
     (void)pcb;
@@ -440,9 +463,9 @@ err_t tcp_bind(struct tcp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port)
 
 struct tcp_pcb *tcp_listen_with_backlog(struct tcp_pcb *pcb, u8_t backlog)
 {
+    (void)pcb;
     (void)backlog;
-
-    return pcb; // Return the mock PCB directly
+    return &mock_listen_pcb;
 }
 err_t tcp_close(struct tcp_pcb *pcb)
 {
