@@ -32,4 +32,4 @@ mkdir -p build
 cmake -DCMAKE_BUILD_TYPE=Debug -B build -G Ninja
 ninja -v -C build test_picow_day_clock
 cmake --build build --target run_tests
-cmake --build build --target coverage_llvm
+cmake --build build --target coverage_reports
