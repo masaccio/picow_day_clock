@@ -608,6 +608,16 @@ static int test_watchdog(void)
     return 0;
 }
 
+static char *dst_rule_str[] = {
+    "NONE", /* DST_RULE_NONE */
+    "NA",   /* DST_RULE_NA */
+    "EU",   /* DST_RULE_EU */
+    "AU",   /* DST_RULE_AU */
+    "NZ",   /* DST_RULE_NZ */
+    "CL",   /* DST_RULE_CL */
+    "IL",   /* DST_RULE_IL */
+};
+
 static char *config_post_url(const char *ssid, const char *pwd, const char *ntp, int16_t tz, dst_rule_t dst,
                              uint32_t cto, uint16_t port)
 {
@@ -637,7 +647,8 @@ static char *config_post_url(const char *ssid, const char *pwd, const char *ntp,
         max_len -= (size_t)len;
     }
     if (dst) {
-        int len = snprintf(body_ptr, max_len, "&dst=%d", (int)dst);
+        char *dst_str = dst_rule_str[dst % sizeof(dst_rule_str)];
+        int len = snprintf(body_ptr, max_len, "&dst=%s", dst_str);
         body_ptr += len;
         max_len -= (size_t)len;
     }
@@ -737,36 +748,41 @@ static int test_wifi_config_urls(void)
                         "1234567890123456789012345678901234567890123456789012345678901234567890", // 70 chars
                         NULL, 0, DST_RULE_NONE, 0, 0));
 
+    start_wifi_access_point(&state, mock_store_config_success);
     // Assert strictly null-terminated and truncated correctly
-    if (strlen(last_config.wifi_ssid) > 32)
-        return 1;
-    if (strlen(last_config.wifi_password) > 63)
-        return 1;
-    if (strncmp(last_config.wifi_ssid, "12345678901234567890123456789012", 32) != 0)
-        return 1;
+    ASSERT_WITH_MESSAGE(strlen(last_config.wifi_ssid) > WIFI_SSID_MAX_LEN, 0, "Max SSID length");
+    ASSERT_WITH_MESSAGE(strlen(last_config.wifi_password) > WIFI_PASSWORD_MAX_LEN, 0, "Max password length");
+    ASSERT_WITH_MESSAGE(strncmp(last_config.wifi_ssid, "12345678901234567890123456789012", WIFI_SSID_MAX_LEN), 0,
+                        "Max SSID consumed");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_EU, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_EU, "EU DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_AU, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_AU, "AU DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_NZ, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NZ, "NZ DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_CL, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_CL, "CL DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_IL, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_IL, "IL DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, (dst_rule_t)0xff, 0, 0));
+    start_wifi_access_point(&state, mock_store_config_success);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
 
     return 0;
@@ -786,7 +802,7 @@ static int test_wifi_ap_limits(void)
         // Assume tcp_server_accept is exposed or tested directly
         err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
         if (result == ERR_OK) {
-            mock_free(mock_ctx.sim.tcp_arg);
+            mock_ctx.leak_checker.frees += 1;
             accepted_count++;
         } else if (result == ERR_ABRT) {
             rejected_count++;
@@ -1063,7 +1079,7 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_dns_lookups, "DNS lookups");
     status |= run_test(test_ntp_errors, "NTP errors");
     status |= run_test(test_watchdog, "Watchdog");
-    status |= run_test(test_wifi_config_urls, "Wi-Fi AP Config");
+    status |= run_test(test_wifi_config_urls, "Wi-Fi AP: URL tests");
     status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
     status |= run_test(test_ap_init_fails_cyw43, "Wi-Fi AP: CYW43 init fails");
     status |= run_test(test_ap_init_fails_calloc, "Wi-Fi AP: Calloc fails during init");
