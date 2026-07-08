@@ -241,7 +241,6 @@ void dhcp_server_init(dhcp_server_t *d, ip_addr_t *ip, ip_addr_t *nm);
 extern void *cyw43_state;
 int cyw43_arch_init(void);
 int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, uint auth, uint timeout_ms);
-void cyw43_arch_deinit(void);
 void cyw43_arch_disable_ap_mode(void);
 void cyw43_arch_disable_sta_mode(void);
 void cyw43_arch_enable_ap_mode(const char *ssid, const char *password, uint32_t auth);
@@ -254,10 +253,8 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac);
 // GPIO mocks
 // =============================================================================
 void stdio_init_all(void);
-void gpio_set_function(uint gpio, uint func);
 void gpio_init(uint gpio);
 void gpio_set_dir(uint gpio, int out);
-void gpio_put(uint gpio, int value);
 void gpio_pull_up(uint gpio);
 int gpio_get(uint gpio);
 
@@ -278,9 +275,6 @@ extern int test_printf(const char *format, ...) __attribute__((format(printf, 1,
 // Wi-Fi AP testing
 extern void *mock_tcp_server_state;
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
-void *create_test_config(void *arg);
-void free_test_config(void *arg);
-void clear_test_config(void *arg);
 
 // TCP/IP mocking
 void mock_queue_tcp_payload(const char *body);

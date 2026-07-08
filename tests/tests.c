@@ -599,6 +599,34 @@ static int test_watchdog(void)
     // EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
     // CHECK_WATCHDOG_RESET_OK();
 
+    return 0;
+}
+
+static int test_error_strings(void)
+{
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_OK), "WIFI_OK"), 0, "Wi-Fi status string");
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_INIT_ERROR), "WIFI_INIT_ERROR"), 0, "Wi-Fi status string");
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_TIMEOUT_ERROR), "WIFI_TIMEOUT_ERROR"), 0,
+                        "Wi-Fi status string");
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_AUTH_ERROR), "WIFI_AUTH_ERROR"), 0, "Wi-Fi status string");
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_CONNECT_ERROR), "WIFI_CONNECT_ERROR"), 0,
+                        "Wi-Fi status string");
+    ASSERT_WITH_MESSAGE(strcmp(wifi_error_to_string(WIFI_UNKNOWN_ERROR), "WIFI_UNKNOWN_ERROR"), 0,
+                        "Wi-Fi status string");
+
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_OK), "NTP_OK"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_INIT_ERROR), "NTP_INIT_ERROR"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_DNS_ERROR), "NTP_DNS_ERROR"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_TIMEOUT_ERROR), "NTP_TIMEOUT_ERROR"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_PROTOCOL_ERROR), "NTP_PROTOCOL_ERROR"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_MEMORY_ERROR), "NTP_MEMORY_ERROR"), 0, "NTP status string");
+
+    ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_OK), "WATCHDOG_OK"), 0, "Watchdog status string");
+    ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_RESET), "WATCHDOG_RESET"), 0,
+                        "Watchdog status string");
+    ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_NTP), "WATCHDOG_NTP"), 0, "Watchdog status string");
+    ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_WIFI), "WATCHDOG_WIFI"), 0, "Watchdog status string");
+
     // Coverage on otherwise invalid status debug values
     if ((strcmp(watchdog_error_to_string((watchdog_error_t)0xff), "UNKNOWN_STATUS") != 0) ||
         (strcmp(wifi_error_to_string((wifi_error_t)0xff), "UNKNOWN_STATUS") != 0) ||
@@ -1099,6 +1127,7 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_wifi_errors, "Wi-Fi init error");
     status |= run_test(test_dns_lookups, "DNS lookups");
     status |= run_test(test_ntp_errors, "NTP errors");
+    status |= run_test(test_error_strings, "Status error strings");
     status |= run_test(test_watchdog, "Watchdog");
     status |= run_test(test_wifi_config_urls, "Wi-Fi AP: URL tests");
     status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");

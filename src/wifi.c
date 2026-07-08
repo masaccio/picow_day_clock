@@ -361,6 +361,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
              strncmp(request, "GET / ", 6) == 0) {
         con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER);
+        con_state->result_len = (int)form_html_len;
 
         tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, TCP_WRITE_FLAG_MORE);
         tcp_write(pcb, form_html, (u16_t)form_html_len, 0);
@@ -390,36 +391,6 @@ static char *get_ssid(void)
     CLOCK_DEBUG("SSID=%s\n", ssid);
     return ssid;
 }
-
-#ifdef TEST_MODE
-void *create_test_config(void *arg)
-{
-    static tcp_connect_state_t *state;
-    state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
-    state->server_state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
-    state->store_config = (store_config_handler_t)arg;
-    return (void *)state;
-}
-
-void clear_test_config(void *arg)
-{
-    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
-    con_state->headers[0] = '\0';
-    con_state->result[0] = '\0';
-    con_state->header_len = 0;
-    con_state->result_len = 0;
-}
-
-void free_test_config(void *arg)
-{
-    tcp_connect_state_t *con_state = (tcp_connect_state_t *)arg;
-
-    if (con_state) {
-        free(con_state->server_state);
-        free(con_state);
-    }
-}
-#endif
 
 wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *wifi_initialized)
 {

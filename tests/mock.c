@@ -60,12 +60,6 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
 #undef free
 
 // GPIO functions
-void gpio_set_function(uint gpio, uint func)
-{
-    (void)gpio;
-    (void)func;
-}
-
 void gpio_init(uint gpio)
 {
     (void)gpio;
@@ -75,12 +69,6 @@ void gpio_set_dir(uint gpio, int out)
 {
     (void)gpio;
     (void)out;
-}
-
-void gpio_put(uint gpio, int value)
-{
-    (void)gpio;
-    (void)value;
 }
 
 void gpio_pull_up(uint gpio)
@@ -150,10 +138,6 @@ int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *password, u
     }
 
     return mock_ctx.inject.cyw43_arch_wifi_connect_status;
-}
-
-void cyw43_arch_deinit(void)
-{
 }
 
 static uint32_t cyw43_state_storage = 0xffffffff;
