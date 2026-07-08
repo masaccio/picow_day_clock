@@ -802,7 +802,7 @@ static int test_wifi_ap_limits(void)
         // Assume tcp_server_accept is exposed or tested directly
         err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
         if (result == ERR_OK) {
-            mock_ctx.leak_checker.frees += 1;
+            mock_free(mock_ctx.sim.conn_arg);
             accepted_count++;
         } else if (result == ERR_ABRT) {
             rejected_count++;

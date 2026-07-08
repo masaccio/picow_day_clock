@@ -129,8 +129,13 @@ typedef struct
         // TCP/Captive Portal Simulation
         tcp_accept_fn tcp_accept_cb;
         tcp_recv_fn tcp_recv_cb;
+        void *listen_arg;
+        void *conn_arg;
         void *tcp_arg;
+        struct tcp_pcb listen_pcb;
+        struct tcp_pcb conn_pcb;
         time_t tcp_next_fire_time;
+        char tcp_write_buffer[TCP_IP_BUFFER_SIZE];
         char tcp_payloads[10][2048]; // Encapsulated TCP payloads
         int tcp_payload_count;
         int tcp_payload_idx;

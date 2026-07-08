@@ -283,8 +283,6 @@ void free_test_config(void *arg);
 void clear_test_config(void *arg);
 
 // TCP/IP mocking
-extern char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
-
 void mock_queue_tcp_payload(const char *body);
 void mock_clear_tcp_payloads(void);
 void mock_inject_tcp_error(err_t code, uint32_t delay_ms);

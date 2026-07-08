@@ -168,16 +168,6 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
     return 0;
 }
 
-static char mock_payloads[10][2048];
-
-static struct tcp_pcb mock_listen_pcb;
-static struct tcp_pcb mock_conn_pcb;
-static void *mock_listen_arg = NULL;
-static void *mock_conn_arg = NULL;
-
-// static struct tcp_pcb mock_pcb_instance;
-char mock_tcp_write_buffer[TCP_IP_BUFFER_SIZE];
-
 // -----------------------------------------------------------------------------
 // Event-Driven Time Pump
 // -----------------------------------------------------------------------------
@@ -300,23 +290,24 @@ void sleep_ms(uint32_t ms)
 
             // If the server left the previous connection open, simulate the client closing
             // the socket BEFORE we reuse the PCB for the next request.
-            if (mock_conn_arg != NULL && mock_ctx.sim.tcp_recv_cb) {
+            if (mock_ctx.sim.conn_arg != NULL && mock_ctx.sim.tcp_recv_cb) {
                 // Sending pbuf = NULL is the lwIP standard for "Client Disconnected"
-                mock_ctx.sim.tcp_recv_cb(mock_conn_arg, &mock_conn_pcb, NULL, ERR_OK);
+                mock_ctx.sim.tcp_recv_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, NULL, ERR_OK);
             }
 
-            err_t accept_err = mock_ctx.sim.tcp_accept_cb(mock_listen_arg, &mock_conn_pcb, ERR_OK);
+            err_t accept_err = mock_ctx.sim.tcp_accept_cb(mock_ctx.sim.listen_arg, &mock_ctx.sim.conn_pcb, ERR_OK);
 
             if (accept_err == ERR_OK && mock_ctx.sim.tcp_recv_cb) {
                 struct pbuf p;
                 memset(&p, 0, sizeof(p));
 
-                strncpy((char *)p.payload, mock_payloads[mock_ctx.sim.tcp_payload_idx], sizeof(p.payload) - 1);
+                strncpy((char *)p.payload, mock_ctx.sim.tcp_payloads[mock_ctx.sim.tcp_payload_idx],
+                        sizeof(p.payload) - 1);
                 p.tot_len = (u16_t)strlen((char *)p.payload);
                 p.len = p.tot_len;
 
                 // Deliver the payload to the CONN arg
-                mock_ctx.sim.tcp_recv_cb(mock_conn_arg, &mock_conn_pcb, &p, ERR_OK);
+                mock_ctx.sim.tcp_recv_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, &p, ERR_OK);
             }
 
             // Advance the context index
@@ -328,7 +319,7 @@ void sleep_ms(uint32_t ms)
         if (mock_ctx.sim.tcp_sent_pending && mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_sent_fire_time) {
             mock_ctx.sim.tcp_sent_pending = false;
             if (mock_ctx.sim.tcp_sent_cb) {
-                mock_ctx.sim.tcp_sent_cb(mock_conn_arg, &mock_conn_pcb, mock_ctx.sim.tcp_sent_len);
+                mock_ctx.sim.tcp_sent_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, mock_ctx.sim.tcp_sent_len);
             }
         }
     }
@@ -378,14 +369,14 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
 
 struct tcp_pcb *tcp_new(void)
 {
-    return &mock_listen_pcb;
+    return &mock_ctx.sim.listen_pcb;
 }
 void tcp_arg(struct tcp_pcb *pcb, void *arg)
 {
-    if (pcb == &mock_listen_pcb) {
-        mock_listen_arg = arg;
+    if (pcb == &mock_ctx.sim.listen_pcb) {
+        mock_ctx.sim.listen_arg = arg;
     } else {
-        mock_conn_arg = arg;
+        mock_ctx.sim.conn_arg = arg;
     }
 }
 
@@ -436,7 +427,7 @@ err_t tcp_write(struct tcp_pcb *pcb, const void *dataptr, u16_t len, u8_t apifla
 {
     (void)pcb;
     (void)apiflags;
-    memcpy(mock_tcp_write_buffer, dataptr, len);
+    memcpy(mock_ctx.sim.tcp_write_buffer, dataptr, len);
 
     // Simulate the network sending the packet and the client acknowledging it.
     // We queue it to fire 10ms in the future.
@@ -472,7 +463,7 @@ struct tcp_pcb *tcp_listen_with_backlog(struct tcp_pcb *pcb, u8_t backlog)
 {
     (void)pcb;
     (void)backlog;
-    return &mock_listen_pcb;
+    return &mock_ctx.sim.listen_pcb;
 }
 err_t tcp_close(struct tcp_pcb *pcb)
 {
@@ -488,14 +479,14 @@ void tcp_abort(struct tcp_pcb *pcb)
 void mock_queue_tcp_payload(const char *body)
 {
     if (mock_ctx.sim.tcp_payload_count < 10)
-        snprintf(mock_payloads[mock_ctx.sim.tcp_payload_count++], 2048, "%s", body);
+        snprintf(mock_ctx.sim.tcp_payloads[mock_ctx.sim.tcp_payload_count++], 2048, "%s", body);
 }
 
 void mock_clear_tcp_payloads(void)
 {
     mock_ctx.sim.tcp_payload_count = 0;
     mock_ctx.sim.tcp_payload_idx = 0;
-    memset(mock_tcp_write_buffer, 0, TCP_IP_BUFFER_SIZE);
+    memset(mock_ctx.sim.tcp_write_buffer, 0, TCP_IP_BUFFER_SIZE);
 }
 
 // -----------------------------------------------------------------------------
