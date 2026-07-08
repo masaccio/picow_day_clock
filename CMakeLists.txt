@@ -26,7 +26,6 @@ include(pico_sdk_import.cmake)
 project(picow_day_clock C CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 pico_sdk_init()
 

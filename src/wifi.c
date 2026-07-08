@@ -16,7 +16,6 @@
 
 // Local includes
 #include "clock.h"
-#include "config.h"
 #include "html_form.h"
 
 const char *wifi_error_to_string(wifi_error_t status)
@@ -34,12 +33,12 @@ const char *wifi_error_to_string(wifi_error_t status)
 
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
 
-wifi_error_t connect_to_wifi(clock_state_t *clock_state, const char ssid[], const char password[])
+wifi_error_t connect_to_wifi(const char ssid[], const char password[], bool *wifi_initialized)
 {
-    if (!clock_state->wifi_is_initialized && cyw43_arch_init() != 0) {
+    if (!*wifi_initialized && cyw43_arch_init() != 0) {
         return WIFI_INIT_ERROR;
     }
-    clock_state->wifi_is_initialized = 1;
+    *wifi_initialized = true;
 
     cyw43_arch_enable_sta_mode();
 
@@ -399,7 +398,7 @@ void *create_test_config(void *arg)
     static tcp_connect_state_t *state;
     state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
     state->server_state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
-    state->store_config = (store_config_handler_t)arg;
+    state->store_config = (int (*)(void *config, bool invalidate))arg;
     return (void *)state;
 }
 
@@ -423,7 +422,7 @@ void free_test_config(void *arg)
 }
 #endif
 
-wifi_error_t start_wifi_access_point(clock_state_t *clock_state, store_config_handler_t store_config)
+wifi_error_t start_wifi_access_point(int (*store_config)(void *, bool), bool *wifi_initialized)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 
@@ -435,12 +434,12 @@ wifi_error_t start_wifi_access_point(clock_state_t *clock_state, store_config_ha
     state->store_config = store_config;
     state->complete = false;
 
-    if (!clock_state->wifi_is_initialized && cyw43_arch_init() != 0) {
+    if (!*wifi_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
         free(state);
         return WIFI_INIT_ERROR;
     }
-    clock_state->wifi_is_initialized = 1;
+    *wifi_initialized = true;
 
     char *ssid = get_ssid();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);

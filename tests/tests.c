@@ -679,16 +679,18 @@ static char *config_post_url(const char *ssid, const char *pwd, const char *ntp,
 static int config_save_count = 0;
 static clock_config_t last_config;
 
-static int mock_store_config_success(clock_config_t *config, int invalidate)
+static int mock_store_config_success(void *arg, bool invalidate)
 {
+    clock_config_t *config = (clock_config_t *)arg;
     (void)invalidate;
     config_save_count++;
     last_config = *config;
     return 0; // Return success
 }
 
-static int mock_store_config_fail_then_success(clock_config_t *config, int invalidate)
+static int mock_store_config_fail_then_success(void *arg, bool invalidate)
 {
+    clock_config_t *config = (clock_config_t *)arg;
     (void)invalidate;
     config_save_count++;
     if (config_save_count == 1) {
@@ -716,8 +718,8 @@ static int test_wifi_config_urls(void)
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(TEST_AP_SSID, TEST_AP_PASSWORD, TEST_NTP_SERVER, TEST_TZ_OFFSET,
                                            TEST_DST_RULE, TEST_TIMEOUT, TEST_NTP_PORT));
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, TEST_AP_SSID), 0, "URL decode SSID");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_password, TEST_AP_PASSWORD), 0, "URL decode password");
@@ -736,7 +738,7 @@ static int test_wifi_config_urls(void)
     snprintf(url, sizeof(url), "POST / HTTP/1.1\r\nContent-Length: %d\r\n\r\n%s", (int)sizeof(body) - 1, body);
     reset_wifi_test_state();
     mock_queue_tcp_payload(url);
-    err = start_wifi_access_point(&state, mock_store_config_success);
+    err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "My Wi-Fi!"), 0, "URL decode SSID stress");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_password, "a&b=c%d"), 0, "URL decode password stress");
@@ -748,7 +750,7 @@ static int test_wifi_config_urls(void)
                         "1234567890123456789012345678901234567890123456789012345678901234567890", // 70 chars
                         NULL, 0, DST_RULE_NONE, 0, 0));
 
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     // Assert strictly null-terminated and truncated correctly
     ASSERT_WITH_MESSAGE(strlen(last_config.wifi_ssid) > WIFI_SSID_MAX_LEN, 0, "Max SSID length");
     ASSERT_WITH_MESSAGE(strlen(last_config.wifi_password) > WIFI_PASSWORD_MAX_LEN, 0, "Max password length");
@@ -757,32 +759,32 @@ static int test_wifi_config_urls(void)
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_EU, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_EU, "EU DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_AU, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_AU, "AU DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_NZ, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NZ, "NZ DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_CL, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_CL, "CL DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, DST_RULE_IL, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_IL, "IL DST config");
 
     reset_wifi_test_state();
     mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, (dst_rule_t)0xff, 0, 0));
-    start_wifi_access_point(&state, mock_store_config_success);
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
 
     return 0;
@@ -861,9 +863,9 @@ static int test_ap_init_fails_cyw43(void)
 {
     reset_wifi_test_state();
     mock_ctx.inject.cyw43_arch_init_fail = 1;
-    clock_state_t state = {0};
+    clock_state_t state = {.wifi_initialized = false};
 
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "Should fail when CYW43 init fails");
     return 0;
 }
@@ -873,9 +875,9 @@ static int test_ap_init_fails_calloc(void)
     reset_wifi_test_state();
     // Fail the first calloc which allocates the tcp_server_t state
     mock_ctx.inject.calloc_fail_at = 1;
-    clock_state_t state = {0};
+    clock_state_t state = {.wifi_initialized = false};
 
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "Should fail when state calloc fails");
     return 0;
 }
@@ -885,14 +887,13 @@ static int test_ap_wifi_already_initialized(void)
     reset_wifi_test_state();
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 10\r\n\r\nssid=Hello");
 
-    clock_state_t state = {0};
-    state.wifi_is_initialized = 1;
+    clock_state_t state = {.wifi_initialized = true};
 
     // If it attempts to initialize cyw43 again, it would fail.
     // This verifies the short-circuit logic works.
     mock_ctx.inject.cyw43_arch_init_fail = 1;
 
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should bypass init if already initialized");
     return 0;
 }
@@ -907,8 +908,8 @@ static int test_ap_success_full_post(void)
 
     mock_queue_tcp_payload(post_req);
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should start successfully");
     ASSERT_WITH_MESSAGE(config_save_count, 1, "Config should be stored exactly once");
@@ -935,8 +936,8 @@ static int test_ap_url_decoding(void)
 
     mock_queue_tcp_payload(post_req);
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should handle decoding successfully");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "My Network"), 0, "Failed to decode + as space");
@@ -952,8 +953,8 @@ static int test_ap_url_decode_malformed(void)
     // %ZZ is invalid hex. `hex_to_int` returns 0, terminating the string early.
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 12\r\n\r\nssid=Abc%ZZd");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should handle malformed hex strings");
     ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Abc"), 0, "Should terminate safely at invalid hex");
@@ -966,8 +967,8 @@ static int test_ap_dst_rule_fallback(void)
     reset_wifi_test_state();
     // Providing an unknown DST rule string should fall back to DST_RULE_NONE
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 14\r\n\r\nssid=A&dst=FOO");
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "AP should handle unknown DST gracefully");
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "Should fallback to DST_RULE_NONE");
@@ -983,8 +984,8 @@ static int test_ap_get_config_page(void)
     mock_queue_tcp_payload("GET /clock-config HTTP/1.1\r\n\r\n");
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive GET request and exit on POST");
     return 0;
@@ -999,8 +1000,8 @@ static int test_ap_get_redirect(void)
     // 2. Queue valid POST to exit loop
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Exit");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should survive redirect request and exit on POST");
     return 0;
@@ -1015,8 +1016,8 @@ static int test_ap_post_save_fails(void)
     // 2. Second attempt succeeds
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_fail_then_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_fail_then_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should recover from a failed config store");
     ASSERT_WITH_MESSAGE(config_save_count, 2, "Store config should have been called twice");
@@ -1037,8 +1038,8 @@ static int test_ap_incomplete_requests(void)
     // 3. Valid POST to exit the loop
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should ignore incomplete packets and wait for valid one");
     ASSERT_WITH_MESSAGE(config_save_count, 1, "Should only store the valid payload");
@@ -1058,8 +1059,8 @@ static int test_ap_accept_calloc_fails(void)
     // Next payload succeeds (calloc_fail_at resets to 0)
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should handle accept ERR_MEM gracefully");
     ASSERT_WITH_MESSAGE(config_save_count, 1, "Only the second payload should have triggered a store");
@@ -1076,8 +1077,8 @@ static int test_ap_tcp_error_handling(void)
     // Send valid POST that fires after the error to finish the test gracefully
     mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
 
-    clock_state_t state = {0};
-    wifi_error_t err = start_wifi_access_point(&state, mock_store_config_success);
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
 
     ASSERT_WITH_MESSAGE(err, WIFI_OK, "tcp_server_err should clean up cleanly without crashing");
     return 0;

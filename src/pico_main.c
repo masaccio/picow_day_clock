@@ -49,7 +49,7 @@ int main(void)
 
         if (state->ap_mode_triggered) {
             state->ap_mode_triggered = 0;
-            start_wifi_access_point(state, config_store_handler);
+            start_wifi_access_point(config_store_handler, &state->wifi_initialized);
             reboot();
         }
 

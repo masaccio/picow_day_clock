@@ -333,8 +333,10 @@ void clock_task(clock_state_t *state)
     }
 }
 
-int config_store_handler(clock_config_t *config, int invalidate)
+int config_store_handler(void *arg, bool invalidate)
 {
+    clock_config_t *config = (clock_config_t *)arg;
+
     config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
 
     uint8_t flash_buf[FLASH_PAGE_SIZE];
@@ -425,7 +427,7 @@ clock_state_t *clock_init(void)
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
-        start_wifi_access_point(state, config_store_handler);
+        start_wifi_access_point(config_store_handler, &state->wifi_initialized);
         reboot();
     }
     CLOCK_DEBUG("Checking flash done\r\n");
@@ -438,7 +440,8 @@ clock_state_t *clock_init(void)
 
 int clock_start(clock_state_t *state)
 {
-    wifi_error_t wifi_status = connect_to_wifi(state, state->clock_config.wifi_ssid, state->clock_config.wifi_password);
+    wifi_error_t wifi_status =
+        connect_to_wifi(state->clock_config.wifi_ssid, state->clock_config.wifi_password, &state->wifi_initialized);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
