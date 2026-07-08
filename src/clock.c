@@ -333,10 +333,8 @@ void clock_task(clock_state_t *state)
     }
 }
 
-int config_store_handler(void *arg, bool invalidate)
+bool config_store_handler(struct clock_config_t *config, bool invalidate)
 {
-    clock_config_t *config = (clock_config_t *)arg;
-
     config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
 
     uint8_t flash_buf[FLASH_PAGE_SIZE];
@@ -352,7 +350,7 @@ int config_store_handler(void *arg, bool invalidate)
         system_reboot(); // will not return
 
     CLOCK_DEBUG("Stored new config in flash\r\n");
-    return 0;
+    return true;
 }
 
 clock_state_t *clock_init(void)

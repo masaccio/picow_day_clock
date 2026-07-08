@@ -677,27 +677,25 @@ static char *config_post_url(const char *ssid, const char *pwd, const char *ntp,
 // ============================================================================
 
 static int config_save_count = 0;
-static clock_config_t last_config;
 
-static int mock_store_config_success(void *arg, bool invalidate)
+static struct clock_config_t last_config;
+static bool mock_store_config_success(struct clock_config_t *config, bool invalidate)
 {
-    clock_config_t *config = (clock_config_t *)arg;
     (void)invalidate;
     config_save_count++;
     last_config = *config;
-    return 0; // Return success
+    return true; // Return success
 }
 
-static int mock_store_config_fail_then_success(void *arg, bool invalidate)
+static bool mock_store_config_fail_then_success(struct clock_config_t *config, bool invalidate)
 {
-    clock_config_t *config = (clock_config_t *)arg;
     (void)invalidate;
     config_save_count++;
     if (config_save_count == 1) {
-        return -1; // Simulate a Flash write failure on first try
+        return false;
     }
     last_config = *config;
-    return 0; // Succeed on subsequent tries
+    return true;
 }
 
 static void reset_wifi_test_state(void)

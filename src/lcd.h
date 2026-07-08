@@ -2,6 +2,10 @@
 
 #include <stdint.h>
 
+#include "ntp.h"
+#include "watchdog.h"
+#include "wifi.h"
+
 // --- LCD Hardware Configuration ---
 #define LCD_GPIO_CS_BASE (uint16_t)2      // LCD 1 chip select
 #define LCD1_GPIO_CS LCD_GPIO_CS_BASE     // LCD 1 chip select

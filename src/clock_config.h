@@ -51,7 +51,7 @@ typedef enum
     DST_RULE_IL
 } dst_rule_t;
 
-typedef struct
+typedef struct clock_config_t
 {
     uint32_t magic_marker;
     char wifi_ssid[WIFI_SSID_MAX_LEN + 1];

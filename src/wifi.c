@@ -348,8 +348,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
             }
         }
 
-        // Pass structured variables down into your custom configuration callback
-        if (con_state->store_config(&config, 0 /* !invalidate */) == 0) {
+        if (con_state->store_config(&config, /* invalidate */ 0)) {
             const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
             tcp_write(pcb, success_msg, (u16_t)strlen(success_msg), 0);
             con_state->server_state->complete = true;
@@ -398,7 +397,7 @@ void *create_test_config(void *arg)
     static tcp_connect_state_t *state;
     state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
     state->server_state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
-    state->store_config = (int (*)(void *config, bool invalidate))arg;
+    state->store_config = (store_config_handler_t)arg;
     return (void *)state;
 }
 
@@ -422,7 +421,7 @@ void free_test_config(void *arg)
 }
 #endif
 
-wifi_error_t start_wifi_access_point(int (*store_config)(void *, bool), bool *wifi_initialized)
+wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *wifi_initialized)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 

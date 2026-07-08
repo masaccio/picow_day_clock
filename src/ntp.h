@@ -1,6 +1,13 @@
 #pragma once
 
 #include <stdint.h>
+#include <time.h>
+
+#ifndef TEST_MODE
+#include "lwip/ip_addr.h"
+#else
+#include "mock.h"
+#endif
 
 typedef enum
 {

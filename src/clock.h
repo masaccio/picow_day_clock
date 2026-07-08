@@ -62,7 +62,7 @@ extern time_t tm_to_epoch(struct tm *tm);
 // Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
-extern int config_store_handler(void *config, bool invalidate);
+extern bool config_store_handler(struct clock_config_t *config, bool invalidate);
 extern void clock_task(clock_state_t *state);
 
 // Core clock routines

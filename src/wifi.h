@@ -1,6 +1,17 @@
 #pragma once
 
-#include "clock_config.h"
+#ifndef TEST_MODE
+#include "lwip/err.h"
+#include "lwip/ip_addr.h"
+#else
+#include "mock.h"
+#endif
+
+#include "config.h"
+
+struct clock_config_t;
+
+typedef bool (*store_config_handler_t)(struct clock_config_t *config, bool invalidate);
 
 typedef enum
 {
@@ -17,7 +28,7 @@ typedef struct
     struct tcp_pcb *server_pcb;
     bool complete;
     ip_addr_t gw;
-    int (*store_config)(void *, bool);
+    store_config_handler_t store_config;
     int active_connections;
 } tcp_server_t;
 
@@ -30,13 +41,13 @@ typedef struct
     int header_len;
     int result_len;
     ip_addr_t *gw;
-    int (*store_config)(void *, bool);
+    store_config_handler_t store_config;
     tcp_server_t *server_state;
 } tcp_connect_state_t;
 
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[], bool *wifi_initialized);
 
-extern wifi_error_t start_wifi_access_point(int (*store_config)(void *, bool), bool *wifi_initialized);
+extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *wifi_initialized);
 
 extern const char *wifi_error_to_string(wifi_error_t status);
 
