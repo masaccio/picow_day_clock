@@ -13,6 +13,7 @@
 #endif
 
 #include "config.h"
+#include "lcd.h"
 
 #ifdef CLOCK_DEBUG_ENABLED
 #ifdef TEST_MODE
@@ -28,19 +29,6 @@ extern int test_printf(const char *format, ...) __attribute__((format(printf, 1,
 #define STATUS_CASE(STATUS)                                                                                            \
     case STATUS:                                                                                                       \
         return #STATUS;
-
-// Whilst the display is capable of many more colors, we limit our bitmaps to 4-bit
-// color to save memory
-typedef enum
-{
-    BLACK = 0x00,
-    RED = 0x01,
-    GREEN = 0x02,
-    CYAN = 0x03
-} color_t;
-
-#define BG_COLOR BLACK
-#define FG_COLOR GREEN
 
 typedef enum
 {
@@ -118,20 +106,6 @@ typedef struct
 } clock_config_t;
 
 typedef int (*store_config_handler_t)(clock_config_t *config, int invalidate);
-
-typedef struct lcd_state_t
-{
-    // GPIO config
-    uint16_t RST_gpio;
-    uint16_t DC_gpio;
-    uint16_t BL_gpio;
-    uint16_t CS_gpio;
-    uint16_t CLK_gpio;
-    uint16_t MOSI_gpio;
-    // Additional config
-    uint16_t width;
-    uint16_t height;
-} lcd_state_t;
 
 typedef void (*ntp_time_handler_t)(void *state, time_t *time);
 
