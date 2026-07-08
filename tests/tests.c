@@ -813,24 +813,46 @@ static int test_wifi_ap_limits(void)
     ASSERT_WITH_MESSAGE(accepted_count, TCP_IP_MAX_CONNECTIONS, "Gatekeeper failed: allowed too many connections!");
     ASSERT_WITH_MESSAGE(rejected_count, 2, "Gatekeeper failed: did not abort excess connections!");
 
+    // Send data in chunks
     tcp_connect_state_t con_state = {0};
+    struct pbuf p1 = {0};
+    char chunk1[256];
+    snprintf(chunk1, sizeof(chunk1),
+             "POST / HTTP/1.1\r\n"
+             "Content-Length: %d\r\n"
+             "\r\n"
+             "ssid=Overflow&pad=",
+             TCP_IP_BUFFER_SIZE + 1000);
 
-    // Create a massive fake pbuf chain (e.g., 3000 bytes of 'A')
-    struct pbuf mock_pbuf;
-    char massive_payload[TCP_IP_BUFFER_SIZE * 2];
-    memset(massive_payload, 'A', sizeof(massive_payload));
-    massive_payload[TCP_IP_BUFFER_SIZE * 2 - 1] = '\0';
+    memcpy(&p1.payload, chunk1, sizeof(chunk1));
+    p1.tot_len = (u16_t)sizeof(chunk1);
+    p1.len = p1.tot_len;
 
-    mock_pbuf.tot_len = TCP_IP_BUFFER_SIZE * 2;
-    memcpy(mock_pbuf.payload, massive_payload, TCP_IP_BUFFER_SIZE);
+    err_t res1 = tcp_server_recv(&con_state, NULL, &p1, ERR_OK);
 
-    err_t result = tcp_server_recv(&con_state, /*pcb=*/NULL, &mock_pbuf, ERR_OK);
+    ASSERT_WITH_MESSAGE(res1, ERR_OK, "Chunk 1 should return ERR_OK (waiting for more data)");
+    ASSERT_WITH_MESSAGE(strlen(con_state.headers), strlen(chunk1), "Chunk 1 copied to buffer");
 
-    ASSERT_WITH_MESSAGE(result, ERR_OK, "Large payload handled");
+    struct pbuf p2 = {0};
+    char chunk2[TCP_IP_BUFFER_SIZE];
+    memset(chunk2, 'A', sizeof(chunk2)); // Fill with 'A's
 
-    // Assert that the buffer capped at our new 1024 byte limit (minus null terminator)
+    memcpy(&p2.payload, chunk2, sizeof(chunk2));
+    p2.tot_len = (u16_t)sizeof(chunk2);
+    p2.len = p2.tot_len;
+
+    err_t res2 = tcp_server_recv(&con_state, NULL, &p2, ERR_OK);
+
+    // 4. Verify the protections worked
+    ASSERT_WITH_MESSAGE(res2, ERR_OK, "Chunk 2 returns ERR_OK");
+
+    // Ensure we didn't exceed the buffer size (leaving 1 byte for the null terminator)
     ASSERT_WITH_MESSAGE(strlen(con_state.headers), TCP_IP_BUFFER_SIZE - 1,
-                        "Buffer overflowed or truncated   incorrectly!");
+                        "Buffer should cap exactly at TCP_IP_BUFFER_SIZE - 1");
+
+    // Ensure the truncation actually captured the 'A's from the second chunk
+    ASSERT_WITH_MESSAGE(con_state.headers[TCP_IP_BUFFER_SIZE - 2], 'A',
+                        "Buffer should end with the truncated data from Chunk 2");
 
     return 0;
 }

@@ -298,13 +298,19 @@ void sleep_ms(uint32_t ms)
         if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
             mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_next_fire_time) {
 
-            // Pass the LISTEN arg to accept, and provide the CONN pcb
+            // If the server left the previous connection open, simulate the client closing
+            // the socket BEFORE we reuse the PCB for the next request.
+            if (mock_conn_arg != NULL && mock_ctx.sim.tcp_recv_cb) {
+                // Sending pbuf = NULL is the lwIP standard for "Client Disconnected"
+                mock_ctx.sim.tcp_recv_cb(mock_conn_arg, &mock_conn_pcb, NULL, ERR_OK);
+            }
+
             err_t accept_err = mock_ctx.sim.tcp_accept_cb(mock_listen_arg, &mock_conn_pcb, ERR_OK);
 
-            // Only deliver the payload if the server actually accepted the connection
             if (accept_err == ERR_OK && mock_ctx.sim.tcp_recv_cb) {
                 struct pbuf p;
                 memset(&p, 0, sizeof(p));
+
                 strncpy((char *)p.payload, mock_payloads[mock_ctx.sim.tcp_payload_idx], sizeof(p.payload) - 1);
                 p.tot_len = (u16_t)strlen((char *)p.payload);
                 p.len = p.tot_len;
@@ -313,7 +319,8 @@ void sleep_ms(uint32_t ms)
                 mock_ctx.sim.tcp_recv_cb(mock_conn_arg, &mock_conn_pcb, &p, ERR_OK);
             }
 
-            mock_ctx.sim.tcp_payload_idx++; // Advance regardless of success to prevent infinite loops
+            // Advance the context index
+            mock_ctx.sim.tcp_payload_idx++;
             mock_ctx.sim.tcp_next_fire_time = mock_ctx.spy.system_time_ms + 100;
         }
 
