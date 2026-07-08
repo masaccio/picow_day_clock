@@ -647,7 +647,7 @@ static char *config_post_url(const char *ssid, const char *pwd, const char *ntp,
         max_len -= (size_t)len;
     }
     if (dst) {
-        char *dst_str = dst_rule_str[dst % sizeof(dst_rule_str)];
+        char *dst_str = dst_rule_str[dst % 7];
         int len = snprintf(body_ptr, max_len, "&dst=%s", dst_str);
         body_ptr += len;
         max_len -= (size_t)len;
