@@ -17,22 +17,20 @@ void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp
 
 void on_clock_alloc_failed(void)
 {
-    // TODO: blink an LED to indicate startup has failed
-    // while (1) {
-    //     gpio_xor_mask(1 << LED_PIN);
-    //     sleep_ms(100);
-    // }
+    while (1) {
+        gpio_xor_mask(1 << DIAGNOSTIC_LED_GPIO);
+        sleep_ms(100);
+    }
 }
 
 void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
 {
     (void)state;
     (void)lcd_num;
-    // TODO: blink an LED to indicate startup has failed
-    // while (1) {
-    //     gpio_xor_mask(1 << LED_PIN);
-    //     sleep_ms(100);
-    // }
+    while (1) {
+        gpio_xor_mask(1 << DIAGNOSTIC_LED_GPIO);
+        sleep_ms(100);
+    }
 }
 
 int main(void)
@@ -50,7 +48,7 @@ int main(void)
         if (state->ap_mode_triggered) {
             state->ap_mode_triggered = 0;
             start_wifi_access_point(config_store_handler, &state->wifi_initialized);
-            reboot();
+            system_reboot();
         }
 
         // Yield to allow  handling of 1Hz tick and NTP responses

@@ -62,3 +62,11 @@ typedef struct
     uint32_t ntp_timeout;
     uint16_t ntp_port;
 } clock_config_t;
+
+extern persistent_state_t persistent_state;
+
+#ifndef TEST_MODE
+#define NO_RETURN_FUNC __attribute__((noreturn))
+#else
+#define NO_RETURN_FUNC
+#endif

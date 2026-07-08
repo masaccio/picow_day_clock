@@ -53,10 +53,11 @@ typedef struct clock_state_t
     bool wifi_initialized; // Ensures cyw43_arch_init() is not called multiple times
 } clock_state_t;
 
-// Clock functions and state that are shared with the test harness
-extern err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err);
-extern persistent_state_t persistent_state;
+// Clock internal functions and state that are shared with the test harness
 extern int day_of_week(int day, int month, int year);
+extern const char *time_as_string(time_t t, clock_state_t *state);
+extern int time_is_dst(time_t utc_now, clock_state_t *state);
+extern time_t tm_to_epoch(struct tm *tm);
 
 // Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);
@@ -64,24 +65,12 @@ extern void ntp_timer_callback(void *state, time_t *ntp_time);
 extern int config_store_handler(void *config, bool invalidate);
 extern void clock_task(clock_state_t *state);
 
-extern void on_clock_alloc_failed(void);
-
-extern void on_lcd_init_failed(clock_state_t *state, unsigned int lcd_num);
-
-extern int time_is_dst(time_t utc_now, clock_state_t *state);
-
-extern time_t tm_to_epoch(struct tm *tm);
-
-extern const char *time_as_string(time_t t, clock_state_t *state);
-
-#ifdef TEST_MODE
-extern void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);
-#else
-extern void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);
-#endif
-
+// Core clock routines
 clock_state_t *clock_init(void);
-
 extern int clock_start(clock_state_t *);
 
-extern void reboot(void);
+// Terminal errors that cannot be recovered from
+extern void NO_RETURN_FUNC on_clock_alloc_failed(void);
+extern void NO_RETURN_FUNC on_lcd_init_failed(clock_state_t *state, unsigned int lcd_num);
+extern void NO_RETURN_FUNC system_reboot(void);
+extern void NO_RETURN_FUNC fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);

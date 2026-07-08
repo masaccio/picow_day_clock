@@ -117,7 +117,7 @@ The pinout for the LCD is defined in `config.h` using a series of C macros `LCD1
 | Shared backlight (BL)    | GP13      | 17  | XXXXX | 24  | GP18      |                         |
 |                          | GND       | 18  | XXXXX | 23  | GND       |                         |
 | Shared data/command (DC) | GP14      | 19  | XXXXX | 22  | GP17      |                         |
-|                          | GP15      | 20  | XXXXX | 21  | GP16      |                         |
+| Diagnostic LED           | GP15      | 20  | XXXXX | 21  | GP16      |                         |
 
 ## Electrical Design
 

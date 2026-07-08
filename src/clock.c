@@ -41,7 +41,7 @@ static time_t get_atomic_time(clock_state_t *state)
     return safe_time;
 }
 
-void reboot(void)
+void system_reboot(void)
 {
     CLOCK_DEBUG("Rebooting\r\n");
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
@@ -349,7 +349,7 @@ int config_store_handler(void *arg, bool invalidate)
     restore_interrupts(interrupts);
 
     if (invalidate)
-        reboot(); // will not return
+        system_reboot(); // will not return
 
     CLOCK_DEBUG("Stored new config in flash\r\n");
     return 0;
@@ -428,7 +428,7 @@ clock_state_t *clock_init(void)
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
         start_wifi_access_point(config_store_handler, &state->wifi_initialized);
-        reboot();
+        system_reboot();
     }
     CLOCK_DEBUG("Checking flash done\r\n");
 

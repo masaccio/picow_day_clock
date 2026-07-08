@@ -1,7 +1,7 @@
 #pragma once
 
-#define FACTORY_RESET_GPIO (uint16_t)9 // Factor reset enable (Wi-Fi AP)
-
+#define FACTORY_RESET_GPIO (uint16_t)9        // Factory reset enable (Wi-Fi AP)
+#define DIAGNOSTIC_LED_GPIO (uint16_t)15      // LED driver for fatal errors
 #define FACTORY_RESET_HOLD_TIME_MS 3000       // How long the factory reset button must be held for
 #define HTTP_POLL_TIME_SEC 5                  // How long to allow a connection to idle
 #define HTTP_TCP_PORT 80                      // Found in the SDK, but define here for portability to the host tests
