@@ -781,7 +781,7 @@ static int test_wifi_config_urls(void)
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_IL, "IL DST config");
 
     reset_wifi_test_state();
-    mock_queue_tcp_payload(config_post_url(NULL, NULL, NULL, 0, (dst_rule_t)0xff, 0, 0));
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 7\r\n\r\ndst=bad");
     start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
 
