@@ -90,7 +90,7 @@
       border-color: #007bff;
     }
     
-    /* Checkbox & DST Row */
+    /* Checkbox  */
     .checkbox-group {
       display: flex;
       align-items: center; /* Vertically center the box and text */
@@ -190,7 +190,7 @@
       <select id="dst" name="dst">
         <option value="NONE" selected>None / Does Not Observe</option>
         <option value="NA">North America (2nd Sun Mar - 1st Sun Nov)</option>
-        <option value="EU" selected>Europe / UK (Last Sun Mar - Last Sun Oct)</option>
+        <option value="EU">Europe / UK (Last Sun Mar - Last Sun Oct)</option>
         <option value="AU">Australia (1st Sun Oct - 1st Sun Apr)</option>
         <option value="NZ">New Zealand (Last Sun Sep - 1st Sun Apr)</option>
         <option value="CL">Chile (1st Sat Sep - 1st Sat Apr)</option>
@@ -209,6 +209,12 @@
 
       <label for="cto">NTP Connection Timeout (ms)</label>
       <input type="number" id="cto" name="cto" value="10000">
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="led_on" name="led_on" value="1" checked>
+        <label for="led_on">LED always on</label>
+      </div>
+
     </fieldset>
 
     <button type="submit">Save & Reboot</button>

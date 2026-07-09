@@ -6,6 +6,9 @@
 
 #include "clock.h"
 #include "mock.h"
+#include "ntp.h"
+#include "watchdog.h"
+#include "wifi.h"
 
 #define LOG_BUFFER_SIZE 256
 

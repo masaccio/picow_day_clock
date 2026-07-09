@@ -61,6 +61,7 @@ typedef struct clock_config_t
     dst_rule_t dst_rule;
     uint32_t ntp_timeout;
     uint16_t ntp_port;
+    bool led_always_on;
 } clock_config_t;
 
 extern persistent_state_t persistent_state;

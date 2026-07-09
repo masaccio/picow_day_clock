@@ -33,13 +33,25 @@ void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
     }
 }
 
+bool startup_led_callback(struct repeating_timer *t)
+{
+    (void)t;
+    gpio_xor_mask(1 << DIAGNOSTIC_LED_GPIO);
+    return true;
+}
+
 int main(void)
 {
     clock_state_t *state = clock_init();
     if (!state)
         return 1;
 
-    // Sets up WiFi, NTP, and the repeating hardware timer
+    gpio_init(DIAGNOSTIC_LED_GPIO);
+    gpio_set_dir(DIAGNOSTIC_LED_GPIO, GPIO_OUT);
+    struct repeating_timer startup_led_timer;
+    bool startup_led_active = true;
+    add_repeating_timer_ms(-385, startup_led_callback, NULL, &startup_led_timer);
+
     int status = clock_start(state);
 
     while (1) {
@@ -51,7 +63,12 @@ int main(void)
             system_reboot();
         }
 
-        // Yield to allow  handling of 1Hz tick and NTP responses
+        if (startup_led_active && state->ntp_state->status == NTP_IDLE) {
+            cancel_repeating_timer(&startup_led_timer);
+            gpio_put(DIAGNOSTIC_LED_GPIO, state->clock_config.led_always_on);
+            startup_led_active = false;
+        }
+
         sleep_ms(10);
     }
 

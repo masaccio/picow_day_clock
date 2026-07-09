@@ -296,6 +296,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
         config.dst_rule = DST_RULE_NONE;
         config.ntp_timeout = NTP_DEFAULT_TIMEOUT_MS;
         config.ntp_port = NTP_DEFAULT_PORT;
+        config.led_always_on = false; // When unchecked the parameter will not be in the POST URL
         strncpy(config.ntp_server, NTP_DEFAULT_SERVER, sizeof(config.ntp_server) - 1);
 
         char *body = strstr(request, "\r\n\r\n");
@@ -342,6 +343,8 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                         config.ntp_timeout = (uint32_t)atoi(value);
                     } else if (strcmp(key, "port") == 0) {
                         config.ntp_port = (uint16_t)atoi(value);
+                    } else if (strcmp(key, "led_on") == 0) {
+                        config.led_always_on = *value == '1';
                     }
                 }
                 pair = strtok_r(NULL, "&", &saveptr);
