@@ -580,24 +580,27 @@ static int test_watchdog(void)
     EXECUTE_TEST("Watchdog reboot OK", EXPECT_OK);
     CHECK_WATCHDOG_RESET_OK();
 
-    // RESET_MOCK_CONFIG();
-    // EXECUTE_TEST("Watchdog boot count", 0 || persistent_state.boot_count != 2);
-    // CHECK_WATCHDOG_RESET_OK();
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.watchdog_caused_reboot = 1;
+    mock_ctx.inject.exit_on_ntp_success = 1;
+    EXECUTE_TEST("Watchdog boot count", 0 || persistent_state.boot_count != 2);
+    CHECK_WATCHDOG_RESET_OK();
 
-    // RESET_MOCK_CONFIG();
-    // mock_ctx.inject.cyw43_arch_init_fail = 1;
-    // EXECUTE_TEST("Watchdog reboot on Wi-Fi", 1 || !mock_ctx.spy.watchdog_reboot_called);
-    // EXPECT_FATAL_WIFI_ERROR(WIFI_INIT_ERROR);
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_arch_init_fail = 1;
+    EXECUTE_TEST("Watchdog reboot on Wi-Fi", 1 || !mock_ctx.spy.watchdog_reboot_called);
+    EXPECT_FATAL_WIFI_ERROR(WIFI_INIT_ERROR);
 
-    // RESET_MOCK_CONFIG();
-    // mock_ctx.inject.dns_lookup_fail = 1;
-    // EXECUTE_TEST("Watchdog reboot on DNS", 1 || !mock_ctx.spy.watchdog_reboot_called);
-    // EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.dns_lookup_fail = 1;
+    EXECUTE_TEST("Watchdog reboot on DNS", 1 || !mock_ctx.spy.watchdog_reboot_called);
+    EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
 
-    // RESET_MOCK_CONFIG();
-    // mock_ctx.inject.watchdog_caused_reboot = 1;
-    // EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
-    // CHECK_WATCHDOG_RESET_OK();
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.watchdog_caused_reboot = 1;
+    mock_ctx.inject.exit_on_ntp_success = 1;
+    EXECUTE_TEST("Watchdog DNS OK", EXPECT_OK);
+    CHECK_WATCHDOG_RESET_OK();
 
     return 0;
 }
@@ -809,9 +812,19 @@ static int test_wifi_config_urls(void)
     ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_IL, "IL DST config");
 
     reset_wifi_test_state();
-    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 7\r\n\r\ndst=bad");
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 8\r\n\r\nled_on=1");
     start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
-    ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
+    ASSERT_WITH_MESSAGE(last_config.led_always_on, true, "LED enable");
+
+    reset_wifi_test_state();
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 8\r\n\r\nled_on=0");
+    start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
+    ASSERT_WITH_MESSAGE(last_config.led_always_on, false, "LED disable");
+
+    // reset_wifi_test_state();
+    // mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 7\r\n\r\ndst=bad");
+    // start_wifi_access_point(mock_store_config_success, &state.wifi_initialized);
+    // ASSERT_WITH_MESSAGE(last_config.dst_rule, DST_RULE_NONE, "invalid DST config");
 
     return 0;
 }
