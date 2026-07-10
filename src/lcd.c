@@ -55,10 +55,10 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
         return NULL;
     }
 
-    state->RST_gpio = LCD_GPIO_RST;
+    state->RST_N_gpio = LCD_GPIO_RST_N;
     state->DC_gpio = LCD_GPIO_DC;
     state->BL_gpio = LCD_GPIO_BL;
-    state->CS_gpio = LCD_GPIO_CS_BASE + lcd_num;
+    state->CS_N_gpio = LCD_GPIO_CS_N_BASE + lcd_num;
     state->CLK_gpio = LCD_GPIO_CLK;
     state->MOSI_gpio = LCD_GPIO_MOSI;
 
@@ -149,17 +149,17 @@ void lcd_init_peripherals(lcd_state_t *state, int reset)
     gpio_set_function(state->MOSI_gpio, GPIO_FUNC_SPI);
 
     if (reset) {
-        gpio_init(state->RST_gpio);
-        gpio_set_dir(state->RST_gpio, GPIO_OUT);
+        gpio_init(state->RST_N_gpio);
+        gpio_set_dir(state->RST_N_gpio, GPIO_OUT);
     }
     gpio_init(state->DC_gpio);
     gpio_set_dir(state->DC_gpio, GPIO_OUT);
-    gpio_init(state->CS_gpio);
-    gpio_set_dir(state->CS_gpio, GPIO_OUT);
+    gpio_init(state->CS_N_gpio);
+    gpio_set_dir(state->CS_N_gpio, GPIO_OUT);
     gpio_init(state->BL_gpio);
     gpio_set_dir(state->BL_gpio, GPIO_OUT);
 
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
     gpio_put(state->DC_gpio, 0);
     gpio_put(state->BL_gpio, 1);
 
@@ -184,11 +184,11 @@ void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 // Cycle reset for all displays
 static void lcd_reset(lcd_state_t *state)
 {
-    gpio_put(state->RST_gpio, 1);
+    gpio_put(state->RST_N_gpio, 1);
     sleep_ms(100);
-    gpio_put(state->RST_gpio, 0);
+    gpio_put(state->RST_N_gpio, 0);
     sleep_ms(100);
-    gpio_put(state->RST_gpio, 1);
+    gpio_put(state->RST_N_gpio, 1);
     sleep_ms(100);
 }
 
@@ -196,18 +196,18 @@ static void lcd_reset(lcd_state_t *state)
 static void st7789_command(lcd_state_t *state, uint8_t reg)
 {
     gpio_put(state->DC_gpio, 0);
-    gpio_put(state->CS_gpio, 0);
+    gpio_put(state->CS_N_gpio, 0);
     spi_write_blocking(spi1, &reg, 1);
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
 }
 
 // Select an LCD and send a data byte
 static void st7789_data_byte(lcd_state_t *state, uint8_t data)
 {
     gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    gpio_put(state->CS_N_gpio, 0);
     spi_write_blocking(spi1, &data, 1);
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
 }
 
 static void st7789_init(lcd_state_t *state)
@@ -325,7 +325,7 @@ void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, 
 {
     st7789_set_command_windows(state, x_start, y_start, width, height);
     gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    gpio_put(state->CS_N_gpio, 0);
 
     uint8_t linebuf[LCD_WIDTH * 2];
     for (uint16_t x = 0; x < width; x++) {
@@ -336,7 +336,7 @@ void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, 
     for (uint16_t j = 0; j < height; j++) {
         spi_write_blocking(spi1, (uint8_t *)linebuf, width * 2);
     }
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
     st7789_command(state, 0x29); // DISPON (Display On)
 }
 
@@ -355,7 +355,7 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
 
     st7789_set_command_windows(state, x_point, y_point, font_width, font->height);
     gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    gpio_put(state->CS_N_gpio, 0);
 
     for (uint16_t glyph_row = 0; glyph_row < font->height; glyph_row++) {
         for (uint16_t glyph_column = 0; glyph_column < font_width; glyph_column++) {
@@ -372,7 +372,7 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
         ptr += font->byte_width;
     }
 
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
     st7789_command(state, 0x29); // DISPON (Display On)
 
     return font_width;
@@ -385,7 +385,7 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
 
     st7789_set_command_windows(state, x_start, y_start, image_width, image_height);
     gpio_put(state->DC_gpio, 1);
-    gpio_put(state->CS_gpio, 0);
+    gpio_put(state->CS_N_gpio, 0);
 
     int bytes_per_row = (image_width + 7) / 8;
 
@@ -403,6 +403,6 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
         }
         spi_write_blocking(spi1, (uint8_t *)linebuf, image_width * 2);
     }
-    gpio_put(state->CS_gpio, 1);
+    gpio_put(state->CS_N_gpio, 1);
     st7789_command(state, 0x29); // DISPON (Display On)
 }
