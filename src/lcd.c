@@ -218,7 +218,7 @@ static void st7789_init(lcd_state_t *state)
     sleep_ms(120);
 
     st7789_command(state, 0x36); // MADCTL (Memory Data Access Control)
-    st7789_data_byte(state, /* MADCTL_MX */ 0x40 | /* MADCTL_MY */ 0x80);
+    st7789_data_byte(state, 0x00);
 
     st7789_command(state, 0x3A); // COLMOD (Interface Pixel Format)
     st7789_data_byte(state, 0x05);
