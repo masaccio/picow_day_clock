@@ -425,7 +425,7 @@ clock_state_t *clock_init(void)
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
         lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
-        start_wifi_access_point(config_store_handler, &state->wifi_initialized);
+        start_wifi_access_point(NULL, config_store_handler, &state->wifi_initialized);
         system_reboot();
     }
     CLOCK_DEBUG("Checking flash done\r\n");

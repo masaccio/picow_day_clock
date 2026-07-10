@@ -29,6 +29,9 @@ typedef struct
     bool complete;
     ip_addr_t gw;
     store_config_handler_t store_config;
+    struct flash_config_t *flash_config;
+    char *form_html;
+    u16_t form_html_len;
     int active_connections;
 } tcp_server_t;
 
@@ -42,12 +45,16 @@ typedef struct
     int result_len;
     ip_addr_t *gw;
     store_config_handler_t store_config;
+    struct flash_config_t *flash_config;
+    char *form_html;
+    u16_t form_html_len;
     tcp_server_t *server_state;
 } tcp_connect_state_t;
 
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[], bool *wifi_initialized);
 
-extern wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *wifi_initialized);
+extern wifi_error_t start_wifi_access_point(struct flash_config_t *flash_config, store_config_handler_t store_config,
+                                            bool *wifi_initialized);
 
 extern const char *wifi_error_to_string(wifi_error_t status);
 

@@ -126,6 +126,56 @@
     button:active {
       background-color: #0056b3;
     }
+    /* Container for the input to anchor the tooltip */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 20px; /* Space between fields */
+    }
+
+    /* Flex container to hold the label and the character limit hint */
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    
+    .label-row label {
+      margin-bottom: 0; /* Overrides global label margin */
+    }
+    
+    .char-hint {
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* Show Password Toggle Styling */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start; /* Locks it to the left edge */
+      margin-top: 6px; /* Clean, predictable spacing below the input */
+      margin-bottom: 0px;
+    }
+    
+    .toggle-row input[type="checkbox"] {
+      /* Force strict dimensions so iOS/Android don't warp it */
+      width: 16px !important; 
+      height: 16px !important;
+      margin: 0 8px 0 0 !important; /* Exactly 8px of space before the text */
+      padding: 0;
+      cursor: pointer;
+      accent-color: #007bff; /* Gives it a modern blue tint if supported */
+    }
+    
+    .toggle-label {
+      font-size: 13px;
+      color: #666;
+      font-weight: normal;
+      margin: 0 !important; /* Overrides any global label spacing */
+      cursor: pointer;
+      user-select: none; /* Prevents the text from highlighting if tapped twice */
+    }
   </style>
 </head>
 <body>
@@ -135,11 +185,25 @@
     <fieldset>
       <legend>Wi-Fi Network</legend>
       
-      <label for="ssid">Network Name (SSID)</label>
-      <input type="text" id="ssid" name="ssid" required>
+      <div class="label-row">
+        <label for="ssid">Network Name (SSID)</label>
+        <span class="char-hint">Max {DEFINE:WIFI_SSID_MAX_LEN} characters</span>
+      </div>
+      <input type="text" id="ssid" name="ssid" maxlength="{DEFINE:WIFI_SSID_MAX_LEN}" 
+       value="{TEMPLATE:SSID}" required>
 
-      <label for="pwd">Password</label>
-      <input type="password" id="pwd" name="pwd" required>
+      <div class="label-row">
+        <label for="pwd">Password</label>
+        <span class="char-hint">Max {DEFINE:WIFI_PASSWORD_MAX_LEN} characters</span>
+      </div>
+      <input type="password" id="pwd" name="pwd" maxlength="{DEFINE:WIFI_PASSWORD_MAX_LEN}" 
+       value="{TEMPLATE:PWD}" required>
+
+       <div class="toggle-row">
+        <input type="checkbox" id="show_pwd" 
+         onclick="document.getElementById('pwd').type = this.checked ? 'text' : 'password'">
+        <label for="show_pwd" class="toggle-label">Show password</label>
+      </div>
     </fieldset>
 
     <fieldset>
@@ -201,8 +265,11 @@
     <fieldset>
       <legend>Advanced Settings</legend>
       
-      <label for="ntp">NTP Time Server</label>
-      <input type="text" id="ntp" name="ntp" value="pool.ntp.org">
+      <div class="label-row">
+        <label for="ntp">NTP Time Server</label>
+        <span class="char-hint">Max {DEFINE:HOSTNAME_MAX_LEN} characters</span>
+      </div>
+      <input type="text" id="ntp" name="ntp" maxlength="{DEFINE:HOSTNAME_MAX_LEN}" value="{TEMPLATE:NTP}">
 
       <label for="port">NTP Port</label>
       <input type="number" id="port" name="port" value="123">

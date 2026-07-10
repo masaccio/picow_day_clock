@@ -39,7 +39,7 @@ typedef struct clock_state_t
 
     // Timer state
     repeating_timer_t timer;
-    flash_config_t flash_config;
+    struct flash_config_t flash_config;
 
     // Why watchdog reset happened
     int cold_boot;

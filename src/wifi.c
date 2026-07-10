@@ -12,7 +12,9 @@
 #include "test.h"
 #endif
 
+#include <ctype.h>
 #include <string.h>
+#include <strings.h>
 
 // Local includes
 #include "clock.h"
@@ -161,6 +163,9 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         return ERR_MEM;
     }
     con_state->store_config = state->store_config;
+    con_state->flash_config = state->flash_config;
+    con_state->form_html = state->form_html;
+    con_state->form_html_len = state->form_html_len;
     con_state->server_state = state;
     con_state->pcb = client_pcb; // for checking
     con_state->gw = &state->gw;
@@ -245,6 +250,52 @@ static void urldecode_inplace(char *str)
     *dst = '\0';
 }
 
+static err_t expand_html_template(const char *buffer, char *buffer_out, struct flash_config_t *flash_config)
+{
+    // 1. Initialize destination with the original HTML
+    strcpy(buffer_out, buffer);
+
+    char *curr = buffer_out;
+    while ((curr = strstr(curr, "{TEMPLATE:")) != NULL) {
+        char *start = curr;
+        char *end = strchr(start, '}');
+
+        if (!end)
+            ERR_ABRT;
+
+        // Template looks like: {TEMPLATE:KEY}
+        char *key_start = start + 10;
+        size_t key_len = (size_t)(end - key_start);
+
+        char *replacement = ""; // Default for unknown keys
+
+        if (flash_config) {
+            if (strncasecmp(key_start, "ssid", key_len) == 0) {
+                replacement = flash_config->wifi_ssid;
+            } else if (strncasecmp(key_start, "pwd", key_len) == 0) {
+                replacement = flash_config->wifi_password;
+            } else if (strncasecmp(key_start, "ntp", key_len) == 0) {
+                replacement = flash_config->ntp_server;
+            }
+        }
+
+        size_t repl_len = strlen(replacement);
+
+        // Move the remainder of the buffer to make space/close gaps
+        // memmove handles overlapping memory safely
+        char *tail = end + 1;
+        memmove(start + repl_len, tail, strlen(tail) + 1);
+
+        // Copy replacement into the hole
+        memcpy(start, replacement, repl_len);
+
+        // Advance current pointer past the inserted value
+        curr = start + repl_len;
+    }
+
+    return ERR_OK;
+}
+
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
     (void)err;
@@ -293,11 +344,15 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     // Route A: Form submitted with new configuration parameters
     if (strncmp(request, "POST ", 5) == 0) {
         flash_config_t config = {0};
-        config.dst_rule = DST_RULE_NONE;
-        config.ntp_timeout = NTP_DEFAULT_TIMEOUT_MS;
-        config.ntp_port = NTP_DEFAULT_PORT;
-        config.led_always_on = false; // When unchecked the parameter will not be in the POST URL
-        strncpy(config.ntp_server, NTP_DEFAULT_SERVER, sizeof(config.ntp_server) - 1);
+        if (con_state->flash_config) {
+            memcpy(&config, con_state->flash_config, sizeof(flash_config_t));
+        } else {
+            config.dst_rule = DST_RULE_NONE;
+            config.ntp_timeout = NTP_DEFAULT_TIMEOUT_MS;
+            config.ntp_port = NTP_DEFAULT_PORT;
+            config.led_always_on = false; // When unchecked the parameter will not be in the POST URL
+            strncpy(config.ntp_server, NTP_DEFAULT_SERVER, sizeof(config.ntp_server) - 1);
+        }
 
         char *body = strstr(request, "\r\n\r\n");
         if (body) {
@@ -364,10 +419,10 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
              strncmp(request, "GET / ", 6) == 0) {
         con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER);
-        con_state->result_len = (int)form_html_len;
+        con_state->result_len = (int)con_state->form_html_len;
 
         tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, TCP_WRITE_FLAG_MORE);
-        tcp_write(pcb, form_html, (u16_t)form_html_len, 0);
+        tcp_write(pcb, con_state->form_html, (u16_t)con_state->form_html_len, 0);
     }
     // Route C: Background OS pages / captive portal
     else {
@@ -395,7 +450,8 @@ static char *get_ssid(void)
     return ssid;
 }
 
-wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *wifi_initialized)
+wifi_error_t start_wifi_access_point(struct flash_config_t *flash_config, store_config_handler_t store_config,
+                                     bool *wifi_initialized)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
 
@@ -404,7 +460,9 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *
         CLOCK_DEBUG("Failed to allocate Wi-Fi state\r\n");
         return WIFI_INIT_ERROR;
     }
+
     state->store_config = store_config;
+    state->flash_config = flash_config;
     state->complete = false;
 
     if (!*wifi_initialized && cyw43_arch_init() != 0) {
@@ -413,6 +471,21 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *
         return WIFI_INIT_ERROR;
     }
     *wifi_initialized = true;
+
+    char *new_html = (char *)calloc(form_html_len + WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN + HOSTNAME_MAX_LEN, 1);
+    if (!new_html) {
+        CLOCK_DEBUG("Failed to allocate HTML form\r\n");
+        free(state);
+        return WIFI_INIT_ERROR;
+    }
+    if (expand_html_template(form_html, new_html, flash_config) != ERR_OK) {
+        CLOCK_DEBUG("Failed to parse HTML form\r\n");
+        free(state);
+        free(new_html);
+        return WIFI_INIT_ERROR;
+    }
+    state->form_html = new_html;
+    state->form_html_len = (u16_t)strlen(new_html);
 
     char *ssid = get_ssid();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
@@ -429,6 +502,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *
 
     if (!tcp_server_open(state, ssid)) {
         CLOCK_DEBUG("Failed to open server\n");
+        free(new_html);
         free(state);
         return WIFI_INIT_ERROR;
     }
@@ -444,6 +518,7 @@ wifi_error_t start_wifi_access_point(store_config_handler_t store_config, bool *
     dhcp_server_deinit(&dhcp_server);
 
     CLOCK_DEBUG("start_wifi_access_point DONE\r\n");
+    free(new_html);
     free(state);
     return WIFI_OK;
 }

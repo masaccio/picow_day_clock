@@ -100,7 +100,10 @@ add_custom_command(
     OUTPUT ${HTML_C_SRC}
     DEPENDS ${HTML_SCRIPT} ${HTML_SOURCE} ${VENV_STAMP}
     COMMAND ${PYTHON_EXECUTABLE} ${HTML_SCRIPT}
-            ${HTML_SOURCE} ${HTML_C_SRC}
+            --config ${CMAKE_SOURCE_DIR}/src/config.h
+            --html ${CMAKE_SOURCE_DIR}/generated/form.html
+            ${HTML_SOURCE}
+            ${HTML_C_SRC}
     COMMENT "Generating HTML blob ${HTML_C_SRC}"
 )
 

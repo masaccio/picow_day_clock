@@ -67,7 +67,7 @@ int main(void)
 
         if (state->ap_mode_triggered) {
             state->ap_mode_triggered = 0;
-            start_wifi_access_point(config_store_handler, &state->wifi_initialized);
+            start_wifi_access_point(&state->flash_config, config_store_handler, &state->wifi_initialized);
             system_reboot();
         }
 
