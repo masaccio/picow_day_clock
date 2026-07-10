@@ -670,8 +670,8 @@ void restore_interrupts(uint32_t status)
     interrupt_status = status;
 }
 
-static clock_config_t flash_clock_config_storage;
-void *flash_clock_config = (void *)&flash_clock_config_storage;
+static flash_config_t flash_clock_config_storage;
+void *flash_flash_config = (void *)&flash_clock_config_storage;
 
 static mock_struct_t mock_tcp_server_state_storage;
 void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
@@ -679,13 +679,13 @@ void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
 void flash_range_erase(uint32_t flash_offs, size_t count)
 {
     (void)flash_offs;
-    memset(&flash_clock_config, 0, count);
+    memset(&flash_flash_config, 0, count);
 }
 
 void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
 {
     (void)flash_offs;
-    memcpy(&flash_clock_config, data, count);
+    memcpy(&flash_flash_config, data, count);
 }
 
 err_t tcp_output(struct tcp_pcb *pcb)

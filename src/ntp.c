@@ -164,7 +164,7 @@ ntp_error_t ntp_request_async(ntp_state_t *state)
     state->request_start_ms = to_ms_since_boot(get_absolute_time());
 
     cyw43_arch_lwip_begin();
-    char *ntp_server = ((clock_state_t *)state->parent_state)->clock_config.ntp_server;
+    char *ntp_server = ((clock_state_t *)state->parent_state)->flash_config.ntp_server;
     int dns_status = dns_gethostbyname(ntp_server, &state->ntp_server_address, ntp_dns_callback, state);
     cyw43_arch_lwip_end();
 

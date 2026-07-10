@@ -51,7 +51,7 @@ typedef enum
     DST_RULE_IL
 } dst_rule_t;
 
-typedef struct clock_config_t
+typedef struct flash_config_t
 {
     uint32_t magic_marker;
     char wifi_ssid[WIFI_SSID_MAX_LEN + 1];
@@ -62,7 +62,7 @@ typedef struct clock_config_t
     uint32_t ntp_timeout;
     uint16_t ntp_port;
     bool led_always_on;
-} clock_config_t;
+} flash_config_t;
 
 extern persistent_state_t persistent_state;
 

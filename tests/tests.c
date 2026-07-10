@@ -118,7 +118,7 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
     mock_ctx.sim.timer_next_fire = mock_ctx.spy.system_time_ms + 1000;
 }
 
-static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_config_t *clock_config)
+static clock_state_t *create_test_clock_state(repeating_timer_t *timer, flash_config_t *flash_config)
 {
     clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     for (uint16_t ii = 0; ii < NUM_LCDS; ii++) {
@@ -131,8 +131,8 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer, clock_co
     clock_state->first_clock_tick = 0;
     timer->user_data = clock_state;
 
-    memcpy(&clock_state->clock_config, clock_config, sizeof(clock_config_t));
-    memcpy(flash_clock_config, clock_config, sizeof(clock_config_t));
+    memcpy(&clock_state->flash_config, flash_config, sizeof(flash_config_t));
+    memcpy(flash_flash_config, flash_config, sizeof(flash_config_t));
 
     add_repeating_timer_ms(1000, clock_timer_callback, clock_state, timer);
 
@@ -152,16 +152,16 @@ static void free_test_clock_state(clock_state_t *state)
     free(state);
 }
 
-static clock_config_t *create_clock_config(void)
+static flash_config_t *create_flash_config(void)
 {
-    static clock_config_t clock_config = {.magic_marker = CONFIG_MAGIC,
+    static flash_config_t flash_config = {.magic_marker = CONFIG_MAGIC,
                                           .wifi_ssid = TEST_AP_SSID,
                                           .wifi_password = TEST_AP_PASSWORD,
                                           .tz_offset_mins = TEST_TZ_OFFSET,
                                           .dst_rule = (dst_rule_t)TEST_DST_RULE,
                                           .ntp_timeout = TEST_TIMEOUT,
                                           .ntp_port = TEST_NTP_PORT};
-    return &clock_config;
+    return &flash_config;
 }
 
 static int run_test(test_func_t func, const char *test_name)
@@ -281,7 +281,7 @@ static int test_wifi_errors(void)
 // Note: 'mo' is 0-indexed (2 = March, 9 = October, etc.)
 #define TEST_DST_BOUND(yr, mo, dy, hr, mn, rule, expected)                                                             \
     do {                                                                                                               \
-        clock_state->clock_config.dst_rule = rule;                                                                     \
+        clock_state->flash_config.dst_rule = rule;                                                                     \
         tm_val.tm_year = (yr) - 1900;                                                                                  \
         tm_val.tm_mon = (mo);                                                                                          \
         tm_val.tm_mday = (dy);                                                                                         \
@@ -298,14 +298,14 @@ static int test_wifi_errors(void)
 static int test_dst(void)
 {
     repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
+    clock_state_t *clock_state = create_test_clock_state(timer, create_flash_config());
 
     // Timezone Offset Tests (DST_RULE_NONE)`
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
 
     // Test Positive Fractional Offset: India (+5:30 -> 330 mins)
-    clock_state->clock_config.tz_offset_mins = 330;
+    clock_state->flash_config.tz_offset_mins = 330;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
     (void)clock_timer_callback(timer);
     clock_task(clock_state);
@@ -313,7 +313,7 @@ static int test_dst(void)
     CHECK_ICONS_OK();
 
     // Test Negative Offset: New York (-5:00 -> -300 mins)
-    clock_state->clock_config.tz_offset_mins = -300;
+    clock_state->flash_config.tz_offset_mins = -300;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
     (void)clock_timer_callback(timer);
     clock_task(clock_state);
@@ -321,8 +321,8 @@ static int test_dst(void)
     CHECK_ICONS_OK();
 
     // Display Rollover Tests
-    clock_state->clock_config.tz_offset_mins = 0; // Reset to UK base
-    clock_state->clock_config.dst_rule = DST_RULE_EU;
+    clock_state->flash_config.tz_offset_mins = 0; // Reset to UK base
+    clock_state->flash_config.dst_rule = DST_RULE_EU;
 
     // Sun March 25, 2001 at 00:22 (just before EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 0, 22, 0);
@@ -415,7 +415,7 @@ static int lcd_digits_to_int(const char *digits)
 static int test_ntp_time(void)
 {
     repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer, create_clock_config());
+    clock_state_t *clock_state = create_test_clock_state(timer, create_flash_config());
 
     // Tue January 9, 2001 at 09:28:32
     set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
@@ -709,8 +709,8 @@ static char *config_post_url(const char *ssid, const char *pwd, const char *ntp,
 
 static int config_save_count = 0;
 
-static struct clock_config_t last_config;
-static bool mock_store_config_success(struct clock_config_t *config, bool invalidate)
+static struct flash_config_t last_config;
+static bool mock_store_config_success(struct flash_config_t *config, bool invalidate)
 {
     (void)invalidate;
     config_save_count++;
@@ -718,7 +718,7 @@ static bool mock_store_config_success(struct clock_config_t *config, bool invali
     return true; // Return success
 }
 
-static bool mock_store_config_fail_then_success(struct clock_config_t *config, bool invalidate)
+static bool mock_store_config_fail_then_success(struct flash_config_t *config, bool invalidate)
 {
     (void)invalidate;
     config_save_count++;

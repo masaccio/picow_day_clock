@@ -57,7 +57,8 @@ int main(void)
 
     struct repeating_timer startup_led_timer;
     bool startup_led_active = true;
-    add_repeating_timer_ms(-400, startup_led_callback, NULL, &startup_led_timer);
+    // Flash green at 1Hz during boot
+    add_repeating_timer_ms(-500, startup_led_callback, NULL, &startup_led_timer);
 
     int status = clock_start(state);
 
@@ -73,7 +74,7 @@ int main(void)
         if (startup_led_active && state->ntp_state->status == NTP_IDLE) {
             cancel_repeating_timer(&startup_led_timer);
             gpio_put(DIAG_RED_LED_GPIO, 0);
-            gpio_put(DIAG_GREEN_LED_GPIO, state->clock_config.led_always_on);
+            gpio_put(DIAG_GREEN_LED_GPIO, state->flash_config.led_always_on);
             startup_led_active = false;
         }
 

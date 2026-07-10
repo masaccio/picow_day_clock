@@ -292,7 +292,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
     // Route A: Form submitted with new configuration parameters
     if (strncmp(request, "POST ", 5) == 0) {
-        clock_config_t config = {0};
+        flash_config_t config = {0};
         config.dst_rule = DST_RULE_NONE;
         config.ntp_timeout = NTP_DEFAULT_TIMEOUT_MS;
         config.ntp_port = NTP_DEFAULT_PORT;

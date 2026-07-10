@@ -13,8 +13,8 @@
 #include "mock.h"
 #endif
 
-#include "clock_config.h"
 #include "config.h"
+#include "flash_config.h"
 #include "lcd.h"
 #include "ntp.h"
 #include "watchdog.h"
@@ -39,7 +39,7 @@ typedef struct clock_state_t
 
     // Timer state
     repeating_timer_t timer;
-    clock_config_t clock_config;
+    flash_config_t flash_config;
 
     // Why watchdog reset happened
     int cold_boot;
@@ -62,7 +62,7 @@ extern time_t tm_to_epoch(struct tm *tm);
 // Callbacks that are called by modules
 extern bool clock_timer_callback(repeating_timer_t *);
 extern void ntp_timer_callback(void *state, time_t *ntp_time);
-extern bool config_store_handler(struct clock_config_t *config, bool invalidate);
+extern bool config_store_handler(struct flash_config_t *config, bool invalidate);
 extern void clock_task(clock_state_t *state);
 
 // Core clock routines

@@ -9,9 +9,9 @@
 
 #include "config.h"
 
-struct clock_config_t;
+struct flash_config_t;
 
-typedef bool (*store_config_handler_t)(struct clock_config_t *config, bool invalidate);
+typedef bool (*store_config_handler_t)(struct flash_config_t *config, bool invalidate);
 
 typedef enum
 {

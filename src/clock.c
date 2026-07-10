@@ -176,7 +176,7 @@ static void get_dst_bounds(dst_rule_t rule, int year, time_t *start, time_t *end
 
 int time_is_dst(time_t utc_now, clock_state_t *state)
 {
-    dst_rule_t dst_rule = state->clock_config.dst_rule;
+    dst_rule_t dst_rule = state->flash_config.dst_rule;
     if (dst_rule == DST_RULE_NONE)
         return 0;
 
@@ -196,7 +196,7 @@ int time_is_dst(time_t utc_now, clock_state_t *state)
 
 static time_t calculate_local_time(time_t utc_now, clock_state_t *state)
 {
-    time_t local_time = utc_now + (state->clock_config.tz_offset_mins * 60);
+    time_t local_time = utc_now + (state->flash_config.tz_offset_mins * 60);
     if (time_is_dst(utc_now, state)) {
         local_time += 3600;
     }
@@ -306,7 +306,7 @@ void clock_task(clock_state_t *state)
 
     if (state->ntp_state->status == NTP_PENDING) {
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
-        if ((now_ms - state->ntp_state->request_start_ms) > state->clock_config.ntp_timeout) {
+        if ((now_ms - state->ntp_state->request_start_ms) > state->flash_config.ntp_timeout) {
             CLOCK_DEBUG("NTP Async Timeout!\r\n");
             fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
         }
@@ -333,13 +333,13 @@ void clock_task(clock_state_t *state)
     }
 }
 
-bool config_store_handler(struct clock_config_t *config, bool invalidate)
+bool config_store_handler(struct flash_config_t *config, bool invalidate)
 {
     config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
 
     uint8_t flash_buf[FLASH_PAGE_SIZE];
     memset(flash_buf, 0xFF, FLASH_PAGE_SIZE);
-    memcpy(flash_buf, config, sizeof(clock_config_t));
+    memcpy(flash_buf, config, sizeof(flash_config_t));
 
     uint32_t interrupts = save_and_disable_interrupts();
     flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
@@ -389,7 +389,7 @@ clock_state_t *clock_init(void)
 
     if (factory_reset) {
         CLOCK_DEBUG("Erasing flash configuration.\r\n");
-        clock_config_t config = {0};
+        flash_config_t config = {0};
         config_store_handler(&config, 1 /* invalidate */);
     } else if (state->cold_boot) {
         memset(&persistent_state, 0, sizeof(persistent_state_t));
@@ -417,10 +417,10 @@ clock_state_t *clock_init(void)
     }
 
     CLOCK_DEBUG("Checking flash\r\n");
-    clock_config_t *flash_config = (clock_config_t *)(FLASH_CONFIG_ADDR);
+    flash_config_t *flash_config = (flash_config_t *)(FLASH_CONFIG_ADDR);
     if (flash_config->magic_marker == CONFIG_MAGIC) {
         CLOCK_DEBUG("Valid config loaded from Flash\r\n");
-        memcpy(&state->clock_config, flash_config, sizeof(clock_config_t));
+        memcpy(&state->flash_config, flash_config, sizeof(flash_config_t));
     } else {
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
         lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
@@ -439,7 +439,7 @@ clock_state_t *clock_init(void)
 int clock_start(clock_state_t *state)
 {
     wifi_error_t wifi_status =
-        connect_to_wifi(state->clock_config.wifi_ssid, state->clock_config.wifi_password, &state->wifi_initialized);
+        connect_to_wifi(state->flash_config.wifi_ssid, state->flash_config.wifi_password, &state->wifi_initialized);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
             lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
@@ -453,7 +453,7 @@ int clock_start(clock_state_t *state)
     if (state->ntp_state == NULL) {
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
-    state->ntp_state->ntp_port = state->clock_config.ntp_port;
+    state->ntp_state->ntp_port = state->flash_config.ntp_port;
 
     ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
     if (ntp_status != NTP_OK)
