@@ -128,7 +128,7 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer, flash_co
     clock_state->ntp_last_sync = mock_time(NULL);
     clock_state->ntp_time = clock_state->ntp_last_sync;
     clock_state->ntp_state->ntp_port = TEST_NTP_PORT;
-    clock_state->first_clock_tick = 0;
+    clock_state->first_clock_tick = false;
     timer->user_data = clock_state;
 
     memcpy(&clock_state->flash_config, flash_config, sizeof(flash_config_t));

@@ -49,7 +49,7 @@ typedef struct clock_state_t
     wifi_error_t wifi_reset_error;
 
     // Miscellaneous
-    int first_clock_tick;  // Forces display update on first tick
+    bool first_clock_tick; // Forces display update on first tick
     bool wifi_initialized; // Ensures cyw43_arch_init() is not called multiple times
 } clock_state_t;
 

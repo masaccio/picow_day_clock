@@ -281,7 +281,7 @@ void clock_task(clock_state_t *state)
 
     bool digits_changed = false;
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick == 0) {
+        if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
             digits_changed = true;
             break;
         }
@@ -293,7 +293,7 @@ void clock_task(clock_state_t *state)
                     state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-            if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick == 0) {
+            if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
                 lcd_clear_screen(state->lcd_states[ii], BLACK);
                 lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
             }
@@ -331,6 +331,7 @@ void clock_task(clock_state_t *state)
                 fatal_reset(state, ntp_status, WIFI_OK);
         }
     }
+    state->first_clock_tick = false;
 }
 
 bool config_store_handler(struct flash_config_t *config, bool invalidate)
@@ -432,6 +433,7 @@ clock_state_t *clock_init(void)
 
     state->ntp_last_sync = state->ntp_time;
     state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
+    state->first_clock_tick = true;
 
     return state;
 }
