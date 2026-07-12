@@ -109,6 +109,13 @@
       font-size: 14px;
     }
     
+    /* Range input slider */
+    input[type="range"] {
+      width: 100%;
+      margin: 10px 0;
+      box-sizing: border-box; /* Ensures it doesn't overflow the container */
+    }
+
     /* Submit Button */
     button {
       width: 100%;
@@ -183,7 +190,7 @@
     <h2>Clock Configuration</h2>
 
     <fieldset>
-      <legend>Wi-Fi Network</legend>
+      <legend>Wi-Fi</legend>
       
       <div class="label-row">
         <label for="ssid">Network Name (SSID)</label>
@@ -208,6 +215,7 @@
 
     <fieldset>
       <legend>Timezone</legend>
+
       <label for="tz">Timezone Offset</label>
       <select id="tz" name="tz">
         <option value="-720">UTC -12:00 (Baker Island)</option>
@@ -263,8 +271,21 @@
     </fieldset>
 
     <fieldset>
-      <legend>Advanced Settings</legend>
+      <legend>Display</legend>
+
+      <label for="bl">LCD Brightness: <span id="bl-val">100</span>%</label>
+      <input type="range" id="bl" name="bl" min="5" max="100" value="100" step="5" 
+       oninput="document.getElementById('bl-val').innerText = this.value">
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="led_on" name="led_on" value="1" checked>
+        <label for="led_on">LED always on</label>
+      </div>
+    </fieldset>
       
+    <fieldset>
+      <legend>Advanced Settings</legend>
+
       <div class="label-row">
         <label for="ntp">NTP Time Server</label>
         <span class="char-hint">Max {DEFINE:HOSTNAME_MAX_LEN} characters</span>
@@ -276,12 +297,6 @@
 
       <label for="cto">NTP Connection Timeout (ms)</label>
       <input type="number" id="cto" name="cto" value="10000">
-
-      <div class="checkbox-group">
-        <input type="checkbox" id="led_on" name="led_on" value="1" checked>
-        <label for="led_on">LED always on</label>
-      </div>
-
     </fieldset>
 
     <button type="submit">Save & Reboot</button>
