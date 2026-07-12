@@ -395,7 +395,7 @@ clock_state_t *clock_init(void)
     } else if (state->cold_boot) {
         memset(&persistent_state, 0, sizeof(persistent_state_t));
         persistent_state.magic_marker = CONFIG_MAGIC;
-        lcd_print_line(state->lcd_states[0], 2, GREEN, "LCD init successful");
+        lcd_print_line(state->lcd_states[0], GREEN, LCD_MSG_INIT_OK);
         CLOCK_DEBUG("Cold boot\r\n");
     } else {
         persistent_state.boot_count++;
@@ -424,8 +424,8 @@ clock_state_t *clock_init(void)
         memcpy(&state->flash_config, flash_config, sizeof(flash_config_t));
     } else {
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
-        lcd_print_line(state->lcd_states[0], 3, RED, "Flash config corrupt");
-        lcd_print_line(state->lcd_states[0], 4, RED, "Connect to Clock Wi-Fi");
+        lcd_print_line(state->lcd_states[0], RED, LCD_MSG_FLASH_ERROR);
+        lcd_print_line(state->lcd_states[0], RED, LCD_MSG_WIFI_ERROR);
         start_wifi_access_point(NULL, config_store_handler, &state->wifi_initialized);
         system_reboot();
     }
@@ -444,7 +444,7 @@ int clock_start(clock_state_t *state)
         connect_to_wifi(state->flash_config.wifi_ssid, state->flash_config.wifi_password, &state->wifi_initialized);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
-            lcd_print_line(state->lcd_states[0], 3, GREEN, "Connected to WiFi");
+            lcd_print_line(state->lcd_states[0], GREEN, LCD_MSG_WIFI_OK);
         }
         lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {

@@ -37,6 +37,12 @@ static uint16_t color_table[] = LCD_COLOR_TABLE;
 // PWM slice attached to the backlight
 static uint slice_num;
 
+// Current line number for diagnostics
+static uint8_t line_number = 0;
+
+// Shared line buffer to write a line at a time with spi_write_blocking()
+uint8_t linebuf[LCD_WIDTH * 2];
+
 static void st7789_init(lcd_state_t *state);
 
 static void lcd_reset(lcd_state_t *state);
@@ -70,20 +76,38 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
     }
 
     st7789_init(state);
-    lcd_set_backlight(state, 0);
     lcd_clear_screen(state, BG_COLOR);
-    lcd_set_backlight(state, 100);
 
     return state;
 }
 
-void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer)
+#define LCD_MSG_STR_INIT_OK "LCD init successful"
+#define LCD_MSG_STR_FLASH_ERROR "Flash config corrupt"
+#define LCD_MSG_STR_WIFI_ERROR "Connect to Clock Wi-Fi"
+#define LCD_MSG_STR_WIFI_OK "Connected to WiFi"
+
+void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg)
 {
-    uint16_t y_start = (line_num * text_font.height) + 2;
+    uint16_t y_start = (line_number + 3) * text_font.height;
     uint16_t x_point = 0;
     uint16_t y_point = y_start;
     int width = 0;
-    while (*buffer != '\0') {
+    const char *msg_str;
+    switch (msg) {
+        case LCD_MSG_INIT_OK:
+            msg_str = LCD_MSG_STR_INIT_OK;
+            break;
+        case LCD_MSG_FLASH_ERROR:
+            msg_str = LCD_MSG_STR_FLASH_ERROR;
+            break;
+        case LCD_MSG_WIFI_ERROR:
+            msg_str = LCD_MSG_STR_WIFI_ERROR;
+            break;
+        case LCD_MSG_WIFI_OK:
+            msg_str = LCD_MSG_STR_WIFI_OK;
+            break;
+    }
+    while (*msg_str != '\0') {
         // Wrap end of line
         if ((x_point + width) > LCD_WIDTH) {
             x_point = 0;
@@ -95,10 +119,11 @@ void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const 
             x_point = 0;
             y_point = 0;
         }
-        width = lcd_write_char(state, x_point, y_point, *buffer, &text_font, color, BG_COLOR);
+        width = lcd_write_char(state, x_point, y_point, *msg_str, &text_font, color, BG_COLOR);
         x_point += width;
-        buffer++;
+        msg_str++;
     }
+    line_number++;
 }
 
 void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
@@ -265,7 +290,6 @@ static void st7789_init(lcd_state_t *state)
     st7789_data_byte(state, 0x04);
     st7789_data_byte(state, 0x04);
     st7789_data_byte(state, 0x05);
-    st7789_data_byte(state, 0x29);
     st7789_data_byte(state, 0x33);
     st7789_data_byte(state, 0x3E);
     st7789_data_byte(state, 0x38);
@@ -287,7 +311,6 @@ static void st7789_init(lcd_state_t *state)
     st7789_data_byte(state, 0x36);
     st7789_data_byte(state, 0x14);
     st7789_data_byte(state, 0x14);
-    st7789_data_byte(state, 0x29);
     st7789_data_byte(state, 0x32);
 
     st7789_command(state, 0x21); // INVON (Display Inversion On)
@@ -321,34 +344,34 @@ static void st7789_set_command_windows(lcd_state_t *state, uint16_t x_start, uin
 }
 
 void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height,
-                        uint16_t color)
+                        uint16_t fg_color)
 {
     st7789_set_command_windows(state, x_start, y_start, width, height);
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_N_gpio, 0);
 
-    uint8_t linebuf[LCD_WIDTH * 2];
+    uint8_t fg_hi = color_table[fg_color % 4] >> 8;
+    uint8_t fg_lo = color_table[fg_color % 4] & 0xFF;
     for (uint16_t x = 0; x < width; x++) {
-        linebuf[x * 2] = color_table[color % 4] >> 8;
-        linebuf[x * 2 + 1] = color_table[color % 4] & 0xFF;
+        linebuf[x * 2] = fg_hi;
+        linebuf[x * 2 + 1] = fg_lo;
     }
 
     for (uint16_t j = 0; j < height; j++) {
         spi_write_blocking(spi1, (uint8_t *)linebuf, width * 2);
     }
     gpio_put(state->CS_N_gpio, 1);
-    st7789_command(state, 0x29); // DISPON (Display On)
 }
 
 void lcd_clear_screen(lcd_state_t *state, uint16_t color)
 {
+    line_number = 0;
     lcd_draw_rectangle(state, 0, 0, LCD_WIDTH, LCD_HEIGHT, color);
 }
 
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
                    color_t fg_color, color_t bg_color)
 {
-    uint8_t linebuf[LCD_WIDTH * 2];
     const font_glyph_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
     uint16_t font_width = entry->width;
@@ -357,15 +380,20 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_N_gpio, 0);
 
+    uint8_t fg_hi = color_table[fg_color % 4] >> 8;
+    uint8_t fg_lo = color_table[fg_color % 4] & 0xFF;
+    uint8_t bg_hi = color_table[bg_color % 4] >> 8;
+    uint8_t bg_lo = color_table[bg_color % 4] & 0xFF;
+
     for (uint16_t glyph_row = 0; glyph_row < font->height; glyph_row++) {
         for (uint16_t glyph_column = 0; glyph_column < font_width; glyph_column++) {
             uint8_t glyph_pixels = *(ptr + (glyph_column / 8));
             if (glyph_pixels & (0x80 >> (glyph_column % 8))) {
-                linebuf[glyph_column * 2] = color_table[fg_color % 4] >> 8;
-                linebuf[glyph_column * 2 + 1] = color_table[fg_color % 4] & 0xFF;
+                linebuf[glyph_column * 2] = fg_hi;
+                linebuf[glyph_column * 2 + 1] = fg_lo;
             } else {
-                linebuf[glyph_column * 2] = color_table[bg_color % 4] >> 8;
-                linebuf[glyph_column * 2 + 1] = color_table[bg_color % 4] & 0xFF;
+                linebuf[glyph_column * 2] = bg_hi;
+                linebuf[glyph_column * 2 + 1] = bg_lo;
             }
         }
         spi_write_blocking(spi1, (uint8_t *)linebuf, font_width * 2);
@@ -373,7 +401,6 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
     }
 
     gpio_put(state->CS_N_gpio, 1);
-    st7789_command(state, 0x29); // DISPON (Display On)
 
     return font_width;
 }
@@ -381,14 +408,11 @@ int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const
 void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start, uint16_t y_start, uint16_t image_width,
                      uint16_t image_height, color_t fg_color)
 {
-    uint8_t linebuf[LCD_WIDTH * 2];
-
     st7789_set_command_windows(state, x_start, y_start, image_width, image_height);
     gpio_put(state->DC_gpio, 1);
     gpio_put(state->CS_N_gpio, 0);
 
     int bytes_per_row = (image_width + 7) / 8;
-
     for (int yy = 0; yy < image_height; yy++) {
         for (int byte_idx = 0; byte_idx < bytes_per_row; byte_idx++) {
             uint8_t byte = *image++;
@@ -404,5 +428,4 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
         spi_write_blocking(spi1, (uint8_t *)linebuf, image_width * 2);
     }
     gpio_put(state->CS_N_gpio, 1);
-    st7789_command(state, 0x29); // DISPON (Display On)
 }

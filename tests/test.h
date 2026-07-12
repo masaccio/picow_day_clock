@@ -10,8 +10,6 @@
 #include "watchdog.h"
 #include "wifi.h"
 
-#define LOG_BUFFER_SIZE 256
-
 // Macro to define a strongly-typed ring-buffer queue
 #define DEFINE_TEST_QUEUE(TYPE, NAME, SIZE)                                                                            \
     typedef struct                                                                                                     \
@@ -69,6 +67,15 @@ typedef struct
 
 DEFINE_TEST_QUEUE(icon_event_t, icon_queue_t, 32)
 
+typedef struct
+{
+    time_t timestamp_ms;
+    color_t color;
+    lcd_status_message_t msg;
+} lcd_message_event_t;
+
+DEFINE_TEST_QUEUE(lcd_message_event_t, lcd_message_queue_t, 32)
+
 typedef enum
 {
     UDP_NTP_OK,
@@ -82,12 +89,6 @@ typedef enum
 
 typedef struct
 {
-    struct
-    {
-        char **buffer;
-        unsigned int buffer_size;
-    } logs;
-
     struct
     {
         unsigned int calloc_fail_at;
@@ -183,14 +184,12 @@ typedef struct
         int fatal_reset_caught;
         int ntp_packet_sent;
 
-        // Icons
+        // LCD events
         icon_queue_t icon_history;
-        struct
-        {
-            watchdog_error_t watchdog;
-            ntp_error_t ntp;
-            wifi_error_t wifi;
-        } icon_state;
+        lcd_message_queue_t lcd_msg_history;
+        watchdog_error_t watchdog_icon;
+        ntp_error_t ntp_icon;
+        wifi_error_t wifi_icon;
     } spy;
 
     struct

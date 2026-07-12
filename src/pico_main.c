@@ -21,6 +21,7 @@ void on_clock_alloc_failed(void)
     while (1) {
         gpio_xor_mask(1 << DIAG_RED_LED_GPIO);
         sleep_ms(100);
+        watchdog_update();
     }
 }
 
@@ -32,6 +33,7 @@ void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
     while (1) {
         gpio_xor_mask(1 << DIAG_RED_LED_GPIO);
         sleep_ms(100);
+        watchdog_update();
     }
 }
 

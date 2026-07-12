@@ -50,7 +50,7 @@ void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
 
 int test_main(void)
 {
-    mock_printf("Test init\n");
+    test_printf("Test init\n");
 
     mock_ctx.spy.watchdog_reboot_called = 0;
 

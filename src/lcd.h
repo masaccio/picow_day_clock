@@ -76,11 +76,11 @@ extern void lcd_init_peripherals(lcd_state_t *state, int reset);
 void lcd_update_icons(lcd_state_t *state, watchdog_error_t watchdog_error, ntp_error_t ntp_error,
                       wifi_error_t wifi_error);
 
-extern void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer);
+extern void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg);
 
 extern void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char);
 
 extern void lcd_draw_rectangle(lcd_state_t *state, uint16_t x_start, uint16_t y_start, uint16_t width, uint16_t height,
-                               uint16_t color);
+                               uint16_t fg_color);
 
 void lcd_clear_screen(lcd_state_t *state, uint16_t color);

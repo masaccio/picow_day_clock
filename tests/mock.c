@@ -3,17 +3,19 @@
 #include <string.h>
 
 #include "clock.h"
+#include "lcd.h"
 #include "mock.h"
 #include "test.h"
 
 // LCD functions
-void lcd_print_line(lcd_state_t *state, uint16_t line_num, color_t color, const char *buffer)
+void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg)
 {
     (void)state;
-    (void)line_num;
     (void)color;
-    (void)buffer;
-    mock_printf("%s\n", buffer);
+
+    lcd_message_event_t event = {.timestamp_ms = mock_ctx.spy.system_time_ms, .color = color, .msg = msg};
+    lcd_message_queue_t_push(&mock_ctx.spy.lcd_msg_history, event);
+    test_printf("LCD: color=%d, msg=%d\n", (int)color, (int)msg);
 }
 
 void lcd_clear_screen(lcd_state_t *state, uint16_t color)
@@ -33,9 +35,9 @@ void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, 
 {
     (void)state;
 
-    mock_ctx.spy.icon_state.watchdog = wd;
-    mock_ctx.spy.icon_state.ntp = ntp;
-    mock_ctx.spy.icon_state.wifi = wifi;
+    mock_ctx.spy.watchdog_icon = wd;
+    mock_ctx.spy.ntp_icon = ntp;
+    mock_ctx.spy.wifi_icon = wifi;
 
     icon_event_t event = {.timestamp_ms = mock_ctx.spy.system_time_ms, .watchdog = wd, .ntp = ntp, .wifi = wifi};
     icon_queue_t_push(&mock_ctx.spy.icon_history, event);
@@ -501,34 +503,6 @@ int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to)
 uint32_t to_ms_since_boot(absolute_time_t t)
 {
     return (uint32_t)(t / 1000ULL);
-}
-
-int mock_printf(const char *format, ...)
-{
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    int buffer_len = vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
-    if (mock_ctx.logs.buffer_size >= LOG_BUFFER_SIZE) {
-        printf("*** MOCK BUFFER OVERFLOW!\n");
-        return 1;
-    } else {
-        mock_ctx.logs.buffer[mock_ctx.logs.buffer_size] = (char *)calloc(1, (size_t)buffer_len + 1);
-        // Reference strings do not have newlines
-        for (int ii = buffer_len - 1; ii > 0; ii--) {
-            if (buffer[ii] == '\r' || buffer[ii] == '\n') {
-                buffer[ii] = (char)0;
-            }
-        }
-        strncpy(mock_ctx.logs.buffer[mock_ctx.logs.buffer_size], buffer, (size_t)buffer_len);
-        if (mock_ctx.config.test_verbose) {
-            printf("DEBUG: %s\n", buffer);
-        }
-        mock_ctx.logs.buffer_size += 1;
-        return 0;
-    }
 }
 
 time_t mock_time(time_t *tloc)

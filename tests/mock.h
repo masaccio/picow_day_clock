@@ -94,8 +94,7 @@ typedef mock_struct_t dns_server_t;
 // Standard Library Overrides (Host execution)
 // =============================================================================
 
-#define printf(...) mock_printf(__VA_ARGS__)
-extern int mock_printf(const char *format, ...) __attribute__((format(printf, 1, 2)));
+#define printf(...) test_printf(__VA_ARGS__)
 
 #define calloc(num, size) mock_calloc(num, size)
 extern void *mock_calloc(size_t num, size_t size);

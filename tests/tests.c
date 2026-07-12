@@ -48,21 +48,21 @@ mock_context_t mock_ctx = {0};
 
 #define CHECK_ICONS_OK()                                                                                               \
     do {                                                                                                               \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.watchdog, WATCHDOG_OK, "Watchdog OK");                             \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                           \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                        \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.watchdog_icon, WATCHDOG_OK, "Watchdog OK");                                   \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.ntp_icon, NTP_OK, "NTP  OK");                                                 \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.wifi_icon, WIFI_OK, "Wi-Fi OK");                                              \
     } while (0)
 #define CHECK_WATCHDOG_RESET_OK()                                                                                      \
     do {                                                                                                               \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.watchdog, WATCHDOG_RESET, "Watchdog reset");                       \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.ntp, NTP_OK, "NTP  OK");                                           \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.wifi, WIFI_OK, "Wi-Fi OK");                                        \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.watchdog_icon, WATCHDOG_RESET, "Watchdog reset");                             \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.ntp_icon, NTP_OK, "NTP  OK");                                                 \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.wifi_icon, WIFI_OK, "Wi-Fi OK");                                              \
     } while (0)
 #define CHECK_ICONS_FAIL(N, WATCHDOG, NTP, WIFI)                                                                       \
     do {                                                                                                               \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.watchdog, WATCHDOG, "Watchdog fail status");                       \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.ntp, NTP, "NTP  fail status");                                     \
-        ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.wifi, WIFI, "Wi-Fi fail status");                                  \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.watchdog_icon, WATCHDOG, "Watchdog fail status");                             \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.ntp_icon, NTP, "NTP  fail status");                                           \
+        ASSERT_WITH_MESSAGE(mock_ctx.spy.wifi_icon, WIFI, "Wi-Fi fail status");                                        \
     } while (0)
 #define EXPECT_FATAL_NTP_ERROR(ERROR)                                                                                  \
     do {                                                                                                               \
@@ -168,8 +168,6 @@ static int run_test(test_func_t func, const char *test_name)
 {
     // Always init the shared test context.
     memset(&mock_ctx, 0, sizeof(mock_ctx));
-    mock_ctx.logs.buffer = (char **)calloc(sizeof(char *), LOG_BUFFER_SIZE);
-    mock_ctx.logs.buffer_size = 0;
     mock_ctx.config.test_verbose = test_verbose;
     mock_ctx.config.udp_port = TEST_NTP_PORT;
 
@@ -177,11 +175,6 @@ static int run_test(test_func_t func, const char *test_name)
 
     // Run test
     int status = func();
-
-    for (unsigned int ii = 0; ii <= mock_ctx.logs.buffer_size; ii++) {
-        free(mock_ctx.logs.buffer[ii]);
-    }
-    free(mock_ctx.logs.buffer);
 
     if (mock_ctx.leak_checker.allocs != mock_ctx.leak_checker.frees) {
         printf("LEAK DETECTED: %u allocs vs %u frees in %s\n", mock_ctx.leak_checker.allocs,
@@ -485,11 +478,11 @@ static int test_ntp_time(void)
                 ASSERT_WITH_MESSAGE(mock_ctx.spy.ntp_packet_sent, 0, "NTP not updated");
                 break;
             case 6:
-                ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.watchdog, WATCHDOG_NTP, "Watchdog fired for NTP");
+                ASSERT_WITH_MESSAGE(mock_ctx.spy.watchdog_icon, WATCHDOG_NTP, "Watchdog fired for NTP");
                 break;
             case 7:
                 ASSERT_WITH_MESSAGE(clock_state->watchdog_reset_error, WATCHDOG_OK, "watchdog cleared");
-                ASSERT_WITH_MESSAGE(mock_ctx.spy.icon_state.ntp, NTP_DNS_ERROR, "NTP  OK");
+                ASSERT_WITH_MESSAGE(mock_ctx.spy.ntp_icon, NTP_DNS_ERROR, "NTP  OK");
                 break;
             default:
                 // CHECK_ICONS_OK();
