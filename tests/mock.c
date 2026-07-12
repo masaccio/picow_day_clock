@@ -8,6 +8,18 @@
 #include "test.h"
 
 // LCD functions
+lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
+{
+    (void)lcd_num;
+    (void)reset;
+
+    lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
+    if (!state) {
+        return NULL;
+    }
+    return state;
+}
+
 void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg)
 {
     (void)state;
@@ -43,16 +55,10 @@ void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, 
     icon_queue_t_push(&mock_ctx.spy.icon_history, event);
 }
 
-lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
+void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 {
-    (void)lcd_num;
-    (void)reset;
-
-    lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
-    if (!state) {
-        return NULL;
-    }
-    return state;
+    (void)state;
+    (void)level;
 }
 
 // These system calls have been redefined in mock.h so undef them here
@@ -84,6 +90,26 @@ int gpio_get(uint gpio)
         // 0 means pressed due to pull-up
         return mock_ctx.inject.factory_reset_pressed == 0;
     return 0;
+}
+
+// ADC functions
+int adc_init(void)
+{
+    return ERR_OK;
+}
+
+void adc_gpio_init(uint gpio)
+{
+    (void)gpio;
+}
+void adc_select_input(uint input)
+{
+    (void)input;
+}
+
+uint16_t adc_read(void)
+{
+    return 4096;
 }
 
 // Wi-Fi functions

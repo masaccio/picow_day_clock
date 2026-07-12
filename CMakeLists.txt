@@ -82,6 +82,7 @@ target_link_libraries(picow_day_clock
     pico_cyw43_arch_lwip_threadsafe_background
     hardware_flash
     hardware_gpio
+    hardware_adc
     hardware_pwm
     hardware_spi
     hardware_sync

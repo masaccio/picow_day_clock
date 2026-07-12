@@ -81,11 +81,6 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
     return state;
 }
 
-#define LCD_MSG_STR_INIT_OK "LCD init successful"
-#define LCD_MSG_STR_FLASH_ERROR "Flash config corrupt"
-#define LCD_MSG_STR_WIFI_ERROR "Connect to Clock Wi-Fi"
-#define LCD_MSG_STR_WIFI_OK "Connected to WiFi"
-
 void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg)
 {
     uint16_t y_start = (line_number + 3) * text_font.height;

@@ -1,7 +1,11 @@
 #include <setjmp.h>
 
+#include "clock.h"
 #include "mock.h"
+#include "ntp.h"
 #include "test.h"
+#include "watchdog.h"
+#include "wifi.h"
 
 extern int test_main(void);
 

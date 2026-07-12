@@ -64,7 +64,7 @@ typedef enum
 
 #define LCD_MSG_STR_INIT_OK "LCD init successful"
 #define LCD_MSG_STR_FLASH_ERROR "Flash config corrupt"
-#define LCD_MSG_STR_WIFI_ERROR "Connect to Clock Wi-Fi"
+#define LCD_MSG_STR_WIFI_ERROR "Config mode started"
 #define LCD_MSG_STR_WIFI_OK "Connected to WiFi"
 
 extern lcd_state_t *lcd_init(uint16_t lcd_num, int reset);

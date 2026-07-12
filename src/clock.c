@@ -5,6 +5,7 @@
 
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/adc.h"
 #include "hardware/flash.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
@@ -243,97 +244,6 @@ bool clock_timer_callback(repeating_timer_t *t)
     return 1; // Keep repeating
 }
 
-void clock_task(clock_state_t *state)
-{
-    // Process async NTP responses
-    if (state->ntp_time_updated) {
-        state->ntp_time_updated = 0;
-        set_time_of_day(state);
-        state->ntp_last_sync = time(NULL);
-        CLOCK_DEBUG("NTP sync complete\r\n");
-    }
-
-    if (!state->clock_tick_updated) {
-        return;
-    }
-    state->clock_tick_updated = false;
-
-    watchdog_update();
-
-    time_t utc_now = time(NULL);
-    time_t local_epoch = calculate_local_time(utc_now, state);
-    struct tm local_time;
-    gmtime_r(&local_epoch, &local_time);
-
-    // Clear any watchdog error icon after it's been displayed a while
-    if (local_epoch > (state->last_watchdog_error_time + WATCHDOG_ICON_INTERVAL)) {
-        state->watchdog_reset_error = WATCHDOG_OK;
-    }
-
-    char lcd_digits[NUM_LCDS + 1];
-    static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    strncpy(lcd_digits, day_of_week_str[local_time.tm_wday], 3);
-    lcd_digits[3] = '0' + (char)(local_time.tm_hour / 10);
-    lcd_digits[4] = '0' + (char)(local_time.tm_hour % 10);
-    lcd_digits[5] = '0' + (char)(local_time.tm_min / 10);
-    lcd_digits[6] = '0' + (char)(local_time.tm_min % 10);
-    lcd_digits[7] = '\0';
-
-    bool digits_changed = false;
-    for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
-            digits_changed = true;
-            break;
-        }
-    }
-
-    if (digits_changed) {
-        CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
-                    time_as_string(utc_now, state), local_epoch, persistent_state.boot_count, state->ntp_reset_error,
-                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
-
-        for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-            if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
-                lcd_clear_screen(state->lcd_states[ii], BLACK);
-                lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
-            }
-            if (ii == 0) {
-                lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
-            }
-            state->current_lcd_digits[ii] = lcd_digits[ii];
-        }
-    }
-
-    if (state->ntp_state->status == NTP_PENDING) {
-        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
-        if ((now_ms - state->ntp_state->request_start_ms) > state->flash_config.ntp_timeout) {
-            CLOCK_DEBUG("NTP Async Timeout!\r\n");
-            fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
-        }
-    } else if (state->ntp_state->status == NTP_FAILED) {
-        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state->error));
-        fatal_reset(state, state->ntp_state->error, WIFI_OK);
-    } else if (state->ntp_state->status == NTP_KOD) {
-        state->ntp_interval *= 2;
-        state->ntp_state->status = NTP_IDLE;
-        CLOCK_DEBUG("NTP: KoD received, doubling interval to %d seconds\r\n", state->ntp_interval);
-    } else if (state->ntp_state->status == NTP_SUCCESS) {
-        state->ntp_state->status = NTP_IDLE;
-    }
-
-    if (state->ntp_state->status == NTP_IDLE) {
-        if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
-            CLOCK_DEBUG("NTP starting new check\r\n");
-            state->ntp_last_sync = utc_now;
-
-            ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
-            if (ntp_status != NTP_OK)
-                fatal_reset(state, ntp_status, WIFI_OK);
-        }
-    }
-    state->first_clock_tick = false;
-}
-
 bool config_store_handler(struct flash_config_t *config, bool invalidate)
 {
     config->magic_marker = invalidate ? 0xffffffff : CONFIG_MAGIC;
@@ -354,6 +264,44 @@ bool config_store_handler(struct flash_config_t *config, bool invalidate)
     return true;
 }
 
+static void update_display_brightness(lcd_state_t *state)
+{
+    adc_select_input(AMBIENT_LIGHT_ADC_CH);
+    uint16_t raw_adc = adc_read(); // Returns 0 to 4095
+
+    // 1. Smooth the reading (Exponential Moving Average)
+    // This requires keeping the previous value in memory using 'static'
+    static uint32_t smoothed_adc = 0;
+
+    if (smoothed_adc == 0) {
+        // Seed the filter on the very first run
+        smoothed_adc = raw_adc;
+    } else {
+        // Blend the new reading (1/8th) with the old reading (7/8ths)
+        smoothed_adc = ((smoothed_adc * 7) + raw_adc) / 8;
+    }
+
+    // 2. Define your calibration bounds
+    // You will need to tweak these slightly depending on your exact pull-down resistor
+    const uint16_t ADC_DARK = 50;     // The reading when the room is pitch black
+    const uint16_t ADC_BRIGHT = 3000; // The reading when the room lights are on
+
+    // 3. Map the raw values to your 5% - 100% scale
+    uint8_t target_percent;
+
+    if (smoothed_adc <= ADC_DARK) {
+        target_percent = 5; // Never drop to 0%, keep the clock visible in the dark
+    } else if (smoothed_adc >= ADC_BRIGHT) {
+        target_percent = 100;
+    } else {
+        // Standard linear mapping math: (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+        target_percent = (uint8_t)(5 + ((smoothed_adc - ADC_DARK) * 95) / (ADC_BRIGHT - ADC_DARK));
+    }
+
+    // 4. Update the actual hardware
+    lcd_set_backlight(state, target_percent);
+}
+
 clock_state_t *clock_init(void)
 {
     stdio_init_all();
@@ -361,6 +309,9 @@ clock_state_t *clock_init(void)
     gpio_init(FACTORY_RESET_GPIO);
     gpio_set_dir(FACTORY_RESET_GPIO, GPIO_IN);
     gpio_pull_up(FACTORY_RESET_GPIO);
+
+    adc_init();
+    adc_gpio_init(AMBIENT_LIGHT_GPIO);
 
     clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
     if (state == NULL) {
@@ -468,4 +419,99 @@ int clock_start(clock_state_t *state)
     }
 
     return 0;
+}
+
+void clock_task(clock_state_t *state)
+{
+    for (int ii = 0; ii < NUM_LCDS; ii++) {
+        update_display_brightness(state->lcd_states[ii]);
+    }
+
+    // Process async NTP responses
+    if (state->ntp_time_updated) {
+        state->ntp_time_updated = 0;
+        set_time_of_day(state);
+        state->ntp_last_sync = time(NULL);
+        CLOCK_DEBUG("NTP sync complete\r\n");
+    }
+
+    if (!state->clock_tick_updated) {
+        return;
+    }
+    state->clock_tick_updated = false;
+
+    watchdog_update();
+
+    time_t utc_now = time(NULL);
+    time_t local_epoch = calculate_local_time(utc_now, state);
+    struct tm local_time;
+    gmtime_r(&local_epoch, &local_time);
+
+    // Clear any watchdog error icon after it's been displayed a while
+    if (local_epoch > (state->last_watchdog_error_time + WATCHDOG_ICON_INTERVAL)) {
+        state->watchdog_reset_error = WATCHDOG_OK;
+    }
+
+    char lcd_digits[NUM_LCDS + 1];
+    static char day_of_week_str[][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    strncpy(lcd_digits, day_of_week_str[local_time.tm_wday], 3);
+    lcd_digits[3] = '0' + (char)(local_time.tm_hour / 10);
+    lcd_digits[4] = '0' + (char)(local_time.tm_hour % 10);
+    lcd_digits[5] = '0' + (char)(local_time.tm_min / 10);
+    lcd_digits[6] = '0' + (char)(local_time.tm_min % 10);
+    lcd_digits[7] = '\0';
+
+    bool digits_changed = false;
+    for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
+        if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
+            digits_changed = true;
+            break;
+        }
+    }
+
+    if (digits_changed) {
+        CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
+                    time_as_string(utc_now, state), local_epoch, persistent_state.boot_count, state->ntp_reset_error,
+                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
+
+        for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
+            if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
+                lcd_clear_screen(state->lcd_states[ii], BLACK);
+                lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
+            }
+            if (ii == 0) {
+                lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
+            }
+            state->current_lcd_digits[ii] = lcd_digits[ii];
+        }
+    }
+
+    if (state->ntp_state->status == NTP_PENDING) {
+        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+        if ((now_ms - state->ntp_state->request_start_ms) > state->flash_config.ntp_timeout) {
+            CLOCK_DEBUG("NTP Async Timeout!\r\n");
+            fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
+        }
+    } else if (state->ntp_state->status == NTP_FAILED) {
+        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state->error));
+        fatal_reset(state, state->ntp_state->error, WIFI_OK);
+    } else if (state->ntp_state->status == NTP_KOD) {
+        state->ntp_interval *= 2;
+        state->ntp_state->status = NTP_IDLE;
+        CLOCK_DEBUG("NTP: KoD received, doubling interval to %d seconds\r\n", state->ntp_interval);
+    } else if (state->ntp_state->status == NTP_SUCCESS) {
+        state->ntp_state->status = NTP_IDLE;
+    }
+
+    if (state->ntp_state->status == NTP_IDLE) {
+        if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
+            CLOCK_DEBUG("NTP starting new check\r\n");
+            state->ntp_last_sync = utc_now;
+
+            ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
+            if (ntp_status != NTP_OK)
+                fatal_reset(state, ntp_status, WIFI_OK);
+        }
+    }
+    state->first_clock_tick = false;
 }
