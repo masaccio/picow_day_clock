@@ -91,26 +91,27 @@ typedef struct
 {
     struct
     {
-        unsigned int calloc_fail_at;
-        int cyw43_arch_init_fail;
-        int cyw43_arch_wifi_connect_status;
-        int cyw43_auth_error_count;
-        int cyw43_auth_timeout_count;
-        int dns_bad_arg;
-        int dns_lookup_fail;
-        uint32_t dns_latency_ms;
-        unsigned int pbuf_alloc_fail_at;
-        int tcp_open_fail;
-        int udp_invalid_addr;
-        int udp_new_ip_type_fail;
-        udp_response_type_t udp_response_type;
-        int udp_sendto_fail;
-        uint32_t udp_latency_ms;
-        int watchdog_caused_reboot;
-        int factory_reset_pressed;
-        int fatal_reset_no_longjmp;
-        int exit_on_ntp_success;
-        char tcp_write_buffer[TCP_IP_BUFFER_SIZE];
+        unsigned int calloc_fail_at;           // Allows specific calloc() calls to fail
+        int cyw43_arch_init_fail;              // cyw43_arch_init() return value
+        int cyw43_arch_wifi_connect_status;    // cyw43_arch_wifi_connect_timeout_ms() return value
+        int cyw43_auth_error_count;            // Generate Wi-Fi auth errors
+        int cyw43_auth_timeout_count;          // Generate Wi-Fi timeout errors
+        int dns_bad_arg;                       // dns_gethostbyname() returns ERR_ARG
+        int dns_lookup_fail;                   // DNS hostname lookup fails
+        uint32_t dns_latency_ms;               // Time to respond to a DNS request
+        unsigned int pbuf_alloc_fail_at;       // Allows specific pbuf_alloc() calls to fail
+        int tcp_open_fail;                     // tcp_open() fails
+        int udp_invalid_addr;                  // Return an invalid sender address for UDP
+        int udp_new_ip_type_fail;              // udp_new_ip_type() returns NULL
+        udp_response_type_t udp_response_type; // Steers UDP responses for NTP
+        int udp_sendto_fail;                   // udp_sendto() returns failure
+        uint32_t udp_latency_ms;               // Time to respond to a UDP request
+        int watchdog_caused_reboot;            // Clock starts up with positive watchdog_caused_reboot()
+        int factory_reset_pressed;             // Factory reset GPIO is asserted
+        int fatal_reset_no_longjmp;            // Do not longjmp() inside fatal_reset()
+        int exit_on_ntp_success;               // Terminate main loop if NTP returned valid
+        time_t exit_after_ms;                  // Maximum number of ms to simulate
+        uint16_t adc_level;                    // Ambient light sensor level
     } inject;
 
     // The Discrete Event Simulator State
@@ -190,6 +191,7 @@ typedef struct
         watchdog_error_t watchdog_icon;
         ntp_error_t ntp_icon;
         wifi_error_t wifi_icon;
+        uint8_t lcd_brightness;
     } spy;
 
     struct

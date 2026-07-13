@@ -267,39 +267,28 @@ bool config_store_handler(struct flash_config_t *config, bool invalidate)
 static void update_display_brightness(lcd_state_t *state)
 {
     adc_select_input(AMBIENT_LIGHT_ADC_CH);
-    uint16_t raw_adc = adc_read(); // Returns 0 to 4095
+    uint16_t raw_adc = adc_read();
 
-    // 1. Smooth the reading (Exponential Moving Average)
-    // This requires keeping the previous value in memory using 'static'
+    // Blend the new reading (1/8th) with the old reading (7/8ths)
     static uint32_t smoothed_adc = 0;
-
     if (smoothed_adc == 0) {
-        // Seed the filter on the very first run
         smoothed_adc = raw_adc;
     } else {
-        // Blend the new reading (1/8th) with the old reading (7/8ths)
         smoothed_adc = ((smoothed_adc * 7) + raw_adc) / 8;
     }
 
-    // 2. Define your calibration bounds
-    // You will need to tweak these slightly depending on your exact pull-down resistor
-    const uint16_t ADC_DARK = 50;     // The reading when the room is pitch black
-    const uint16_t ADC_BRIGHT = 3000; // The reading when the room lights are on
-
-    // 3. Map the raw values to your 5% - 100% scale
-    uint8_t target_percent;
-
-    if (smoothed_adc <= ADC_DARK) {
-        target_percent = 5; // Never drop to 0%, keep the clock visible in the dark
-    } else if (smoothed_adc >= ADC_BRIGHT) {
-        target_percent = 100;
+    uint8_t bl_percent;
+    if (smoothed_adc <= AMBIENT_LIGHT_DARK) {
+        bl_percent = 5; // Minimum threshold for display
+    } else if (smoothed_adc >= AMBIENT_LIGHT_BRIGHT) {
+        bl_percent = 100;
     } else {
-        // Standard linear mapping math: (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
-        target_percent = (uint8_t)(5 + ((smoothed_adc - ADC_DARK) * 95) / (ADC_BRIGHT - ADC_DARK));
+        bl_percent =
+            (uint8_t)(5 + ((smoothed_adc - AMBIENT_LIGHT_DARK) * 95) / (AMBIENT_LIGHT_BRIGHT - AMBIENT_LIGHT_DARK));
     }
 
-    // 4. Update the actual hardware
-    lcd_set_backlight(state, target_percent);
+    lcd_set_backlight(state, bl_percent);
+    lcd_set_backlight(state, 100);
 }
 
 clock_state_t *clock_init(void)
@@ -330,7 +319,7 @@ clock_state_t *clock_init(void)
     }
 
     int factory_reset = 1;
-    for (int i = 0; i < (FACTORY_RESET_HOLD_TIME_MS / 100); i++) {
+    for (int ii = 0; ii < (FACTORY_RESET_HOLD_TIME_MS / 100); ii++) {
         if (gpio_get(FACTORY_RESET_GPIO) != 0) {
             factory_reset = 0;
             break;

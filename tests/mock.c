@@ -58,7 +58,7 @@ void lcd_update_icons(lcd_state_t *state, watchdog_error_t wd, ntp_error_t ntp, 
 void lcd_set_backlight(lcd_state_t *state, uint8_t level)
 {
     (void)state;
-    (void)level;
+    mock_ctx.spy.lcd_brightness = level;
 }
 
 // These system calls have been redefined in mock.h so undef them here
@@ -109,7 +109,7 @@ void adc_select_input(uint input)
 
 uint16_t adc_read(void)
 {
-    return 4096;
+    return mock_ctx.inject.adc_level;
 }
 
 // Wi-Fi functions
@@ -670,8 +670,9 @@ void restore_interrupts(uint32_t status)
     interrupt_status = status;
 }
 
-static flash_config_t flash_clock_config_storage;
-void *flash_flash_config = (void *)&flash_clock_config_storage;
+static flash_config_t flash_clock_config_storage = {.magic_marker = CONFIG_MAGIC, .ntp_port = 8123};
+
+void *mock_flash_config = (void *)&flash_clock_config_storage;
 
 static mock_struct_t mock_tcp_server_state_storage;
 void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
@@ -679,13 +680,13 @@ void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
 void flash_range_erase(uint32_t flash_offs, size_t count)
 {
     (void)flash_offs;
-    memset(&flash_flash_config, 0, count);
+    memset(&mock_flash_config, 0, count);
 }
 
 void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
 {
     (void)flash_offs;
-    memcpy(&flash_flash_config, data, count);
+    memcpy(&mock_flash_config, data, count);
 }
 
 err_t tcp_output(struct tcp_pcb *pcb)

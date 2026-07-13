@@ -132,7 +132,7 @@ static clock_state_t *create_test_clock_state(repeating_timer_t *timer, flash_co
     timer->user_data = clock_state;
 
     memcpy(&clock_state->flash_config, flash_config, sizeof(flash_config_t));
-    memcpy(flash_flash_config, flash_config, sizeof(flash_config_t));
+    memcpy(mock_flash_config, flash_config, sizeof(flash_config_t));
 
     add_repeating_timer_ms(1000, clock_timer_callback, clock_state, timer);
 
@@ -186,19 +186,35 @@ static int run_test(test_func_t func, const char *test_name)
     return status;
 }
 
-static int test_bad_lcd1(void)
+static int test_lcd(void)
 {
-    mock_ctx.spy.calloc_counter = 0;
+    RESET_MOCK_CONFIG();
     mock_ctx.inject.calloc_fail_at = 1;
     EXECUTE_TEST("LCD alloc (1)", EXPECT_FAIL);
     ASSERT_WITH_MESSAGE(mock_ctx.spy.clock_state_alloc_failed, 1, "Clock init failed");
 
-    mock_ctx.spy.calloc_counter = 0;
+    RESET_MOCK_CONFIG();
     mock_ctx.inject.calloc_fail_at = 3;
     EXECUTE_TEST("LCD alloc (2)", EXPECT_FAIL);
     ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_init_failed, 1, "LCD init failed");
 
-    mock_ctx.inject.calloc_fail_at = 0;
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.adc_level = (AMBIENT_LIGHT_BRIGHT / 2);
+    mock_ctx.inject.exit_after_ms = 5000;
+    EXECUTE_TEST("LCD brightness", EXPECT_OK);
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_brightness, 51, "LCD brightness");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.adc_level = 0x0;
+    mock_ctx.inject.exit_after_ms = 5000;
+    EXECUTE_TEST("LCD brightness", EXPECT_OK);
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_brightness, 5, "LCD minimum brightness");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.adc_level = 0xfff;
+    mock_ctx.inject.exit_after_ms = 5000;
+    EXECUTE_TEST("LCD brightness", EXPECT_OK);
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_brightness, 100, "LCD maximum brightness");
     return 0;
 }
 
@@ -216,7 +232,6 @@ static int test_dns_lookups(void)
 
     RESET_MOCK_CONFIG();
     mock_ctx.inject.dns_latency_ms = TEST_TIMEOUT + 1000;
-    mock_ctx.inject.dns_lookup_fail = 0;
     EXECUTE_TEST("DNS timeout", EXPECT_FAIL);
     EXPECT_FATAL_NTP_ERROR(NTP_TIMEOUT_ERROR);
 
@@ -1149,7 +1164,7 @@ int main(const int argc, const char *argv[])
         }
     }
 
-    status |= run_test(test_bad_lcd1, "LCD1 init error");
+    status |= run_test(test_lcd, "Basic LCD hardware");
     status |= run_test(test_dst, "Daylight savings");
     status |= run_test(test_ntp_time, "NTP time checks");
     status |= run_test(test_wifi_errors, "Wi-Fi init error");

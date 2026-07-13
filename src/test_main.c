@@ -89,6 +89,8 @@ int test_main(void)
         } else if (mock_ctx.inject.exit_on_ntp_success && state->ntp_state->status == NTP_SUCCESS) {
             // Some tests expect normal operation, but we still need to return to the test harness
             break;
+        } else if (mock_ctx.spy.system_time_ms >= mock_ctx.inject.exit_after_ms) {
+            break;
         }
         clock_task(state);
         // Yield to allow handling of 1Hz tick and NTP responses

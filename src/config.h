@@ -3,8 +3,10 @@
 #define FACTORY_RESET_GPIO (uint16_t)9        // Factory reset enable (Wi-Fi AP)
 #define DIAG_GREEN_LED_GPIO (uint16_t)15      // LED driver for normal operation
 #define DIAG_RED_LED_GPIO (uint16_t)16        // LED driver for fatal errors
-#define AMBIENT_LIGHT_GPIO (uint16_t)26       // ADC pin for photoresistor light sensor
+#define AMBIENT_LIGHT_GPIO (uint16_t)26       // ADC pin for photo-resistor light sensor
 #define AMBIENT_LIGHT_ADC_CH (uint16_t)0      // ADC pin 26 is ADC channel 0
+#define AMBIENT_LIGHT_DARK (uint16_t)50       // ADC reading when the room is pitch black
+#define AMBIENT_LIGHT_BRIGHT (uint16_t)3000   // ADC reading when the room lights are on
 #define FACTORY_RESET_HOLD_TIME_MS 3000       // How long the factory reset button must be held for
 #define HTTP_POLL_TIME_SEC 5                  // How long to allow a connection to idle
 #define HTTP_TCP_PORT 80                      // Found in the SDK, but define here for portability to the host tests
