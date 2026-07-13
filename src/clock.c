@@ -288,7 +288,7 @@ static void update_display_brightness(lcd_state_t *state)
     }
 
     lcd_set_backlight(state, bl_percent);
-    lcd_set_backlight(state, 100);
+    // lcd_set_backlight(state, 100);
 }
 
 clock_state_t *clock_init(void)
