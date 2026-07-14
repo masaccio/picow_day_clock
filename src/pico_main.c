@@ -44,12 +44,8 @@ bool startup_led_callback(struct repeating_timer *t)
     return true;
 }
 
-int main(void)
+static bool init_diagnostic_led(struct repeating_timer *t)
 {
-    clock_state_t *state = clock_init();
-    if (!state)
-        return 1;
-
     gpio_init(DIAG_GREEN_LED_GPIO);
     gpio_set_dir(DIAG_GREEN_LED_GPIO, GPIO_OUT);
     gpio_put(DIAG_GREEN_LED_GPIO, 0);
@@ -57,10 +53,17 @@ int main(void)
     gpio_set_dir(DIAG_RED_LED_GPIO, GPIO_OUT);
     gpio_put(DIAG_RED_LED_GPIO, 0);
 
+    return add_repeating_timer_ms(-500 /* 1Hz pulse */, startup_led_callback, NULL, t);
+}
+
+int main(void)
+{
+    clock_state_t *state = clock_init();
+    if (!state)
+        return 1;
+
     struct repeating_timer startup_led_timer;
-    bool startup_led_active = true;
-    // Flash green at 1Hz during boot
-    add_repeating_timer_ms(-500, startup_led_callback, NULL, &startup_led_timer);
+    bool startup_led_active = init_diagnostic_led(&startup_led_timer);
 
     int status = clock_start(state);
 

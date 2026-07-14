@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -241,7 +242,7 @@ bool clock_timer_callback(repeating_timer_t *t)
 
     // Flag the main loop to process UI and Networking
     state->clock_tick_updated = true;
-    return 1; // Keep repeating
+    return true; // Keep repeating
 }
 
 bool config_store_handler(struct flash_config_t *config, bool invalidate)
@@ -264,8 +265,10 @@ bool config_store_handler(struct flash_config_t *config, bool invalidate)
     return true;
 }
 
-static void update_display_brightness(lcd_state_t *state)
+static bool backlight_timer_callback(struct repeating_timer *t)
 {
+    lcd_state_t *lcd_state = (lcd_state_t *)t->user_data;
+
     adc_select_input(AMBIENT_LIGHT_ADC_CH);
     uint16_t raw_adc = adc_read();
 
@@ -279,16 +282,19 @@ static void update_display_brightness(lcd_state_t *state)
 
     uint8_t bl_percent;
     if (smoothed_adc <= AMBIENT_LIGHT_DARK) {
-        bl_percent = 5; // Minimum threshold for display
+        bl_percent = 5; // Minimum backlight level
     } else if (smoothed_adc >= AMBIENT_LIGHT_BRIGHT) {
-        bl_percent = 100;
+        bl_percent = 100; // Maximum brightness
     } else {
-        bl_percent =
-            (uint8_t)(5 + ((smoothed_adc - AMBIENT_LIGHT_DARK) * 95) / (AMBIENT_LIGHT_BRIGHT - AMBIENT_LIGHT_DARK));
+        // Normalize to between 0.0 and 1.0
+        float normalized_input =
+            (float)(smoothed_adc - AMBIENT_LIGHT_DARK) / (float)(AMBIENT_LIGHT_BRIGHT - AMBIENT_LIGHT_DARK);
+        // Apply perception correction
+        bl_percent = (uint8_t)(sqrtf(normalized_input) * 100.0f);
     }
+    lcd_set_backlight(lcd_state, bl_percent);
 
-    lcd_set_backlight(state, bl_percent);
-    // lcd_set_backlight(state, 100);
+    return true; // Keep repeating
 }
 
 clock_state_t *clock_init(void)
@@ -403,7 +409,13 @@ int clock_start(clock_state_t *state)
 
     watchdog_enable(WATCHDOG_TIMEOUT_MS, /* pause_on_debug */ 1);
     sleep_ms(500);
-    if (add_repeating_timer_ms(1000, clock_timer_callback, state, &state->timer) != true) {
+    if (!add_repeating_timer_ms(1000, clock_timer_callback, state, &state->led_timer_state)) {
+        CLOCK_DEBUG("Failed to init clock timer callback\r\n");
+        fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
+    }
+    if (!add_repeating_timer_ms(BACKLIGHT_CALLBACK_TIME_MS, backlight_timer_callback, &state->lcd_states[0],
+                                &state->backlight_timer_state)) {
+        CLOCK_DEBUG("Failed to init backlight timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
 
@@ -412,10 +424,6 @@ int clock_start(clock_state_t *state)
 
 void clock_task(clock_state_t *state)
 {
-    for (int ii = 0; ii < NUM_LCDS; ii++) {
-        update_display_brightness(state->lcd_states[ii]);
-    }
-
     // Process async NTP responses
     if (state->ntp_time_updated) {
         state->ntp_time_updated = 0;

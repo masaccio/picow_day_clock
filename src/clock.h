@@ -38,7 +38,9 @@ typedef struct clock_state_t
     char current_lcd_digits[NUM_LCDS + 1];
 
     // Timer state
-    repeating_timer_t timer;
+    repeating_timer_t led_timer_state;
+    repeating_timer_t clock_timer_state;
+    repeating_timer_t backlight_timer_state;
     struct flash_config_t flash_config;
 
     // Why watchdog reset happened
