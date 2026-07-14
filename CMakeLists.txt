@@ -1,3 +1,5 @@
+set(PICO_DEOPTIMIZED_DEBUG ON)
+
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 cmake_minimum_required(VERSION 3.13)
 
