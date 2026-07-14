@@ -21,3 +21,4 @@ build
 kicad/**/~*.lck
 kicad/**/*.bak
 kicad/**/*.kicad_pcb.zip
+kicad/pico_dow_clock/.history
