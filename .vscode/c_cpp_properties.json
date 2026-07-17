@@ -22,6 +22,9 @@
         {
             "name": "Host Tests",
             "compilerPath": "/opt/homebrew/opt/llvm/bin/clang",
+            "defines": [
+                "TEST_MODE=1"
+            ],
             "includePath": [
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/src/dhcpserver",
