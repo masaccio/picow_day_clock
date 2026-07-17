@@ -21,4 +21,5 @@ build
 kicad/**/~*.lck
 kicad/**/*.bak
 kicad/**/*.kicad_pcb.zip
+kicad/**/_restore_backup_*
 .history
