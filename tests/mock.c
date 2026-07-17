@@ -17,6 +17,7 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
     if (!state) {
         return NULL;
     }
+    state->smoothed_adc = 0;
     return state;
 }
 
@@ -186,6 +187,9 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
 void sleep_ms(uint32_t ms)
 {
     time_t target_time = (time_t)mock_ctx.spy.system_time_ms + ms;
+
+    if (mock_ctx.sim.timer_next_fire < target_time)
+        mock_ctx.sim.timer_next_fire = target_time;
 
     while (mock_ctx.spy.system_time_ms < target_time) {
         time_t next_event = target_time;

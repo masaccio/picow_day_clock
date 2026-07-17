@@ -273,22 +273,21 @@ static bool backlight_timer_callback(struct repeating_timer *t)
     uint16_t raw_adc = adc_read();
 
     // Blend the new reading (1/8th) with the old reading (7/8ths)
-    static uint32_t smoothed_adc = 0;
-    if (smoothed_adc == 0) {
-        smoothed_adc = raw_adc;
+    if (lcd_state->smoothed_adc == 0) {
+        lcd_state->smoothed_adc = raw_adc;
     } else {
-        smoothed_adc = ((smoothed_adc * 7) + raw_adc) / 8;
+        lcd_state->smoothed_adc = ((lcd_state->smoothed_adc * 7) + raw_adc) / 8;
     }
 
     uint8_t bl_percent;
-    if (smoothed_adc <= AMBIENT_LIGHT_DARK) {
+    if (lcd_state->smoothed_adc <= AMBIENT_LIGHT_DARK) {
         bl_percent = 5; // Minimum backlight level
-    } else if (smoothed_adc >= AMBIENT_LIGHT_BRIGHT) {
+    } else if (lcd_state->smoothed_adc >= AMBIENT_LIGHT_BRIGHT) {
         bl_percent = 100; // Maximum brightness
     } else {
         // Normalize to between 0.0 and 1.0
         float normalized_input =
-            (float)(smoothed_adc - AMBIENT_LIGHT_DARK) / (float)(AMBIENT_LIGHT_BRIGHT - AMBIENT_LIGHT_DARK);
+            (float)(lcd_state->smoothed_adc - AMBIENT_LIGHT_DARK) / (float)(AMBIENT_LIGHT_BRIGHT - AMBIENT_LIGHT_DARK);
         // Apply perception correction
         bl_percent = (uint8_t)(sqrtf(normalized_input) * 100.0f);
     }
@@ -413,7 +412,7 @@ int clock_start(clock_state_t *state)
         CLOCK_DEBUG("Failed to init clock timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
-    if (!add_repeating_timer_ms(BACKLIGHT_CALLBACK_TIME_MS, backlight_timer_callback, &state->lcd_states[0],
+    if (!add_repeating_timer_ms(BACKLIGHT_CALLBACK_TIME_MS, backlight_timer_callback, state->lcd_states[0],
                                 &state->backlight_timer_state)) {
         CLOCK_DEBUG("Failed to init backlight timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);

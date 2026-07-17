@@ -52,6 +52,8 @@ typedef struct lcd_state_t
     // Additional config
     uint16_t width;
     uint16_t height;
+    // Backlight sensor current state
+    uint32_t smoothed_adc;
 } lcd_state_t;
 
 typedef enum

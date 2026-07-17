@@ -202,7 +202,8 @@ static int test_lcd(void)
     mock_ctx.inject.adc_level = (AMBIENT_LIGHT_BRIGHT / 2);
     mock_ctx.inject.exit_after_ms = 5000;
     EXECUTE_TEST("LCD brightness", EXPECT_OK);
-    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_brightness, 51, "LCD brightness");
+    printf("brightness=%d\n", mock_ctx.spy.lcd_brightness);
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_brightness, 63, "LCD brightness");
 
     RESET_MOCK_CONFIG();
     mock_ctx.inject.adc_level = AMBIENT_LIGHT_DARK - 1;

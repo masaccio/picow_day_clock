@@ -67,6 +67,7 @@ lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
     state->CS_N_gpio = LCD_GPIO_CS_N_BASE + lcd_num;
     state->CLK_gpio = LCD_GPIO_CLK;
     state->MOSI_gpio = LCD_GPIO_MOSI;
+    state->smoothed_adc = 0;
 
     lcd_init_peripherals(state, reset);
     lcd_set_backlight(state, 90);

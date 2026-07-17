@@ -10,6 +10,8 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     message(FATAL_ERROR "Host builds for testing are unsupported on Windows")
 endif()
 
+message(STATUS "Test build type: ${CMAKE_BUILD_TYPE}")
+
 project(test_picow_day_clock C CXX)
 
 set(CMAKE_C_STANDARD 11)
