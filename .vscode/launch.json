@@ -3,10 +3,10 @@
     "configurations": [
         {
             "name": "Debug Tests",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/tests_build/test_picow_day_clock",
-            "targetArchitecture": "arm64",
+            "targetArchitecture": "ARM64",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

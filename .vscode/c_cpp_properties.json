@@ -3,7 +3,10 @@
         {
             "name": "Pico",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/dhcpserver",
+                "${workspaceFolder}/src/dnsserver",
+                "${workspaceFolder}/generated",
                 "${userHome}/.pico-sdk/sdk/2.3.0/**"
             ],
             "forcedInclude": [
@@ -15,6 +18,18 @@
             "cStandard": "c17",
             "cppStandard": "c++14",
             "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "Host Tests",
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/dhcpserver",
+                "${workspaceFolder}/src/dnsserver",
+                "${workspaceFolder}/generated",
+                "${workspaceFolder}/tests"
+            ],
+            "intelliSenseMode": "macos-clang-arm64"
         }
     ],
     "version": 4
