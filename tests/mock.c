@@ -186,61 +186,67 @@ int cyw43_wifi_get_mac(void *self, int itf, uint8_t *mac)
 // -----------------------------------------------------------------------------
 void sleep_ms(uint32_t ms)
 {
-    time_t target_time = (time_t)mock_ctx.spy.system_time_ms + ms;
+    time_t target_time = (time_t)mock_ctx.spy.boot_time_ms + ms;
 
-    if (mock_ctx.sim.timer_next_fire < target_time)
-        mock_ctx.sim.timer_next_fire = target_time;
-
-    while (mock_ctx.spy.system_time_ms < target_time) {
+    while (mock_ctx.spy.boot_time_ms < target_time) {
         time_t next_event = target_time;
 
         // --- 1. Find the closest upcoming chronological event ---
-        if (mock_ctx.sim.dns_pending && mock_ctx.sim.dns_fire_time > mock_ctx.spy.system_time_ms &&
+        if (mock_ctx.sim.dns_pending && mock_ctx.sim.dns_fire_time > mock_ctx.spy.boot_time_ms &&
             mock_ctx.sim.dns_fire_time < next_event)
             next_event = mock_ctx.sim.dns_fire_time;
 
-        if (mock_ctx.sim.udp_pending && mock_ctx.sim.udp_fire_time > mock_ctx.spy.system_time_ms &&
+        if (mock_ctx.sim.udp_pending && mock_ctx.sim.udp_fire_time > mock_ctx.spy.boot_time_ms &&
             mock_ctx.sim.udp_fire_time < next_event)
             next_event = mock_ctx.sim.udp_fire_time;
 
         if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
-            mock_ctx.sim.tcp_next_fire_time < mock_ctx.spy.system_time_ms &&
-            mock_ctx.sim.tcp_next_fire_time < next_event)
+            mock_ctx.sim.tcp_next_fire_time < mock_ctx.spy.boot_time_ms && mock_ctx.sim.tcp_next_fire_time < next_event)
             next_event = mock_ctx.sim.tcp_next_fire_time;
 
         if (mock_ctx.sim.tcp_poll_cb && mock_ctx.sim.tcp_poll_interval > 0 &&
-            mock_ctx.sim.tcp_next_poll_time > mock_ctx.spy.system_time_ms &&
-            mock_ctx.sim.tcp_next_poll_time < next_event)
+            mock_ctx.sim.tcp_next_poll_time > mock_ctx.spy.boot_time_ms && mock_ctx.sim.tcp_next_poll_time < next_event)
             next_event = mock_ctx.sim.tcp_next_poll_time;
 
-        if (mock_ctx.sim.tcp_sent_pending && mock_ctx.sim.tcp_sent_fire_time > mock_ctx.spy.system_time_ms &&
+        if (mock_ctx.sim.tcp_sent_pending && mock_ctx.sim.tcp_sent_fire_time > mock_ctx.spy.boot_time_ms &&
             mock_ctx.sim.tcp_sent_fire_time < next_event)
             next_event = mock_ctx.sim.tcp_sent_fire_time;
 
-        if (mock_ctx.sim.tcp_err_pending && mock_ctx.sim.tcp_err_fire_time > mock_ctx.spy.system_time_ms &&
+        if (mock_ctx.sim.tcp_err_pending && mock_ctx.sim.tcp_err_fire_time > mock_ctx.spy.boot_time_ms &&
             mock_ctx.sim.tcp_err_fire_time < next_event)
             next_event = mock_ctx.sim.tcp_err_fire_time;
 
-        if (mock_ctx.sim.timer_active && mock_ctx.sim.timer_next_fire > mock_ctx.spy.system_time_ms &&
-            mock_ctx.sim.timer_next_fire < next_event)
-            next_event = mock_ctx.sim.timer_next_fire;
+        if (mock_ctx.sim.clock_timer_active && mock_ctx.sim.clock_timer_next_fire > mock_ctx.spy.boot_time_ms &&
+            mock_ctx.sim.clock_timer_next_fire < next_event)
+            next_event = mock_ctx.sim.clock_timer_next_fire;
+
+        if (mock_ctx.sim.backlight_timer_active && mock_ctx.sim.backlight_timer_next_fire > mock_ctx.spy.boot_time_ms &&
+            mock_ctx.sim.backlight_timer_next_fire < next_event)
+            next_event = mock_ctx.sim.backlight_timer_next_fire;
 
         // Fast-forward system time to the event
-        time_t delta = next_event - mock_ctx.spy.system_time_ms;
-        mock_ctx.spy.system_time_ms = next_event;
+        time_t delta = next_event - mock_ctx.spy.boot_time_ms;
+        mock_ctx.spy.system_time_ms += delta;
         mock_ctx.spy.boot_time_ms += delta;
         mock_ctx.spy.watchdog_time_ms += delta;
 
         // 1. Process Hardware Timers
-        if (mock_ctx.sim.timer_active && mock_ctx.spy.system_time_ms == mock_ctx.sim.timer_next_fire) {
-            mock_ctx.sim.timer_next_fire += mock_ctx.sim.timer_delay;
-            if (!mock_ctx.sim.timer_cb(mock_ctx.sim.timer_arg)) {
-                mock_ctx.sim.timer_active = false;
+        if (mock_ctx.sim.clock_timer_active && mock_ctx.spy.boot_time_ms == mock_ctx.sim.clock_timer_next_fire) {
+            mock_ctx.sim.clock_timer_next_fire += mock_ctx.sim.clock_timer_delay;
+            if (!mock_ctx.sim.clock_timer_cb(mock_ctx.sim.clock_timer_arg)) {
+                mock_ctx.sim.clock_timer_active = false;
+            }
+        }
+        if (mock_ctx.sim.backlight_timer_active &&
+            mock_ctx.spy.boot_time_ms == mock_ctx.sim.backlight_timer_next_fire) {
+            mock_ctx.sim.backlight_timer_next_fire += mock_ctx.sim.backlight_timer_delay;
+            if (!mock_ctx.sim.backlight_timer_cb(mock_ctx.sim.backlight_timer_arg)) {
+                mock_ctx.sim.backlight_timer_active = false;
             }
         }
 
         // 2. Process DNS Lookups
-        if (mock_ctx.sim.dns_pending && mock_ctx.spy.system_time_ms == mock_ctx.sim.dns_fire_time) {
+        if (mock_ctx.sim.dns_pending && mock_ctx.spy.boot_time_ms == mock_ctx.sim.dns_fire_time) {
             mock_ctx.sim.dns_pending = false;
             if (mock_ctx.sim.dns_cb) {
                 ip_addr_t addr = {.addr = 0x08080808}; // 8.8.8.8
@@ -252,7 +258,7 @@ void sleep_ms(uint32_t ms)
         }
 
         // 3. Process UDP/NTP Responses
-        if (mock_ctx.sim.udp_pending && mock_ctx.spy.system_time_ms == mock_ctx.sim.udp_fire_time) {
+        if (mock_ctx.sim.udp_pending && mock_ctx.spy.boot_time_ms == mock_ctx.sim.udp_fire_time) {
             mock_ctx.sim.udp_pending = false;
             if (mock_ctx.inject.udp_response_type != UDP_TIMEOUT) {
                 if (mock_ctx.sim.udp_recv_cb) {
@@ -302,7 +308,7 @@ void sleep_ms(uint32_t ms)
 
         // 4. Process TCP/Captive Portal Requests
         if (mock_ctx.sim.tcp_accept_cb && mock_ctx.sim.tcp_payload_idx < mock_ctx.sim.tcp_payload_count &&
-            mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_next_fire_time) {
+            mock_ctx.spy.boot_time_ms == mock_ctx.sim.tcp_next_fire_time) {
 
             // If the server left the previous connection open, simulate the client closing
             // the socket BEFORE we reuse the PCB for the next request.
@@ -328,11 +334,11 @@ void sleep_ms(uint32_t ms)
 
             // Advance the context index
             mock_ctx.sim.tcp_payload_idx++;
-            mock_ctx.sim.tcp_next_fire_time = mock_ctx.spy.system_time_ms + 100;
+            mock_ctx.sim.tcp_next_fire_time = mock_ctx.spy.boot_time_ms + 100;
         }
 
         // 5. Process TCP Sent (Ensures the server cleanly frees con_state)
-        if (mock_ctx.sim.tcp_sent_pending && mock_ctx.spy.system_time_ms == mock_ctx.sim.tcp_sent_fire_time) {
+        if (mock_ctx.sim.tcp_sent_pending && mock_ctx.spy.boot_time_ms == mock_ctx.sim.tcp_sent_fire_time) {
             mock_ctx.sim.tcp_sent_pending = false;
             if (mock_ctx.sim.tcp_sent_cb) {
                 mock_ctx.sim.tcp_sent_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, mock_ctx.sim.tcp_sent_len);
@@ -354,7 +360,7 @@ err_t dns_gethostbyname(const char *hostname, ip_addr_t *addr,
 
     mock_ctx.sim.dns_pending = true;
     uint32_t latency = mock_ctx.inject.dns_latency_ms ? mock_ctx.inject.dns_latency_ms : 50;
-    mock_ctx.sim.dns_fire_time = mock_ctx.spy.system_time_ms + latency;
+    mock_ctx.sim.dns_fire_time = mock_ctx.spy.boot_time_ms + latency;
     mock_ctx.sim.dns_cb = found;
     mock_ctx.sim.dns_arg = callback_arg;
     strncpy(mock_ctx.sim.dns_hostname, hostname, 255);
@@ -379,7 +385,7 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     }
     mock_ctx.sim.udp_pending = true;
     uint32_t latency = mock_ctx.inject.udp_latency_ms ? mock_ctx.inject.udp_latency_ms : 50;
-    mock_ctx.sim.udp_fire_time = mock_ctx.spy.system_time_ms + latency;
+    mock_ctx.sim.udp_fire_time = mock_ctx.spy.boot_time_ms + latency;
     return ERR_OK;
 }
 
@@ -418,7 +424,7 @@ void mock_inject_tcp_error(err_t code, uint32_t delay_ms)
     if (mock_ctx.sim.tcp_err_cb) {
         mock_ctx.sim.tcp_err_pending = true;
         mock_ctx.sim.tcp_err_code = code;
-        mock_ctx.sim.tcp_err_fire_time = (time_t)mock_ctx.spy.system_time_ms + delay_ms;
+        mock_ctx.sim.tcp_err_fire_time = (time_t)mock_ctx.spy.boot_time_ms + delay_ms;
     }
 }
 void tcp_poll(struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval)
@@ -428,7 +434,7 @@ void tcp_poll(struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval)
     mock_ctx.sim.tcp_poll_interval = interval;
     if (poll && interval > 0) {
         // lwIP poll intervals are specified in 500ms ticks
-        mock_ctx.sim.tcp_next_poll_time = mock_ctx.spy.system_time_ms + (interval * 500);
+        mock_ctx.sim.tcp_next_poll_time = mock_ctx.spy.boot_time_ms + (interval * 500);
     }
 }
 
@@ -450,7 +456,7 @@ err_t tcp_write(struct tcp_pcb *pcb, const void *dataptr, u16_t len, u8_t apifla
     if (mock_ctx.sim.tcp_sent_cb) {
         mock_ctx.sim.tcp_sent_pending = true;
         mock_ctx.sim.tcp_sent_len = len;
-        mock_ctx.sim.tcp_sent_fire_time = mock_ctx.spy.system_time_ms + 10;
+        mock_ctx.sim.tcp_sent_fire_time = mock_ctx.spy.boot_time_ms + 10;
     }
     return ERR_OK;
 }
@@ -511,11 +517,20 @@ void mock_clear_tcp_payloads(void)
 bool add_repeating_timer_ms(uint32_t delay_ms, bool (*callback)(repeating_timer_t *rt), void *user_data,
                             repeating_timer_t *out)
 {
-    mock_ctx.sim.timer_active = true;
-    mock_ctx.sim.timer_delay = delay_ms;
-    mock_ctx.sim.timer_cb = callback;
-    mock_ctx.sim.timer_arg = out;
-    mock_ctx.sim.timer_next_fire = mock_ctx.spy.system_time_ms + delay_ms;
+    // Scales very badly to multiple timers
+    if (callback == clock_timer_callback) {
+        mock_ctx.sim.clock_timer_active = true;
+        mock_ctx.sim.clock_timer_delay = delay_ms;
+        mock_ctx.sim.clock_timer_cb = callback;
+        mock_ctx.sim.clock_timer_arg = out;
+        mock_ctx.sim.clock_timer_next_fire = mock_ctx.spy.boot_time_ms + delay_ms;
+    } else {
+        mock_ctx.sim.backlight_timer_active = true;
+        mock_ctx.sim.backlight_timer_delay = delay_ms;
+        mock_ctx.sim.backlight_timer_cb = callback;
+        mock_ctx.sim.backlight_timer_arg = out;
+        mock_ctx.sim.backlight_timer_next_fire = mock_ctx.spy.boot_time_ms + delay_ms;
+    }
     out->user_data = user_data;
     return true;
 }

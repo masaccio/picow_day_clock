@@ -162,11 +162,17 @@ typedef struct
         err_t tcp_err_code;
 
         // Hardware Timer Simulation
-        bool timer_active;
-        time_t timer_delay;
-        time_t timer_next_fire;
-        bool (*timer_cb)(repeating_timer_t *rt);
-        repeating_timer_t *timer_arg;
+        bool clock_timer_active;
+        time_t clock_timer_delay;
+        time_t clock_timer_next_fire;
+        bool (*clock_timer_cb)(repeating_timer_t *rt);
+        repeating_timer_t *clock_timer_arg;
+
+        bool backlight_timer_active;
+        time_t backlight_timer_delay;
+        time_t backlight_timer_next_fire;
+        bool (*backlight_timer_cb)(repeating_timer_t *rt);
+        repeating_timer_t *backlight_timer_arg;
     } sim;
 
     struct

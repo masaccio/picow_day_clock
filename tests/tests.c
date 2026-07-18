@@ -24,7 +24,8 @@ mock_context_t mock_ctx = {0};
         memset((void *)&mock_ctx.spy, 0, sizeof(mock_ctx.spy));                                                        \
         mock_ctx.sim.dns_pending = false;                                                                              \
         mock_ctx.sim.udp_pending = false;                                                                              \
-        mock_ctx.sim.timer_active = false;                                                                             \
+        mock_ctx.sim.clock_timer_active = false;                                                                       \
+        mock_ctx.sim.backlight_timer_active = false;                                                                   \
     } while (0)
 
 #define TEST_AP_SSID "HomeNet"
@@ -98,6 +99,7 @@ mock_context_t mock_ctx = {0};
             return 1;                                                                                                  \
         }                                                                                                              \
     } while (0)
+
 static void set_localtime(clock_state_t *clock_state, int year, int mon, int mday, int hour, int min, int sec)
 {
 
@@ -114,8 +116,9 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
     clock_state->ntp_last_sync = t;
     clock_state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     mock_ctx.spy.system_time_ms = t * 1000;
+    mock_ctx.spy.boot_time_ms = t * 1000;
     mock_ctx.spy.ntp_seconds = (mock_ctx.spy.system_time_ms / 1000) + NTP_DELTA;
-    mock_ctx.sim.timer_next_fire = mock_ctx.spy.system_time_ms + 1000;
+    mock_ctx.sim.clock_timer_next_fire = mock_ctx.spy.boot_time_ms + 1000;
 }
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer, flash_config_t *flash_config)
