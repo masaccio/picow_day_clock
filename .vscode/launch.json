@@ -2,21 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Tests",
+            "name": "Native Tests",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/tests_build/test_picow_day_clock",
-            "targetArchitecture": "ARM64",
             "args": [],
-            "stopAtEntry": false,
+            "stopOnEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "lldb",
+            "env": {},
             "preLaunchTask": "CMake: build",
-            "sourceFileMap": {
-                "${userHome}/CloudDocs/development/picow_day_clock": "${workspaceFolder}",
-            }
+            "breakpointMode": "file",
         },
         {
             "name": "Python Icons",
@@ -62,7 +57,7 @@
             "python": "${workspaceFolder}/build/scripts_venv/bin/python3"
         },
         {
-            "name": "Debug (Pico Probe)",
+            "name": "Pico with Probe",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
             "executable": "${workspaceFolder}/build/picow_day_clock.elf",
             "request": "launch",
@@ -85,7 +80,7 @@
             ]
         },
         {
-            "name": "Attach to Pico",
+            "name": "Pico Attach",
             "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
             "executable": "${workspaceFolder}/build/picow_day_clock.elf",
             "request": "attach",
