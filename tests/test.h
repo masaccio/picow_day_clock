@@ -92,7 +92,6 @@ typedef struct
 {
     struct
     {
-        unsigned int calloc_fail_at;           // Allows specific calloc() calls to fail
         int cyw43_arch_init_fail;              // cyw43_arch_init() return value
         int cyw43_arch_wifi_connect_status;    // cyw43_arch_wifi_connect_timeout_ms() return value
         int cyw43_auth_error_count;            // Generate Wi-Fi auth errors
@@ -200,12 +199,6 @@ typedef struct
         wifi_error_t wifi_icon;
         uint8_t lcd_brightness;
     } spy;
-
-    struct
-    {
-        unsigned int frees;
-        unsigned int allocs;
-    } leak_checker;
 
     struct
     {

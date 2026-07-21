@@ -14,6 +14,7 @@ persistent_state_t persistent_state;
 
 void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
+    (void)state;
     persistent_state.ntp_error = ntp_error;
     persistent_state.wifi_error = wifi_error;
     mock_ctx.spy.fatal_ntp_error = ntp_error;
@@ -23,9 +24,6 @@ void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_
 
     if (mock_ctx.inject.fatal_reset_no_longjmp)
         return;
-
-    if (state)
-        free(state);
 
     // Returns into main() which will then exit with status=1
     longjmp(fatal_reset_jmp_buf, 1);

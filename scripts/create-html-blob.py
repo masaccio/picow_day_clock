@@ -3,11 +3,6 @@ import os
 import re
 
 
-def to_c_identifier(name):
-    """Converts a filename like 'index.html' to a valid C variable 'index_html'"""
-    return re.sub(r"[^0-9a-zA-Z]", "_", os.path.basename(name))
-
-
 def load_defines(filepath):
     """Parses simple #define macros (e.g., #define XXX 100) from a C header file."""
     defines = {}
@@ -27,14 +22,15 @@ def load_defines(filepath):
 def main():
     parser = argparse.ArgumentParser(description="Convert html into a C structure")
     parser.add_argument("input", help="Input HTML file.")
-    parser.add_argument("output", help="Output C file")
+    parser.add_argument("output", help="Output C file.")
+    parser.add_argument("--header", help="Output Header file.", default="html_form.h")
     parser.add_argument("--config", help="Input config header file to read #defines from", default="config.h")
     parser.add_argument(
         "--html", help="Optional: Output the populated, un-minified HTML for browser debugging", default=None
     )
 
     args = parser.parse_args()
-    print(f"Generating {args.output}")
+    print(f"Generating {args.output} and {args.header}")
 
     # Load the defines strictly from the config file
     defines = load_defines(args.config)
@@ -62,14 +58,17 @@ def main():
     lines = [line.strip() for line in minified.splitlines() if line.strip()]
     final_c_content = " ".join(lines)
 
+    bytes_data = final_c_content.encode("utf-8")
+    template_length = len(bytes_data)
+    var_name = "html_form_template"
+
+    # Write C File
     with open(args.output, "w", encoding="utf-8") as f_c:
-        var_name = to_c_identifier(args.input)
-        f_c.write('#include "html_form.h"\n\n')
+        f_c.write(f'#include "{os.path.basename(args.header)}"\n\n')
         f_c.write(f"// Generated from {args.input}\n")
         f_c.write(f"const char {var_name}[] = {{\n    ")
 
         # Dump as bytes
-        bytes_data = final_c_content.encode("utf-8")
         for i, b in enumerate(bytes_data):
             f_c.write(f"0x{b:02x}, ")
             # Wrap lines every 12 bytes
@@ -79,7 +78,15 @@ def main():
         # Null terminator
         f_c.write("0x00\n};\n")
 
-        f_c.write(f"const unsigned int {var_name}_len = sizeof({var_name}) - 1;\n")
+    # Write Header File
+    with open(args.header, "w", encoding="utf-8") as f_h:
+        f_h.write("#pragma once\n\n")
+        f_h.write('#include "config.h"\n\n')
+        f_h.write(f"extern const char {var_name}[];\n\n")
+        f_h.write(f"#define HTML_FORM_TEMPLATE_LENGTH {template_length}\n")
+        f_h.write(
+            "#define HTML_FORM_MAX_LENGTH HTML_FORM_TEMPLATE_LENGTH + WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN + HOSTNAME_MAX_LEN\n"
+        )
 
 
 if __name__ == "__main__":

@@ -25,18 +25,6 @@ typedef enum
 
 typedef struct
 {
-    struct tcp_pcb *server_pcb;
-    bool complete;
-    ip_addr_t gw;
-    store_config_handler_t store_config;
-    struct flash_config_t *flash_config;
-    char *form_html;
-    u16_t form_html_len;
-    int active_connections;
-} tcp_server_t;
-
-typedef struct
-{
     struct tcp_pcb *pcb;
     int sent_len;
     char headers[TCP_IP_BUFFER_SIZE];
@@ -46,10 +34,19 @@ typedef struct
     ip_addr_t *gw;
     store_config_handler_t store_config;
     struct flash_config_t *flash_config;
-    char *form_html;
-    u16_t form_html_len;
-    tcp_server_t *server_state;
+    void *server_state;
 } tcp_connect_state_t;
+
+typedef struct
+{
+    struct tcp_pcb *server_pcb;
+    bool complete;
+    ip_addr_t gw;
+    store_config_handler_t store_config;
+    struct flash_config_t *flash_config;
+    int active_connections;
+    tcp_connect_state_t connections[TCP_IP_MAX_CONNECTIONS];
+} tcp_server_t;
 
 extern wifi_error_t connect_to_wifi(const char ssid[], const char password[], bool *wifi_initialized);
 

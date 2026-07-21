@@ -580,27 +580,6 @@ int test_printf(const char *format, ...)
     return 0;
 }
 
-void *mock_calloc(size_t num, size_t size)
-{
-    if (mock_ctx.inject.calloc_fail_at != 0) {
-        mock_ctx.spy.calloc_counter++;
-        if (mock_ctx.spy.calloc_counter >= mock_ctx.inject.calloc_fail_at) {
-            mock_ctx.inject.calloc_fail_at = 0;
-            return NULL;
-        }
-    }
-    mock_ctx.leak_checker.allocs++;
-    return calloc(num, size);
-}
-
-void mock_free(void *ptr)
-{
-    if (ptr != NULL) {
-        mock_ctx.leak_checker.frees++;
-        free(ptr);
-    }
-}
-
 // lwIP functions
 struct pbuf *pbuf_alloc(pbuf_layer l, u16_t length, pbuf_type type)
 {

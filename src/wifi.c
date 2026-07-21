@@ -20,6 +20,9 @@
 #include "clock.h"
 #include "html_form.h"
 
+static tcp_server_t server_state;
+static char html_form_expanded[HTML_FORM_MAX_LENGTH] = {0};
+
 const char *wifi_error_to_string(wifi_error_t status)
 {
     switch (status) {
@@ -81,7 +84,10 @@ wifi_error_t connect_to_wifi(const char ssid[], const char password[], bool *wif
 static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct tcp_pcb *client_pcb, err_t close_err)
 {
     if (client_pcb) {
-        con_state->server_state->active_connections--;
+        if (con_state && con_state->server_state) {
+            tcp_server_t *state = (tcp_server_t *)con_state->server_state;
+            state->active_connections--;
+        }
         tcp_arg(client_pcb, NULL);
         tcp_poll(client_pcb, NULL, 0);
         tcp_sent(client_pcb, NULL);
@@ -94,22 +100,26 @@ static err_t tcp_close_client_connection(tcp_connect_state_t *con_state, struct 
             close_err = ERR_ABRT;
         }
         if (con_state) {
-            free(con_state);
+            memset(con_state, 0, sizeof(tcp_connect_state_t));
         }
-    } else if (con_state && con_state->server_state) {
+    } else if (con_state) {
         // If we got here via tcp_server_err, the PCB is gone.
         // Just decrement our counter and skip touching the dead pcb.
-        con_state->server_state->active_connections--;
+        if (con_state->server_state) {
+            tcp_server_t *state = (tcp_server_t *)con_state->server_state;
+            state->active_connections--;
+        }
+        memset(con_state, 0, sizeof(tcp_connect_state_t));
     }
     return close_err;
 }
 
-static void tcp_server_close(tcp_server_t *state)
+static void tcp_server_close(void)
 {
-    if (state->server_pcb) {
-        tcp_arg(state->server_pcb, NULL);
-        tcp_close(state->server_pcb);
-        state->server_pcb = NULL;
+    if (server_state.server_pcb) {
+        tcp_arg(server_state.server_pcb, NULL);
+        tcp_close(server_state.server_pcb);
+        server_state.server_pcb = NULL;
     }
 }
 
@@ -143,6 +153,7 @@ static void tcp_server_err(void *arg, err_t err)
 err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 {
     tcp_server_t *state = (tcp_server_t *)arg;
+
     if (err != ERR_OK || client_pcb == NULL) {
         CLOCK_DEBUG("failure in accept\n");
         return ERR_VAL;
@@ -156,18 +167,27 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         return ERR_ABRT;
     }
 
-    // Create the state for the connection
-    tcp_connect_state_t *con_state = (tcp_connect_state_t *)calloc(1, sizeof(tcp_connect_state_t));
+    // Find a free connection state slot within the provided server state
+    tcp_connect_state_t *con_state = NULL;
+    for (int i = 0; i < TCP_IP_MAX_CONNECTIONS; i++) {
+        if (state->connections[i].pcb == NULL) {
+            con_state = &state->connections[i];
+            break;
+        }
+    }
+
     if (!con_state) {
         CLOCK_DEBUG("failed to allocate connect state\n");
         return ERR_MEM;
     }
+
+    // Clean the reused state
+    memset(con_state, 0, sizeof(tcp_connect_state_t));
+
+    con_state->server_state = state;
     con_state->store_config = state->store_config;
     con_state->flash_config = state->flash_config;
-    con_state->form_html = state->form_html;
-    con_state->form_html_len = state->form_html_len;
-    con_state->server_state = state;
-    con_state->pcb = client_pcb; // for checking
+    con_state->pcb = client_pcb;
     con_state->gw = &state->gw;
 
     // setup connection to client
@@ -179,11 +199,8 @@ err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 
     return ERR_OK;
 }
-
-static bool tcp_server_open(void *arg, const char *ssid)
+static bool tcp_server_open(void)
 {
-    (void)ssid;
-    tcp_server_t *state = (tcp_server_t *)arg;
     CLOCK_DEBUG("starting server on port %d\n", HTTP_TCP_PORT);
 
     struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
@@ -198,8 +215,8 @@ static bool tcp_server_open(void *arg, const char *ssid)
         return false;
     }
 
-    state->server_pcb = tcp_listen_with_backlog(pcb, 1);
-    if (!state->server_pcb) {
+    server_state.server_pcb = tcp_listen_with_backlog(pcb, 1);
+    if (!server_state.server_pcb) {
         CLOCK_DEBUG("failed to listen\n");
         if (pcb) {
             tcp_close(pcb);
@@ -207,8 +224,8 @@ static bool tcp_server_open(void *arg, const char *ssid)
         return false;
     }
 
-    tcp_arg(state->server_pcb, state);
-    tcp_accept(state->server_pcb, tcp_server_accept);
+    tcp_arg(server_state.server_pcb, &server_state);
+    tcp_accept(server_state.server_pcb, tcp_server_accept);
 
     return true;
 }
@@ -409,7 +426,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
         if (con_state->store_config(&config, /* invalidate */ 0)) {
             const char *success_msg = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nSaved! Rebooting...";
             tcp_write(pcb, success_msg, (u16_t)strlen(success_msg), 0);
-            con_state->server_state->complete = true;
+            server_state.complete = true;
         } else {
             const char *fail_msg = "HTTP/1.1 500 Error\r\nConnection: close\r\n\r\nFailed to save to Flash.";
             tcp_write(pcb, fail_msg, (u16_t)strlen(fail_msg), 0);
@@ -418,11 +435,11 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     // Route B: Configuration page
     else if (strncmp(request, "GET " HTTP_CONFIG_URL, 4 + sizeof(HTTP_CONFIG_URL) - 1) == 0 ||
              strncmp(request, "GET / ", 6) == 0) {
+        size_t html_form_len = strlen(html_form_expanded);
         con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER);
-        con_state->result_len = (int)con_state->form_html_len;
-
+        con_state->result_len = (int)html_form_len;
         tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, TCP_WRITE_FLAG_MORE);
-        tcp_write(pcb, con_state->form_html, (u16_t)con_state->form_html_len, 0);
+        tcp_write(pcb, html_form_expanded, (u16_t)html_form_len, 0);
     }
     // Route C: Background OS pages / captive portal
     else {
@@ -454,71 +471,50 @@ wifi_error_t start_wifi_access_point(struct flash_config_t *flash_config, store_
                                      bool *wifi_initialized)
 {
     CLOCK_DEBUG("Starting access point for configuration\r\n");
-
-    tcp_server_t *state = (tcp_server_t *)calloc(1, sizeof(tcp_server_t));
-    if (!state) {
-        CLOCK_DEBUG("Failed to allocate Wi-Fi state\r\n");
-        return WIFI_INIT_ERROR;
-    }
-
-    state->store_config = store_config;
-    state->flash_config = flash_config;
-    state->complete = false;
+    memset(&server_state, 0, sizeof(tcp_server_t));
+    server_state.store_config = store_config;
+    server_state.flash_config = flash_config;
+    server_state.complete = false;
 
     if (!*wifi_initialized && cyw43_arch_init() != 0) {
         CLOCK_DEBUG("Failed to init Wi-Fi\r\n");
-        free(state);
         return WIFI_INIT_ERROR;
     }
     *wifi_initialized = true;
 
-    char *new_html = (char *)calloc(form_html_len + WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN + HOSTNAME_MAX_LEN, 1);
-    if (!new_html) {
-        CLOCK_DEBUG("Failed to allocate HTML form\r\n");
-        free(state);
-        return WIFI_INIT_ERROR;
-    }
-    if (expand_html_template(form_html, new_html, flash_config) != ERR_OK) {
+    if (expand_html_template(html_form_template, (char *)html_form_expanded, flash_config) != ERR_OK) {
         CLOCK_DEBUG("Failed to parse HTML form\r\n");
-        free(state);
-        free(new_html);
         return WIFI_INIT_ERROR;
     }
-    state->form_html = new_html;
-    state->form_html_len = (u16_t)strlen(new_html);
 
     char *ssid = get_ssid();
     cyw43_arch_enable_ap_mode(ssid, NULL, CYW43_AUTH_WPA2_AES_PSK);
 
     ip4_addr_t mask;
-    state->gw.addr = PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS);
+    server_state.gw.addr = PP_HTONL(CYW43_DEFAULT_IP_AP_ADDRESS);
     mask.addr = PP_HTONL(CYW43_DEFAULT_IP_MASK);
 
     dhcp_server_t dhcp_server;
-    dhcp_server_init(&dhcp_server, &state->gw, &mask);
+    dhcp_server_init(&dhcp_server, &server_state.gw, &mask);
 
     dns_server_t dns_server;
-    dns_server_init(&dns_server, &state->gw);
+    dns_server_init(&dns_server, &server_state.gw);
 
-    if (!tcp_server_open(state, ssid)) {
+    if (!tcp_server_open()) {
         CLOCK_DEBUG("Failed to open server\n");
-        free(new_html);
-        free(state);
         return WIFI_INIT_ERROR;
     }
 
-    while (!state->complete) {
+    while (!server_state.complete) {
         watchdog_update();
         sleep_ms(1000);
     }
 
     cyw43_arch_disable_ap_mode();
-    tcp_server_close(state);
+    tcp_server_close();
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
 
     CLOCK_DEBUG("start_wifi_access_point DONE\r\n");
-    free(new_html);
-    free(state);
     return WIFI_OK;
 }

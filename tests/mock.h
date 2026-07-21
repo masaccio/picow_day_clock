@@ -96,12 +96,6 @@ typedef mock_struct_t dns_server_t;
 
 #define printf(...) test_printf(__VA_ARGS__)
 
-#define calloc(num, size) mock_calloc(num, size)
-extern void *mock_calloc(size_t num, size_t size);
-
-#define free(ptr) mock_free(ptr)
-extern void mock_free(void *ptr);
-
 // =============================================================================
 // Pico SDK Hardware Mocks
 // =============================================================================

@@ -167,12 +167,6 @@ static int run_test(test_func_t func, const char *test_name)
     // Run test
     int status = func();
 
-    if (mock_ctx.leak_checker.allocs != mock_ctx.leak_checker.frees) {
-        printf("LEAK DETECTED: %u allocs vs %u frees in %s\n", mock_ctx.leak_checker.allocs,
-               mock_ctx.leak_checker.frees, test_name);
-        return 1;
-    }
-
     printf("TEST %s: %s\n", test_name, (status == 1) ? "FAIL" : "OK");
     return status;
 }
@@ -286,8 +280,8 @@ static int test_wifi_errors(void)
 
 static int test_dst(void)
 {
-    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer, create_flash_config());
+    repeating_timer_t timer;
+    clock_state_t *clock_state = create_test_clock_state(&timer, create_flash_config());
 
     // Timezone Offset Tests (DST_RULE_NONE)`
     clock_state->ntp_last_sync = mock_time(NULL);
@@ -296,7 +290,7 @@ static int test_dst(void)
     // Test Positive Fractional Offset: India (+5:30 -> 330 mins)
     clock_state->flash_config.tz_offset_mins = 330;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
-    (void)clock_timer_callback(timer);
+    (void)clock_timer_callback(&timer);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Mon1730");
     CHECK_ICONS_OK();
@@ -304,7 +298,7 @@ static int test_dst(void)
     // Test Negative Offset: New York (-5:00 -> -300 mins)
     clock_state->flash_config.tz_offset_mins = -300;
     set_localtime(clock_state, 2024, 0, 1, 12, 0, 0); // Jan 1, 12:00 UTC
-    (void)clock_timer_callback(timer);
+    (void)clock_timer_callback(&timer);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Mon0700");
     CHECK_ICONS_OK();
@@ -315,21 +309,21 @@ static int test_dst(void)
 
     // Sun March 25, 2001 at 00:22 (just before EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 0, 22, 0);
-    (void)clock_timer_callback(timer);
+    (void)clock_timer_callback(&timer);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Sun0022");
     CHECK_ICONS_OK();
 
     // Sun March 25, 2001 at 01:22 (just after EU clocks change)
     set_localtime(clock_state, 2001, 2, 25, 1, 22, 0);
-    (void)clock_timer_callback(timer);
+    (void)clock_timer_callback(&timer);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Sun0222");
     CHECK_ICONS_OK();
 
     // Thu August 23, 2001 at 23:55 (test day rollover in DST)
     set_localtime(clock_state, 2001, 7, 23, 23, 55, 0);
-    (void)clock_timer_callback(timer);
+    (void)clock_timer_callback(&timer);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Fri0055");
     CHECK_ICONS_OK();
@@ -390,8 +384,6 @@ static int test_dst(void)
     TEST_DST_BOUND(2024, 9, 27, 1, 59, DST_RULE_IL, 1);
     TEST_DST_BOUND(2024, 9, 27, 2, 0, DST_RULE_IL, 0);
 
-    free(timer);
-
     return 0; // All paths passed
 }
 
@@ -402,8 +394,8 @@ static int lcd_digits_to_int(const char *digits)
 
 static int test_ntp_time(void)
 {
-    repeating_timer_t *timer = (repeating_timer_t *)calloc(1, sizeof(repeating_timer_t));
-    clock_state_t *clock_state = create_test_clock_state(timer, create_flash_config());
+    repeating_timer_t timer;
+    clock_state_t *clock_state = create_test_clock_state(&timer, create_flash_config());
 
     // Tue January 9, 2001 at 09:28:32
     set_localtime(clock_state, 2001, 0, 9, 9, 28, 32);
@@ -498,8 +490,6 @@ static int test_ntp_time(void)
     sleep_ms(1000);
     clock_task(clock_state);
     EXPECT_LCD_DIGITS("Fri0629");
-
-    free(timer);
 
     return 0;
 }
@@ -822,10 +812,8 @@ static int test_wifi_ap_limits(void)
     int rejected_count = 0;
 
     for (int i = 0; i < TCP_IP_MAX_CONNECTIONS + 2; i++) {
-        // Assume tcp_server_accept is exposed or tested directly
         err_t result = tcp_server_accept(&mock_server, &mock_pcbs[i], ERR_OK);
         if (result == ERR_OK) {
-            mock_free(mock_ctx.sim.conn_arg);
             accepted_count++;
         } else if (result == ERR_ABRT) {
             rejected_count++;
@@ -888,18 +876,6 @@ static int test_ap_init_fails_cyw43(void)
 
     wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &state.wifi_initialized);
     ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "Should fail when CYW43 init fails");
-    return 0;
-}
-
-static int test_ap_init_fails_calloc(void)
-{
-    reset_wifi_test_state();
-    // Fail the first calloc which allocates the tcp_server_t state
-    mock_ctx.inject.calloc_fail_at = 1;
-    clock_state_t state = {.wifi_initialized = false};
-
-    wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &state.wifi_initialized);
-    ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "Should fail when state calloc fails");
     return 0;
 }
 
@@ -1090,27 +1066,6 @@ static int test_ap_incomplete_requests(void)
     return 0;
 }
 
-static int test_ap_accept_calloc_fails(void)
-{
-    reset_wifi_test_state();
-
-    // Fail the second calloc attempt (tcp_connect_state_t in tcp_server_accept)
-    mock_ctx.inject.calloc_fail_at = 3;
-
-    // Request rejected by tcp_server_accept due to ERR_MEM
-    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Fail");
-    // Next payload succeeds (calloc_fail_at resets to 0)
-    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
-
-    clock_state_t state = {.wifi_initialized = false};
-    wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &state.wifi_initialized);
-
-    ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should handle accept ERR_MEM gracefully");
-    ASSERT_WITH_MESSAGE(config_save_count, 1, "Only the second payload should have triggered a store");
-
-    return 0;
-}
-
 static int test_ap_tcp_error_handling(void)
 {
     reset_wifi_test_state();
@@ -1162,7 +1117,6 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_ap_reuse_config, "Wi-Fi AP: reuse old config");
     status |= run_test(test_wifi_ap_limits, "Wi-Fi AP limits");
     status |= run_test(test_ap_init_fails_cyw43, "Wi-Fi AP: CYW43 init fails");
-    status |= run_test(test_ap_init_fails_calloc, "Wi-Fi AP: Calloc fails during init");
     status |= run_test(test_ap_wifi_already_initialized, "Wi-Fi AP: Short-circuit already initialized");
     status |= run_test(test_ap_success_full_post, "Wi-Fi AP: Successful POST payload processing");
     status |= run_test(test_ap_url_decoding, "Wi-Fi AP: URL encoded payload logic");
@@ -1172,7 +1126,6 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_ap_get_redirect, "Wi-Fi AP: Handle captive portal redirects");
     status |= run_test(test_ap_post_save_fails, "Wi-Fi AP: Flash write failure recovery");
     status |= run_test(test_ap_incomplete_requests, "Wi-Fi AP: Ignore incomplete TCP streams");
-    status |= run_test(test_ap_accept_calloc_fails, "Wi-Fi AP: Recover from tcp_accept ERR_MEM");
     status |= run_test(test_ap_tcp_error_handling, "Wi-Fi AP: Handle TCP reset/abort events");
     status |= run_test(test_flash_config_modes, "Flash config modes");
 

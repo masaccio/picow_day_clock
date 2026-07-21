@@ -14,6 +14,7 @@ set(HTML_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/create-html-blob.py)
 set(HTML_SOURCE ${CMAKE_SOURCE_DIR}/src/html/form.html)
 set(HTML_C_NAME html_form)
 set(HTML_C_SRC ${GENERATED_DIR}/${HTML_C_NAME}.c)
+set(HTML_C_HEADER ${GENERATED_DIR}/${HTML_C_NAME}.h)
 
 set(LCD_HEIGHT 320)
 set(LCD_WIDTH 172)
@@ -102,6 +103,7 @@ add_custom_command(
     COMMAND ${PYTHON_EXECUTABLE} ${HTML_SCRIPT}
             --config ${CMAKE_SOURCE_DIR}/src/config.h
             --html ${CMAKE_SOURCE_DIR}/generated/form.html
+            --header ${HTML_C_HEADER}
             ${HTML_SOURCE}
             ${HTML_C_SRC}
     COMMENT "Generating HTML blob ${HTML_C_SRC}"
