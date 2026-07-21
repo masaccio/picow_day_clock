@@ -72,6 +72,5 @@ void clock_init(clock_state_t *);
 extern int clock_start(clock_state_t *);
 
 // Terminal errors that cannot be recovered from
-extern void NO_RETURN_FUNC on_clock_alloc_failed(void);
 extern void NO_RETURN_FUNC system_reboot(void);
 extern void NO_RETURN_FUNC fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);

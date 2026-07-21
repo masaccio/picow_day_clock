@@ -15,16 +15,6 @@ void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp
         __wfi(); // hang until reset
 }
 
-void on_clock_alloc_failed(void)
-{
-    gpio_put(DIAG_GREEN_LED_GPIO, 0);
-    while (1) {
-        gpio_xor_mask(1 << DIAG_RED_LED_GPIO);
-        sleep_ms(100);
-        watchdog_update();
-    }
-}
-
 bool startup_led_callback(struct repeating_timer *t)
 {
     (void)t;

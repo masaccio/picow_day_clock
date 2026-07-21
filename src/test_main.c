@@ -29,11 +29,6 @@ void fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_
     longjmp(fatal_reset_jmp_buf, 1);
 }
 
-void on_clock_alloc_failed(void)
-{
-    mock_ctx.spy.clock_state_alloc_failed = 1;
-}
-
 int test_main(void)
 {
     clock_state_t state;
