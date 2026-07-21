@@ -372,7 +372,7 @@ void clock_init(clock_state_t *state)
     state->first_clock_tick = true;
 }
 
-int clock_start(clock_state_t *state)
+void clock_start(clock_state_t *state)
 {
     wifi_error_t wifi_status =
         connect_to_wifi(state->flash_config.wifi_ssid, state->flash_config.wifi_password, &state->wifi_initialized);
@@ -404,8 +404,6 @@ int clock_start(clock_state_t *state)
         CLOCK_DEBUG("Failed to init backlight timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
-
-    return 0;
 }
 
 void clock_task(clock_state_t *state)

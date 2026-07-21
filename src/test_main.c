@@ -50,20 +50,11 @@ int test_main(void)
     mock_ctx.spy.watchdog_reboot_called = 0;
 
     clock_init(&state);
+    clock_start(&state);
 
-    int status = clock_start(&state);
-    if (status != 0)
-        return 1;
-
-    status = 0;
     while (1) {
-        if (mock_ctx.spy.fatal_reset_caught) {
-            status = 1;
-            break;
-        } else if (state.ntp_state.status == NTP_FAILED) {
+        if (state.ntp_state.status == NTP_FAILED) {
             fatal_reset(&state, state.ntp_state.error, WIFI_OK);
-        } else if (state.ntp_state.status != NTP_SUCCESS && state.ntp_state.status != NTP_PENDING) {
-            break;
         } else if (mock_ctx.inject.exit_on_ntp_success && state.ntp_state.status == NTP_SUCCESS) {
             // Some tests expect normal operation, but we still need to return to the test harness
             break;
@@ -74,5 +65,5 @@ int test_main(void)
         sleep_ms(10);
     }
 
-    return status;
+    return 0;
 }

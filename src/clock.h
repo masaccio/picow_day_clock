@@ -69,7 +69,7 @@ extern void clock_task(clock_state_t *state);
 
 // Core clock routines
 void clock_init(clock_state_t *);
-extern int clock_start(clock_state_t *);
+extern void clock_start(clock_state_t *);
 
 // Terminal errors that cannot be recovered from
 extern void NO_RETURN_FUNC system_reboot(void);

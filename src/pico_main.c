@@ -42,7 +42,7 @@ int main(void)
     struct repeating_timer startup_led_timer;
     bool startup_led_active = init_diagnostic_led(&startup_led_timer);
 
-    int status = clock_start(&state);
+    clock_start(&state);
 
     while (1) {
         clock_task(&state);
