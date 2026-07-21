@@ -53,14 +53,9 @@ void lcd_write_image(lcd_state_t *state, const uint8_t *image, uint16_t x_start,
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
                    color_t fg_color, color_t bg_color);
 
-lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
+lcd_state_t *lcd_init(lcd_state_t *state, uint16_t lcd_num, bool reset)
 
 {
-    lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
-    if (!state) {
-        return NULL;
-    }
-
     state->RST_N_gpio = LCD_GPIO_RST_N;
     state->DC_gpio = LCD_GPIO_DC;
     state->BL_gpio = LCD_GPIO_BL;

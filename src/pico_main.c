@@ -7,7 +7,7 @@ persistent_state_t persistent_state __attribute__((section(".uninitialized_data"
 
 void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error)
 {
-    lcd_update_icons(state->lcd_states[0], WATCHDOG_RESET, ntp_error, wifi_error);
+    lcd_update_icons(&state->lcd_states[0], WATCHDOG_RESET, ntp_error, wifi_error);
     persistent_state.ntp_error = ntp_error;
     persistent_state.wifi_error = wifi_error;
     watchdog_reboot((uint32_t)0, SRAM_END, (uint32_t)0 /* delay_ms */);
@@ -17,18 +17,6 @@ void __attribute__((noreturn)) fatal_reset(clock_state_t *state, ntp_error_t ntp
 
 void on_clock_alloc_failed(void)
 {
-    gpio_put(DIAG_GREEN_LED_GPIO, 0);
-    while (1) {
-        gpio_xor_mask(1 << DIAG_RED_LED_GPIO);
-        sleep_ms(100);
-        watchdog_update();
-    }
-}
-
-void on_lcd_init_failed(clock_state_t *state, unsigned lcd_num)
-{
-    (void)state;
-    (void)lcd_num;
     gpio_put(DIAG_GREEN_LED_GPIO, 0);
     while (1) {
         gpio_xor_mask(1 << DIAG_RED_LED_GPIO);
@@ -58,28 +46,27 @@ static bool init_diagnostic_led(struct repeating_timer *t)
 
 int main(void)
 {
-    clock_state_t *state = clock_init();
-    if (!state)
-        return 1;
+    clock_state_t state;
+    clock_init(&state);
 
     struct repeating_timer startup_led_timer;
     bool startup_led_active = init_diagnostic_led(&startup_led_timer);
 
-    int status = clock_start(state);
+    int status = clock_start(&state);
 
     while (1) {
-        clock_task(state);
+        clock_task(&state);
 
-        if (state->ap_mode_triggered) {
-            state->ap_mode_triggered = 0;
-            start_wifi_access_point(&state->flash_config, config_store_handler, &state->wifi_initialized);
+        if (state.ap_mode_triggered) {
+            state.ap_mode_triggered = 0;
+            start_wifi_access_point(&state.flash_config, config_store_handler, &state.wifi_initialized);
             system_reboot();
         }
 
-        if (startup_led_active && state->ntp_state->status == NTP_IDLE) {
+        if (startup_led_active && state.ntp_state.status == NTP_IDLE) {
             cancel_repeating_timer(&startup_led_timer);
             gpio_put(DIAG_RED_LED_GPIO, 0);
-            gpio_put(DIAG_GREEN_LED_GPIO, state->flash_config.led_always_on);
+            gpio_put(DIAG_GREEN_LED_GPIO, state.flash_config.led_always_on);
             startup_led_active = false;
         }
 

@@ -8,12 +8,11 @@
 #include "test.h"
 
 // LCD functions
-lcd_state_t *lcd_init(uint16_t lcd_num, int reset)
+lcd_state_t *lcd_init(lcd_state_t *state, uint16_t lcd_num, bool reset)
 {
     (void)lcd_num;
     (void)reset;
 
-    lcd_state_t *state = (lcd_state_t *)calloc(1, sizeof(lcd_state_t));
     if (!state) {
         return NULL;
     }
@@ -116,6 +115,7 @@ uint16_t adc_read(void)
 // Wi-Fi functions
 int cyw43_arch_init(void)
 {
+    mock_ctx.spy.cyw43_arch_init_fail = mock_ctx.inject.cyw43_arch_init_fail;
     return mock_ctx.inject.cyw43_arch_init_fail ? 1 : 0;
 }
 
@@ -668,6 +668,10 @@ void watchdog_reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
     (void)sp;
     (void)delay_ms;
     mock_ctx.spy.watchdog_reboot_called = 1;
+    mock_ctx.inject.factory_reset_pressed = 0;
+
+    if (!mock_ctx.inject.fatal_reset_no_longjmp)
+        longjmp(fatal_reset_jmp_buf, 1);
 }
 
 void watchdog_enable(uint32_t delay_ms, int pause_on_debug)
@@ -699,13 +703,15 @@ void *mock_tcp_server_state = (void *)&mock_tcp_server_state_storage;
 void flash_range_erase(uint32_t flash_offs, size_t count)
 {
     (void)flash_offs;
-    memset(&mock_flash_config, 0, count);
+    (void)count;
+    memset(mock_flash_config, 0, sizeof(flash_config_t));
 }
 
 void flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count)
 {
     (void)flash_offs;
-    memcpy(&mock_flash_config, data, count);
+    (void)count;
+    memcpy(mock_flash_config, data, sizeof(flash_config_t));
 }
 
 err_t tcp_output(struct tcp_pcb *pcb)

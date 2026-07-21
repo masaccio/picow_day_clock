@@ -129,14 +129,9 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     pbuf_free(p);
 }
 
-extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler)
+extern bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t time_handler)
 {
-    ntp_state_t *state = (ntp_state_t *)calloc(1, sizeof(ntp_state_t));
-    if (!state) {
-        CLOCK_DEBUG("Failed to allocate NTP state\r\n");
-        return NULL;
-    }
-
+    memset(state, 0, sizeof(ntp_state_t));
     state->parent_state = parent_state;
     state->time_handler = time_handler;
 
@@ -146,15 +141,14 @@ extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler
 
     if (!state->ntp_pcb) {
         CLOCK_DEBUG("Failed to allocate UDP buffer\r\n");
-        free(state);
-        return NULL;
+        return false;
     }
 
     cyw43_arch_lwip_begin();
     udp_recv(state->ntp_pcb, ntp_recv, state);
     cyw43_arch_lwip_end();
 
-    return state;
+    return true;
 }
 
 ntp_error_t ntp_request_async(ntp_state_t *state)

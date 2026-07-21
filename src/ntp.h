@@ -44,7 +44,7 @@ typedef struct ntp_state_t
 
 extern void ntp_request(ntp_state_t *state);
 
-extern ntp_state_t *ntp_init(void *parent_state, ntp_time_handler_t time_handler);
+extern bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t time_handler);
 
 extern ntp_error_t ntp_request_async(ntp_state_t *state);
 

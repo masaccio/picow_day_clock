@@ -123,36 +123,24 @@ static void set_localtime(clock_state_t *clock_state, int year, int mon, int mda
 
 static clock_state_t *create_test_clock_state(repeating_timer_t *timer, flash_config_t *flash_config)
 {
-    clock_state_t *clock_state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
+    static clock_state_t clock_state;
+    memset(&clock_state, 0, sizeof(clock_state_t));
     for (uint16_t ii = 0; ii < NUM_LCDS; ii++) {
-        clock_state->lcd_states[ii] = lcd_init(ii, 0);
+        lcd_init(&clock_state.lcd_states[ii], ii, /* reset */ ii == 0);
     }
-    clock_state->ntp_state = ntp_init((void *)clock_state, ntp_timer_callback);
-    clock_state->ntp_last_sync = mock_time(NULL);
-    clock_state->ntp_time = clock_state->ntp_last_sync;
-    clock_state->ntp_state->ntp_port = TEST_NTP_PORT;
-    clock_state->first_clock_tick = false;
-    timer->user_data = clock_state;
+    ntp_init(&clock_state.ntp_state, (void *)&clock_state, ntp_timer_callback);
+    clock_state.ntp_last_sync = mock_time(NULL);
+    clock_state.ntp_time = clock_state.ntp_last_sync;
+    clock_state.ntp_state.ntp_port = TEST_NTP_PORT;
+    clock_state.first_clock_tick = false;
+    timer->user_data = &clock_state;
 
-    memcpy(&clock_state->flash_config, flash_config, sizeof(flash_config_t));
+    memcpy(&clock_state.flash_config, flash_config, sizeof(flash_config_t));
     memcpy(mock_flash_config, flash_config, sizeof(flash_config_t));
 
-    add_repeating_timer_ms(1000, clock_timer_callback, clock_state, timer);
+    add_repeating_timer_ms(1000, clock_timer_callback, &clock_state, timer);
 
-    return clock_state;
-}
-
-static void free_test_clock_state(clock_state_t *state)
-{
-    // LCD/NTP state is allocated inside the clock so the leak counters are active
-    mock_ctx.leak_checker.frees++;
-    free(state->ntp_state);
-    for (unsigned int ii = 0; ii < NUM_LCDS; ii++)
-        if (state->lcd_states[ii]) {
-            mock_ctx.leak_checker.frees++;
-            free(state->lcd_states[ii]);
-        }
-    free(state);
+    return &clock_state;
 }
 
 static flash_config_t *create_flash_config(void)
@@ -191,16 +179,6 @@ static int run_test(test_func_t func, const char *test_name)
 
 static int test_lcd(void)
 {
-    RESET_MOCK_CONFIG();
-    mock_ctx.inject.calloc_fail_at = 1;
-    EXECUTE_TEST("LCD alloc (1)", EXPECT_FAIL);
-    ASSERT_WITH_MESSAGE(mock_ctx.spy.clock_state_alloc_failed, 1, "Clock init failed");
-
-    RESET_MOCK_CONFIG();
-    mock_ctx.inject.calloc_fail_at = 3;
-    EXECUTE_TEST("LCD alloc (2)", EXPECT_FAIL);
-    ASSERT_WITH_MESSAGE(mock_ctx.spy.lcd_init_failed, 1, "LCD init failed");
-
     RESET_MOCK_CONFIG();
     mock_ctx.inject.adc_level = (AMBIENT_LIGHT_BRIGHT / 2);
     mock_ctx.inject.exit_after_ms = 5000;
@@ -413,7 +391,6 @@ static int test_dst(void)
     TEST_DST_BOUND(2024, 9, 27, 2, 0, DST_RULE_IL, 0);
 
     free(timer);
-    free_test_clock_state(clock_state);
 
     return 0; // All paths passed
 }
@@ -523,7 +500,6 @@ static int test_ntp_time(void)
     EXPECT_LCD_DIGITS("Fri0629");
 
     free(timer);
-    free_test_clock_state(clock_state);
 
     return 0;
 }
@@ -569,11 +545,6 @@ static int test_ntp_errors(void)
     mock_ctx.inject.udp_invalid_addr = 1;
     EXECUTE_TEST("NTP invalid address", EXPECT_FAIL);
     EXPECT_FATAL_NTP_ERROR(NTP_DNS_ERROR);
-
-    RESET_MOCK_CONFIG();
-    mock_ctx.inject.calloc_fail_at = 9; // Clock, 7x LCD, fail on NTP
-    EXECUTE_TEST("NTP calloc failure", EXPECT_FAIL);
-    EXPECT_FATAL_NTP_ERROR(NTP_INIT_ERROR);
 
     return 0;
 }
@@ -1156,6 +1127,18 @@ static int test_ap_tcp_error_handling(void)
     return 0;
 }
 
+static int test_flash_config_modes(void)
+{
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.factory_reset_pressed = 1;
+    mock_ctx.inject.cyw43_arch_init_fail = 1;
+    EXECUTE_TEST("Factory reset on boot", EXPECT_FAIL);
+    CHECK_WATCHDOG_RESET_OK();
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.cyw43_arch_init_fail, 1, "Wi-Fi init started");
+    ASSERT_WITH_MESSAGE(mock_ctx.spy.watchdog_reboot_called, 1, "Watchdog reboot called");
+    return 0;
+}
+
 int main(const int argc, const char *argv[])
 {
     int status = 0;
@@ -1191,6 +1174,7 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_ap_incomplete_requests, "Wi-Fi AP: Ignore incomplete TCP streams");
     status |= run_test(test_ap_accept_calloc_fails, "Wi-Fi AP: Recover from tcp_accept ERR_MEM");
     status |= run_test(test_ap_tcp_error_handling, "Wi-Fi AP: Handle TCP reset/abort events");
+    status |= run_test(test_flash_config_modes, "Flash config modes");
 
     return status;
 }

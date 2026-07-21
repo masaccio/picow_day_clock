@@ -1,5 +1,6 @@
 #pragma once
 
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -178,7 +179,7 @@ typedef struct
     struct
     {
         unsigned int clock_state_alloc_failed;
-        unsigned int lcd_init_failed;
+        int cyw43_arch_init_fail;
         unsigned int calloc_counter;
         unsigned int pbuf_alloc_counter;
         time_t system_time_ms;
@@ -215,3 +216,4 @@ typedef struct
 
 extern int test_main(void);
 extern mock_context_t mock_ctx;
+extern jmp_buf fatal_reset_jmp_buf;

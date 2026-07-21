@@ -29,12 +29,12 @@ typedef struct clock_state_t
     volatile uint ap_mode_triggered;
 
     // NTP state
-    ntp_state_t *ntp_state;
+    ntp_state_t ntp_state;
     time_t ntp_last_sync;
     uint32_t ntp_interval;
 
     // LCD state
-    lcd_state_t *lcd_states[NUM_LCDS];
+    lcd_state_t lcd_states[NUM_LCDS];
     char current_lcd_digits[NUM_LCDS + 1];
 
     // Timer state
@@ -68,11 +68,10 @@ extern bool config_store_handler(struct flash_config_t *config, bool invalidate)
 extern void clock_task(clock_state_t *state);
 
 // Core clock routines
-clock_state_t *clock_init(void);
+void clock_init(clock_state_t *);
 extern int clock_start(clock_state_t *);
 
 // Terminal errors that cannot be recovered from
 extern void NO_RETURN_FUNC on_clock_alloc_failed(void);
-extern void NO_RETURN_FUNC on_lcd_init_failed(clock_state_t *state, unsigned int lcd_num);
 extern void NO_RETURN_FUNC system_reboot(void);
 extern void NO_RETURN_FUNC fatal_reset(clock_state_t *state, ntp_error_t ntp_error, wifi_error_t wifi_error);

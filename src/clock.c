@@ -296,7 +296,7 @@ static bool backlight_timer_callback(struct repeating_timer *t)
     return true; // Keep repeating
 }
 
-clock_state_t *clock_init(void)
+void clock_init(clock_state_t *state)
 {
     stdio_init_all();
 
@@ -307,20 +307,10 @@ clock_state_t *clock_init(void)
     adc_init();
     adc_gpio_init(AMBIENT_LIGHT_GPIO);
 
-    clock_state_t *state = (clock_state_t *)calloc(1, sizeof(clock_state_t));
-    if (state == NULL) {
-        on_clock_alloc_failed();
-        printf("Failed to allocate clock state\r\n");
-        return (clock_state_t *)0;
-    }
+    memset(state, 0, sizeof(clock_state_t));
     for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
-        int reset = (ii == 0);
-        state->lcd_states[ii] = lcd_init((uint16_t)ii, reset);
-        if (state->lcd_states[ii] == NULL) {
-            on_lcd_init_failed(state, ii);
-            return (clock_state_t *)0;
-        }
-        lcd_clear_screen(state->lcd_states[ii], BLACK);
+        lcd_init(&state->lcd_states[ii], (uint16_t)ii, /* reset */ ii == 0);
+        lcd_clear_screen(&state->lcd_states[ii], BLACK);
     }
 
     int factory_reset = 1;
@@ -340,7 +330,7 @@ clock_state_t *clock_init(void)
     } else if (state->cold_boot) {
         memset(&persistent_state, 0, sizeof(persistent_state_t));
         persistent_state.magic_marker = CONFIG_MAGIC;
-        lcd_print_line(state->lcd_states[0], GREEN, LCD_MSG_INIT_OK);
+        lcd_print_line(&state->lcd_states[0], GREEN, LCD_MSG_INIT_OK);
         CLOCK_DEBUG("Cold boot\r\n");
     } else {
         persistent_state.boot_count++;
@@ -354,7 +344,8 @@ clock_state_t *clock_init(void)
         } else {
             watchdog_error = WATCHDOG_RESET;
         }
-        lcd_update_icons(state->lcd_states[0], watchdog_error, persistent_state.ntp_error, persistent_state.wifi_error);
+        lcd_update_icons(&state->lcd_states[0], watchdog_error, persistent_state.ntp_error,
+                         persistent_state.wifi_error);
         state->watchdog_reset_error = watchdog_error;
         state->ntp_reset_error = persistent_state.ntp_error;
         state->wifi_reset_error = persistent_state.wifi_error;
@@ -369,8 +360,8 @@ clock_state_t *clock_init(void)
         memcpy(&state->flash_config, flash_config, sizeof(flash_config_t));
     } else {
         CLOCK_DEBUG("Can't find valid config in Flash. Starting access point.\r\n");
-        lcd_print_line(state->lcd_states[0], RED, LCD_MSG_FLASH_ERROR);
-        lcd_print_line(state->lcd_states[0], RED, LCD_MSG_WIFI_ERROR);
+        lcd_print_line(&state->lcd_states[0], RED, LCD_MSG_FLASH_ERROR);
+        lcd_print_line(&state->lcd_states[0], RED, LCD_MSG_WIFI_ERROR);
         start_wifi_access_point(NULL, config_store_handler, &state->wifi_initialized);
         system_reboot();
     }
@@ -379,8 +370,6 @@ clock_state_t *clock_init(void)
     state->ntp_last_sync = state->ntp_time;
     state->ntp_interval = NTP_SYNC_INTERVAL_SEC;
     state->first_clock_tick = true;
-
-    return state;
 }
 
 int clock_start(clock_state_t *state)
@@ -389,20 +378,18 @@ int clock_start(clock_state_t *state)
         connect_to_wifi(state->flash_config.wifi_ssid, state->flash_config.wifi_password, &state->wifi_initialized);
     if (wifi_status == WIFI_OK) {
         if (state->cold_boot) {
-            lcd_print_line(state->lcd_states[0], GREEN, LCD_MSG_WIFI_OK);
+            lcd_print_line(&state->lcd_states[0], GREEN, LCD_MSG_WIFI_OK);
         }
-        lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
+        lcd_update_icons(&state->lcd_states[0], state->watchdog_reset_error, NTP_OK, WIFI_OK);
     } else {
         fatal_reset(state, NTP_OK, wifi_status);
     }
 
-    state->ntp_state = ntp_init((void *)state, ntp_timer_callback);
-    if (state->ntp_state == NULL) {
+    if (!ntp_init(&state->ntp_state, (void *)state, ntp_timer_callback))
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
-    }
-    state->ntp_state->ntp_port = state->flash_config.ntp_port;
+    state->ntp_state.ntp_port = state->flash_config.ntp_port;
 
-    ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
+    ntp_error_t ntp_status = ntp_request_async(&state->ntp_state);
     if (ntp_status != NTP_OK)
         fatal_reset(state, ntp_status, WIFI_OK);
 
@@ -412,7 +399,7 @@ int clock_start(clock_state_t *state)
         CLOCK_DEBUG("Failed to init clock timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
     }
-    if (!add_repeating_timer_ms(BACKLIGHT_CALLBACK_TIME_MS, backlight_timer_callback, state->lcd_states[0],
+    if (!add_repeating_timer_ms(BACKLIGHT_CALLBACK_TIME_MS, backlight_timer_callback, &state->lcd_states[0],
                                 &state->backlight_timer_state)) {
         CLOCK_DEBUG("Failed to init backlight timer callback\r\n");
         fatal_reset(state, NTP_INIT_ERROR, WIFI_OK);
@@ -468,43 +455,43 @@ void clock_task(clock_state_t *state)
     if (digits_changed) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
                     time_as_string(utc_now, state), local_epoch, persistent_state.boot_count, state->ntp_reset_error,
-                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state->error));
+                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state.error));
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
-                lcd_clear_screen(state->lcd_states[ii], BLACK);
-                lcd_print_clock_digit(state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
+                lcd_clear_screen(&state->lcd_states[ii], BLACK);
+                lcd_print_clock_digit(&state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
             }
             if (ii == 0) {
-                lcd_update_icons(state->lcd_states[0], state->watchdog_reset_error, state->ntp_state->error, WIFI_OK);
+                lcd_update_icons(&state->lcd_states[0], state->watchdog_reset_error, state->ntp_state.error, WIFI_OK);
             }
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
     }
 
-    if (state->ntp_state->status == NTP_PENDING) {
+    if (state->ntp_state.status == NTP_PENDING) {
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
-        if ((now_ms - state->ntp_state->request_start_ms) > state->flash_config.ntp_timeout) {
+        if ((now_ms - state->ntp_state.request_start_ms) > state->flash_config.ntp_timeout) {
             CLOCK_DEBUG("NTP Async Timeout!\r\n");
             fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
         }
-    } else if (state->ntp_state->status == NTP_FAILED) {
-        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state->error));
-        fatal_reset(state, state->ntp_state->error, WIFI_OK);
-    } else if (state->ntp_state->status == NTP_KOD) {
+    } else if (state->ntp_state.status == NTP_FAILED) {
+        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state.error));
+        fatal_reset(state, state->ntp_state.error, WIFI_OK);
+    } else if (state->ntp_state.status == NTP_KOD) {
         state->ntp_interval *= 2;
-        state->ntp_state->status = NTP_IDLE;
+        state->ntp_state.status = NTP_IDLE;
         CLOCK_DEBUG("NTP: KoD received, doubling interval to %d seconds\r\n", state->ntp_interval);
-    } else if (state->ntp_state->status == NTP_SUCCESS) {
-        state->ntp_state->status = NTP_IDLE;
+    } else if (state->ntp_state.status == NTP_SUCCESS) {
+        state->ntp_state.status = NTP_IDLE;
     }
 
-    if (state->ntp_state->status == NTP_IDLE) {
+    if (state->ntp_state.status == NTP_IDLE) {
         if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
             CLOCK_DEBUG("NTP starting new check\r\n");
             state->ntp_last_sync = utc_now;
 
-            ntp_error_t ntp_status = ntp_request_async(state->ntp_state);
+            ntp_error_t ntp_status = ntp_request_async(&state->ntp_state);
             if (ntp_status != NTP_OK)
                 fatal_reset(state, ntp_status, WIFI_OK);
         }

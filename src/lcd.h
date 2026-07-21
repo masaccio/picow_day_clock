@@ -69,7 +69,7 @@ typedef enum
 #define LCD_MSG_STR_WIFI_ERROR "Config mode started"
 #define LCD_MSG_STR_WIFI_OK "Connected to WiFi"
 
-extern lcd_state_t *lcd_init(uint16_t lcd_num, int reset);
+extern lcd_state_t *lcd_init(lcd_state_t *state, uint16_t lcd_num, bool reset);
 
 extern void lcd_set_backlight(lcd_state_t *state, uint8_t level);
 
