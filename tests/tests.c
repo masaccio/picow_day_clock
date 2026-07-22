@@ -26,6 +26,8 @@ mock_context_t mock_ctx = {0};
         mock_ctx.sim.udp_pending = false;                                                                              \
         mock_ctx.sim.clock_timer_active = false;                                                                       \
         mock_ctx.sim.backlight_timer_active = false;                                                                   \
+        icon_queue_t_init(&mock_ctx.spy.icon_history);                                                                 \
+        lcd_message_queue_t_init(&mock_ctx.spy.lcd_msg_history);                                                       \
     } while (0)
 
 #define TEST_AP_SSID "HomeNet"

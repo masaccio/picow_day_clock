@@ -12,10 +12,6 @@ lcd_state_t *lcd_init(lcd_state_t *state, uint16_t lcd_num, bool reset)
 {
     (void)lcd_num;
     (void)reset;
-
-    if (!state) {
-        return NULL;
-    }
     state->smoothed_adc = 0;
     return state;
 }

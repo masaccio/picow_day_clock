@@ -41,21 +41,6 @@
             /* OVERFLOW! Advance the head to effectively "delete" the oldest item */                                   \
             q->head = (q->head + 1) % SIZE;                                                                            \
         }                                                                                                              \
-    }                                                                                                                  \
-                                                                                                                       \
-    static inline bool NAME##_pop(NAME *q, TYPE *item)                                                                 \
-    {                                                                                                                  \
-        if (q->count == 0)                                                                                             \
-            return false;                                                                                              \
-        *item = q->data[q->head];                                                                                      \
-        q->head = (q->head + 1) % SIZE;                                                                                \
-        q->count--;                                                                                                    \
-        return true;                                                                                                   \
-    }                                                                                                                  \
-                                                                                                                       \
-    static inline void NAME##_clear(NAME *q)                                                                           \
-    {                                                                                                                  \
-        NAME##_init(q);                                                                                                \
     }
 
 typedef struct

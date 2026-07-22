@@ -144,14 +144,18 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
         COMMAND llvm-profdata merge 
             -sparse ${TEST_BINARY_DIR}/coverage.profraw 
             -o ${TEST_BINARY_DIR}/coverage.profdata
-        COMMAND llvm-cov export 
+           COMMAND llvm-cov export 
             ${TEST_BINARY_DIR}/test_picow_day_clock
             -instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             -format=lcov > ${TEST_BINARY_DIR}/coverage.info
-        COMMAND genhtml --quiet --branch-coverage
+        COMMAND lcov --quiet --quiet 
+            --remove ${TEST_BINARY_DIR}/coverage.info '*/tests.c' '*/test.h'
+            --ignore-errors unused,unused,unsupported 
+            --output-file ${TEST_BINARY_DIR}/coverage_filtered.info
+        COMMAND genhtml --flat --quiet --branch-coverage
             --rc check_data_consistency=0
             --ignore-errors unsupported
-            ${TEST_BINARY_DIR}/coverage.info
+            ${TEST_BINARY_DIR}/coverage_filtered.info
             --output-directory ${TEST_BINARY_DIR}/coverage_report/
         WORKING_DIRECTORY ${TEST_BINARY_DIR}
         COMMENT "Running coverage analysis..."
