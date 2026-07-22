@@ -149,8 +149,9 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "
             -instr-profile=${TEST_BINARY_DIR}/coverage.profdata
             -format=lcov > ${TEST_BINARY_DIR}/coverage.info
         COMMAND lcov --quiet --quiet 
+            --rc branch_coverage=1
             --remove ${TEST_BINARY_DIR}/coverage.info '*/tests.c' '*/test.h'
-            --ignore-errors unused,unused,unsupported 
+            --ignore-errors unused,unused,unsupported,inconsistent 
             --output-file ${TEST_BINARY_DIR}/coverage_filtered.info
         COMMAND genhtml --flat --quiet --branch-coverage
             --rc check_data_consistency=0
