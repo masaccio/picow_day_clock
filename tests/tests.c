@@ -657,6 +657,7 @@ static int test_error_strings(void)
     ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_TIMEOUT_ERROR), "NTP_TIMEOUT_ERROR"), 0, "NTP status string");
     ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_PROTOCOL_ERROR), "NTP_PROTOCOL_ERROR"), 0, "NTP status string");
     ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_MEMORY_ERROR), "NTP_MEMORY_ERROR"), 0, "NTP status string");
+    ASSERT_WITH_MESSAGE(strcmp(ntp_error_to_string(NTP_NULL_ERROR), "NTP_NULL_ERROR"), 0, "NTP status string");
 
     ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_OK), "WATCHDOG_OK"), 0, "Watchdog status string");
     ASSERT_WITH_MESSAGE(strcmp(watchdog_error_to_string(WATCHDOG_RESET), "WATCHDOG_RESET"), 0,
