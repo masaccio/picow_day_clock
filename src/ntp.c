@@ -1,5 +1,6 @@
 // Pico SDK
 #ifndef TEST_MODE
+#include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
@@ -13,6 +14,28 @@
 // Local includes
 #include "clock.h"
 
+void ntp_atomic_status(ntp_state_t *state, ntp_status_t status, ntp_error_t error, uint32_t ms,
+                       ntp_atomic_state_t *atomic_state)
+{
+    uint32_t ints = save_and_disable_interrupts();
+    if (status != NTP_NULL_STATUS) {
+        state->status = status;
+    }
+    if (error != NTP_NULL_ERROR) {
+        state->error = error;
+    }
+    if (ms != 0) {
+        state->request_start_ms = ms;
+    }
+
+    if (atomic_state != NULL) {
+        atomic_state->status = state->status;
+        atomic_state->error = state->error;
+        atomic_state->request_start_ms = state->request_start_ms;
+    }
+    restore_interrupts(ints);
+}
+
 const char *ntp_error_to_string(ntp_error_t status)
 {
     switch (status) {
@@ -22,6 +45,7 @@ const char *ntp_error_to_string(ntp_error_t status)
         STATUS_CASE(NTP_TIMEOUT_ERROR)
         STATUS_CASE(NTP_PROTOCOL_ERROR)
         STATUS_CASE(NTP_MEMORY_ERROR)
+        STATUS_CASE(NTP_NULL_ERROR)
     }
     return "UNKNOWN_STATUS";
 }
@@ -33,8 +57,7 @@ void ntp_request(ntp_state_t *state)
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     if (!p) {
         CLOCK_DEBUG("NTP: failed to allocate PBUF\r\n");
-        state->status = NTP_FAILED;
-        state->error = NTP_MEMORY_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_MEMORY_ERROR, 0, NULL);
         cyw43_arch_lwip_end();
         return;
     }
@@ -46,8 +69,7 @@ void ntp_request(ntp_state_t *state)
     int err = udp_sendto(state->ntp_pcb, p, &state->ntp_server_address, state->ntp_port);
     if (err != 0) {
         CLOCK_DEBUG("NTP: send error %d\r\n", err);
-        state->status = NTP_FAILED;
-        state->error = NTP_PROTOCOL_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_PROTOCOL_ERROR, 0, NULL);
         pbuf_free(p);
         cyw43_arch_lwip_end();
         return;
@@ -66,8 +88,7 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
         ntp_request(state);
     } else {
         CLOCK_DEBUG("NTP: DNS error for %s\r\n", hostname);
-        state->status = NTP_FAILED;
-        state->error = NTP_DNS_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_DNS_ERROR, 0, NULL);
     }
 }
 
@@ -88,22 +109,19 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
 
     if (!addrs_valid) {
         CLOCK_DEBUG("NTP: DNS lookup failed\r\n");
-        state->status = NTP_FAILED;
-        state->error = NTP_DNS_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_DNS_ERROR, 0, NULL);
     } else if (!packet_valid) {
         CLOCK_DEBUG("NTP: invalid response: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
                     addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
-        state->status = NTP_FAILED;
-        state->error = NTP_PROTOCOL_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_PROTOCOL_ERROR, 0, NULL);
     } else if (stratum == 0) {
         // We got a 'kiss of death' from the NTP server for too many requests.
-        state->status = NTP_KOD;
+        ntp_atomic_status(state, NTP_KOD, NTP_OK, 0, NULL);
         CLOCK_DEBUG("NTP: server responded with KoD\r\n");
     } else if (leap == 3) {
         CLOCK_DEBUG("NTP: server unsynchronized: addrs %s, port=%d, len=%d, mode=0x%x, stratum=0x%x, leap=0x%x\r\n",
                     addrs_valid ? "valid" : "invalid", port, p->tot_len, mode, stratum, leap);
-        state->status = NTP_FAILED;
-        state->error = NTP_PROTOCOL_ERROR;
+        ntp_atomic_status(state, NTP_FAILED, NTP_PROTOCOL_ERROR, 0, NULL);
     } else {
         // Also allows leap to be 0b01 or 0b10 and rather than adjusting for leap seconds, we just
         // get a new timestamp the next day.
@@ -121,7 +139,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
             seconds_since_1970 = (time_t)(seconds_since_1900 - NTP_DELTA);
         }
 
-        state->status = NTP_SUCCESS;
+        ntp_atomic_status(state, NTP_SUCCESS, NTP_OK, 0, NULL);
         CLOCK_DEBUG("NTP: update success ntp=%lu, epoch=%llu\r\n", seconds_since_1900, seconds_since_1970);
         state->time_handler(state->parent_state, &seconds_since_1970);
     }
@@ -153,9 +171,8 @@ extern bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t 
 
 ntp_error_t ntp_request_async(ntp_state_t *state)
 {
-    state->status = NTP_PENDING;
-    state->error = NTP_OK;
-    state->request_start_ms = to_ms_since_boot(get_absolute_time());
+    uint32_t request_start_ms = to_ms_since_boot(get_absolute_time());
+    ntp_atomic_status(state, NTP_PENDING, NTP_OK, request_start_ms, NULL);
 
     cyw43_arch_lwip_begin();
     char *ntp_server = ((clock_state_t *)state->parent_state)->flash_config.ntp_server;

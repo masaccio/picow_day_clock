@@ -408,6 +408,9 @@ void clock_start(clock_state_t *state)
 
 void clock_task(clock_state_t *state)
 {
+    ntp_atomic_state_t ntp_atomic_state;
+    ntp_atomic_status(&state->ntp_state, NTP_NULL_STATUS, NTP_NULL_ERROR, 0, &ntp_atomic_state);
+
     // Process async NTP responses
     if (state->ntp_time_updated) {
         state->ntp_time_updated = 0;
@@ -453,7 +456,7 @@ void clock_task(clock_state_t *state)
     if (digits_changed) {
         CLOCK_DEBUG("%s, timestamp=%llu, boot_count=%lu, ntp_reset_error=%d, wifi_reset_error=%d, NTP=%s\r\n",
                     time_as_string(utc_now, state), local_epoch, persistent_state.boot_count, state->ntp_reset_error,
-                    state->wifi_reset_error, ntp_error_to_string(state->ntp_state.error));
+                    state->wifi_reset_error, ntp_error_to_string(ntp_atomic_state.error));
 
         for (unsigned int ii = 0; ii < NUM_LCDS; ii++) {
             if (state->current_lcd_digits[ii] != lcd_digits[ii] || state->first_clock_tick) {
@@ -461,30 +464,30 @@ void clock_task(clock_state_t *state)
                 lcd_print_clock_digit(&state->lcd_states[ii], (ii < 3) ? CYAN : GREEN, lcd_digits[ii]);
             }
             if (ii == 0) {
-                lcd_update_icons(&state->lcd_states[0], state->watchdog_reset_error, state->ntp_state.error, WIFI_OK);
+                lcd_update_icons(&state->lcd_states[0], state->watchdog_reset_error, ntp_atomic_state.error, WIFI_OK);
             }
             state->current_lcd_digits[ii] = lcd_digits[ii];
         }
     }
 
-    if (state->ntp_state.status == NTP_PENDING) {
+    if (ntp_atomic_state.status == NTP_PENDING) {
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
-        if ((now_ms - state->ntp_state.request_start_ms) > state->flash_config.ntp_timeout) {
+        if ((now_ms - ntp_atomic_state.request_start_ms) > state->flash_config.ntp_timeout) {
             CLOCK_DEBUG("NTP Async Timeout!\r\n");
             fatal_reset(state, NTP_TIMEOUT_ERROR, WIFI_OK);
         }
-    } else if (state->ntp_state.status == NTP_FAILED) {
-        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(state->ntp_state.error));
-        fatal_reset(state, state->ntp_state.error, WIFI_OK);
-    } else if (state->ntp_state.status == NTP_KOD) {
+    } else if (ntp_atomic_state.status == NTP_FAILED) {
+        CLOCK_DEBUG("NTP Async Failed with error %s\r\n", ntp_error_to_string(ntp_atomic_state.error));
+        fatal_reset(state, ntp_atomic_state.error, WIFI_OK);
+    } else if (ntp_atomic_state.status == NTP_KOD) {
         state->ntp_interval *= 2;
-        state->ntp_state.status = NTP_IDLE;
+        ntp_atomic_status(&state->ntp_state, NTP_IDLE, NTP_NULL_ERROR, 0, NULL);
         CLOCK_DEBUG("NTP: KoD received, doubling interval to %d seconds\r\n", state->ntp_interval);
-    } else if (state->ntp_state.status == NTP_SUCCESS) {
-        state->ntp_state.status = NTP_IDLE;
+    } else if (ntp_atomic_state.status == NTP_SUCCESS) {
+        ntp_atomic_status(&state->ntp_state, NTP_IDLE, NTP_NULL_ERROR, 0, NULL);
     }
 
-    if (state->ntp_state.status == NTP_IDLE) {
+    if (ntp_atomic_state.status == NTP_IDLE) {
         if ((utc_now - state->ntp_last_sync) >= state->ntp_interval) {
             CLOCK_DEBUG("NTP starting new check\r\n");
             state->ntp_last_sync = utc_now;
