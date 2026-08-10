@@ -1,7 +1,5 @@
 // Pico SDK
 #ifndef TEST_MODE
-#include "dhcpserver.h"
-#include "dnsserver.h"
 #include "hardware/watchdog.h"
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
@@ -12,7 +10,12 @@
 #include "test.h"
 #endif
 
+#include "dhcpserver.h"
+#include "dnsserver.h"
+
 #include <ctype.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -22,6 +25,29 @@
 
 static tcp_server_t server_state;
 static char html_form_expanded[HTML_FORM_MAX_LENGTH] = {0};
+
+#define MIN_TZ_OFFSET_MINS (-12 * 60)
+#define MAX_TZ_OFFSET_MINS (14 * 60)
+#define MIN_NTP_TIMEOUT_MS 1000
+#define MAX_NTP_TIMEOUT_MS 60000
+
+static bool parse_long_bounded(const char *value, long min_val, long max_val, long *result)
+{
+    char *endptr = NULL;
+    long parsed = strtol(value, &endptr, 10);
+    if (!value || value[0] == '\0') {
+        return false;
+    }
+    if (!endptr || *endptr != '\0') {
+        return false;
+    }
+    if (parsed < min_val || parsed > max_val) {
+        return false;
+    }
+
+    *result = parsed;
+    return true;
+}
 
 const char *wifi_error_to_string(wifi_error_t status)
 {
@@ -269,24 +295,37 @@ static void urldecode_inplace(char *str)
 
 static err_t expand_html_template(const char *buffer, char *buffer_out, struct flash_config_t *flash_config)
 {
-    // 1. Initialize destination with the original HTML
-    strcpy(buffer_out, buffer);
+    size_t out_len = 0;
+    const char *curr = buffer;
 
-    char *curr = buffer_out;
-    while ((curr = strstr(curr, "{TEMPLATE:")) != NULL) {
-        char *start = curr;
-        char *end = strchr(start, '}');
+    while (*curr != '\0') {
+        const char *start = strstr(curr, "{TEMPLATE:");
+        if (!start) {
+            size_t tail_len = strlen(curr);
+            if (out_len + tail_len >= HTML_FORM_MAX_LENGTH) {
+                return ERR_MEM;
+            }
+            memcpy(buffer_out + out_len, curr, tail_len);
+            out_len += tail_len;
+            break;
+        }
 
-        if (!end)
-            ERR_ABRT;
+        size_t prefix_len = (size_t)(start - curr);
+        if (out_len + prefix_len >= HTML_FORM_MAX_LENGTH) {
+            return ERR_MEM;
+        }
+        memcpy(buffer_out + out_len, curr, prefix_len);
+        out_len += prefix_len;
 
-        // Template looks like: {TEMPLATE:KEY}
-        char *key_start = start + 10;
+        const char *key_start = start + strlen("{TEMPLATE:");
+        const char *end = strchr(key_start, '}');
+        if (!end) {
+            return ERR_VAL;
+        }
+
         size_t key_len = (size_t)(end - key_start);
-
-        char *replacement = ""; // Default for unknown keys
-
-        if (flash_config) {
+        const char *replacement = "";
+        if (flash_config && key_len > 0) {
             if (strncasecmp(key_start, "ssid", key_len) == 0) {
                 replacement = flash_config->wifi_ssid;
             } else if (strncasecmp(key_start, "pwd", key_len) == 0) {
@@ -297,18 +336,16 @@ static err_t expand_html_template(const char *buffer, char *buffer_out, struct f
         }
 
         size_t repl_len = strlen(replacement);
+        if (out_len + repl_len >= HTML_FORM_MAX_LENGTH) {
+            return ERR_MEM;
+        }
+        memcpy(buffer_out + out_len, replacement, repl_len);
+        out_len += repl_len;
 
-        // Move the remainder of the buffer to make space/close gaps
-        // memmove handles overlapping memory safely
-        char *tail = end + 1;
-        memmove(start + repl_len, tail, strlen(tail) + 1);
-
-        // Copy replacement into the hole
-        memcpy(start, replacement, repl_len);
-
-        // Advance current pointer past the inserted value
-        curr = start + repl_len;
+        curr = end + 1;
     }
+
+    buffer_out[out_len] = '\0';
 
     return ERR_OK;
 }
@@ -339,7 +376,23 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
         char *content_len_ptr = strstr(request, "Content-Length: ");
         int expected_body_len = 0;
         if (content_len_ptr) {
-            expected_body_len = atoi(content_len_ptr + 16);
+            long parsed = 0;
+            char *line_end = strstr(content_len_ptr, "\r\n");
+            if (!line_end) {
+                return tcp_close_client_connection(con_state, pcb, ERR_VAL);
+            }
+
+            char content_len_buf[16] = {0};
+            size_t raw_len = (size_t)(line_end - (content_len_ptr + 16));
+            if (raw_len == 0 || raw_len >= sizeof(content_len_buf)) {
+                return tcp_close_client_connection(con_state, pcb, ERR_VAL);
+            }
+            memcpy(content_len_buf, content_len_ptr + 16, raw_len);
+
+            if (!parse_long_bounded(content_len_buf, 0, INT_MAX, &parsed)) {
+                return tcp_close_client_connection(con_state, pcb, ERR_VAL);
+            }
+            expected_body_len = (int)parsed;
         }
 
         char *body = strstr(request, "\r\n\r\n");
@@ -360,6 +413,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
     // Route A: Form submitted with new configuration parameters
     if (strncmp(request, "POST ", 5) == 0) {
+        bool invalid_param = false;
         flash_config_t config = {0};
         if (con_state->flash_config) {
             memcpy(&config, con_state->flash_config, sizeof(flash_config_t));
@@ -376,8 +430,15 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
             // Step past the double line-break boundary
             body += 4;
 
+            size_t body_len = strlen(body);
+            if (body_len >= TCP_IP_BUFFER_SIZE) {
+                return tcp_close_client_connection(con_state, pcb, ERR_MEM);
+            }
+            char body_copy[TCP_IP_BUFFER_SIZE];
+            memcpy(body_copy, body, body_len + 1);
+
             char *saveptr;
-            char *pair = strtok_r(body, "&", &saveptr);
+            char *pair = strtok_r(body_copy, "&", &saveptr);
             while (pair != NULL) {
                 char *eq = strchr(pair, '=');
                 if (eq) {
@@ -395,7 +456,12 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                     } else if (strcmp(key, "ntp") == 0) {
                         strncpy(config.ntp_server, value, sizeof(config.ntp_server) - 1);
                     } else if (strcmp(key, "tz") == 0) {
-                        config.tz_offset_mins = (int16_t)atoi(value);
+                        long tz_mins = 0;
+                        if (!parse_long_bounded(value, MIN_TZ_OFFSET_MINS, MAX_TZ_OFFSET_MINS, &tz_mins)) {
+                            invalid_param = true;
+                            break;
+                        }
+                        config.tz_offset_mins = (int16_t)tz_mins;
                     } else if (strcmp(key, "dst") == 0) {
                         if (strcmp(value, "NA") == 0)
                             config.dst_rule = DST_RULE_NA;
@@ -412,15 +478,32 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
                         else
                             config.dst_rule = DST_RULE_NONE;
                     } else if (strcmp(key, "cto") == 0) {
-                        config.ntp_timeout = (uint32_t)atoi(value);
+                        long timeout_ms = 0;
+                        if (!parse_long_bounded(value, MIN_NTP_TIMEOUT_MS, MAX_NTP_TIMEOUT_MS, &timeout_ms)) {
+                            invalid_param = true;
+                            break;
+                        }
+                        config.ntp_timeout = (uint32_t)timeout_ms;
                     } else if (strcmp(key, "port") == 0) {
-                        config.ntp_port = (uint16_t)atoi(value);
+                        long ntp_port = 0;
+                        if (!parse_long_bounded(value, 1, 65535, &ntp_port)) {
+                            invalid_param = true;
+                            break;
+                        }
+                        config.ntp_port = (uint16_t)ntp_port;
                     } else if (strcmp(key, "led_on") == 0) {
                         config.led_always_on = *value == '1';
                     }
                 }
                 pair = strtok_r(NULL, "&", &saveptr);
             }
+        }
+
+        if (invalid_param) {
+            const char *bad_req_msg = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nInvalid config fields.";
+            tcp_write(pcb, bad_req_msg, (u16_t)strlen(bad_req_msg), 0);
+            tcp_output(pcb);
+            return ERR_OK;
         }
 
         if (con_state->store_config(&config, /* invalidate */ 0)) {
@@ -437,6 +520,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
              strncmp(request, "GET / ", 6) == 0) {
         size_t html_form_len = strlen(html_form_expanded);
         con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_OK_HEADER);
+        if (con_state->header_len <= 0 || con_state->header_len >= (int)sizeof(con_state->headers)) {
+            return tcp_close_client_connection(con_state, pcb, ERR_MEM);
+        }
         con_state->result_len = (int)html_form_len;
         tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, TCP_WRITE_FLAG_MORE);
         tcp_write(pcb, html_form_expanded, (u16_t)html_form_len, 0);
@@ -445,6 +531,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     else {
         con_state->header_len = snprintf(con_state->headers, sizeof(con_state->headers), HTTP_RESPONSE_REDIRECT_HEADER,
                                          ipaddr_ntoa(con_state->gw));
+        if (con_state->header_len <= 0 || con_state->header_len >= (int)sizeof(con_state->headers)) {
+            return tcp_close_client_connection(con_state, pcb, ERR_MEM);
+        }
         tcp_write(pcb, con_state->headers, (u16_t)con_state->header_len, 0);
     }
 

@@ -175,6 +175,8 @@ typedef struct
         int watchdog_reboot_called;
         int fatal_reset_caught;
         int ntp_packet_sent;
+        unsigned int udp_sendto_calls;
+        uint16_t udp_last_send_len;
 
         // LCD events
         icon_queue_t icon_history;

@@ -1068,6 +1068,23 @@ static int test_ap_incomplete_requests(void)
     return 0;
 }
 
+static int test_ap_invalid_numeric_rejected(void)
+{
+    reset_wifi_test_state();
+
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\ncto=0");
+    mock_queue_tcp_payload("POST / HTTP/1.1\r\nContent-Length: 9\r\n\r\nssid=Pass");
+
+    clock_state_t state = {.wifi_initialized = false};
+    wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &state.wifi_initialized);
+
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "Should reject invalid timeout but continue");
+    ASSERT_WITH_MESSAGE(config_save_count, 1, "Only valid payload should be stored");
+    ASSERT_WITH_MESSAGE(strcmp(last_config.wifi_ssid, "Pass"), 0, "Valid payload should eventually persist");
+
+    return 0;
+}
+
 static int test_ap_tcp_error_handling(void)
 {
     reset_wifi_test_state();
@@ -1128,6 +1145,7 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_ap_get_redirect, "Wi-Fi AP: Handle captive portal redirects");
     status |= run_test(test_ap_post_save_fails, "Wi-Fi AP: Flash write failure recovery");
     status |= run_test(test_ap_incomplete_requests, "Wi-Fi AP: Ignore incomplete TCP streams");
+    status |= run_test(test_ap_invalid_numeric_rejected, "Wi-Fi AP: Reject invalid numeric fields");
     status |= run_test(test_ap_tcp_error_handling, "Wi-Fi AP: Handle TCP reset/abort events");
     status |= run_test(test_flash_config_modes, "Flash config modes");
 

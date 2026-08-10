@@ -27,8 +27,6 @@ typedef struct
 } mock_struct_t;
 
 typedef mock_struct_t spi_inst_t;
-typedef mock_struct_t dhcp_server_t;
-typedef mock_struct_t dns_server_t;
 
 // =============================================================================
 // lwIP Constants & Error Codes
@@ -148,6 +146,10 @@ typedef struct ip_addr_t
     uint32_t addr;
 } ip_addr_t;
 typedef ip_addr_t ip4_addr_t;
+typedef struct netif
+{
+    unsigned int mock;
+} netif;
 
 #define IPADDR_TYPE_ANY 46
 #ifndef IP_ANY_TYPE
@@ -155,8 +157,17 @@ typedef ip_addr_t ip4_addr_t;
 #endif
 
 #define ipaddr_ntoa(ipaddr) ip4addr_ntoa(ipaddr)
-const char *ip4addr_ntoa(ip_addr_t *ipaddr);
+const char *ip4addr_ntoa(const ip_addr_t *ipaddr);
 #define PP_HTONL(ipaddr) (ipaddr)
+#define IP4_ADDR(ipaddr, a, b, c, d)                                                                                   \
+    do {                                                                                                               \
+        (ipaddr)->addr = (((uint32_t)(a) & 0xffu) << 24u) | (((uint32_t)(b) & 0xffu) << 16u) |                         \
+                         (((uint32_t)(c) & 0xffu) << 8u) | ((uint32_t)(d) & 0xffu);                                    \
+    } while (0)
+#define ip_2_ip4(ipaddr) ((ip4_addr_t *)(ipaddr))
+#define ip4_addr_get_u32(ipaddr) ((ipaddr)->addr)
+#define lwip_htons(v) ((uint16_t)((((uint16_t)(v)) << 8) | (((uint16_t)(v)) >> 8)))
+#define lwip_ntohs(v) lwip_htons(v)
 
 // --- Packets (pbuf) ---
 typedef unsigned int pbuf_type;
@@ -198,7 +209,12 @@ typedef void (*tcp_err_fn)(void *arg, err_t err);
 // --- UDP API ---
 struct udp_pcb *udp_new_ip_type(u8_t type);
 void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg);
+struct udp_pcb *udp_new(void);
+void udp_remove(struct udp_pcb *pcb);
+err_t udp_bind(struct udp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port);
+err_t udp_sendto_if(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port, struct netif *nif);
 err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port);
+struct netif *ip_current_input_netif(void);
 
 // --- TCP API ---
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);
@@ -222,13 +238,6 @@ void tcp_abort(struct tcp_pcb *pcb);
 err_t dns_gethostbyname(const char *hostname, ip_addr_t *addr,
                         void (*found)(const char *name, const ip_addr_t *ipaddr, void *callback_arg),
                         void *callback_arg);
-
-void dns_server_deinit(dns_server_t *d);
-void dns_server_init(dns_server_t *d, ip_addr_t *ip);
-
-// --- DHCP API ---
-void dhcp_server_deinit(dhcp_server_t *d);
-void dhcp_server_init(dhcp_server_t *d, ip_addr_t *ip, ip_addr_t *nm);
 
 // CYW43 API
 extern void *cyw43_state;
