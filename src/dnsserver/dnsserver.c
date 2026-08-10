@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdbool.h>
 
 #include "dnsserver.h"
 #include "lwip/udp.h"
@@ -19,7 +19,8 @@
 #define DEBUG_printf(...)
 #define ERROR_printf printf
 
-typedef struct dns_header_t_ {
+typedef struct dns_header_t_
+{
     uint16_t id;
     uint16_t flags;
     uint16_t question_count;
@@ -30,7 +31,8 @@ typedef struct dns_header_t_ {
 
 #define MAX_DNS_MSG_SIZE 300
 
-static int dns_socket_new_dgram(struct udp_pcb **udp, void *cb_data, udp_recv_fn cb_udp_recv) {
+static int dns_socket_new_dgram(struct udp_pcb **udp, void *cb_data, udp_recv_fn cb_udp_recv)
+{
     *udp = udp_new();
     if (*udp == NULL) {
         return -ENOMEM;
@@ -39,14 +41,16 @@ static int dns_socket_new_dgram(struct udp_pcb **udp, void *cb_data, udp_recv_fn
     return ERR_OK;
 }
 
-static void dns_socket_free(struct udp_pcb **udp) {
+static void dns_socket_free(struct udp_pcb **udp)
+{
     if (*udp != NULL) {
         udp_remove(*udp);
         *udp = NULL;
     }
 }
 
-static int dns_socket_bind(struct udp_pcb **udp, uint32_t ip, uint16_t port) {
+static int dns_socket_bind(struct udp_pcb **udp, uint32_t ip, uint16_t port)
+{
     ip_addr_t addr;
     IP4_ADDR(&addr, ip >> 24 & 0xff, ip >> 16 & 0xff, ip >> 8 & 0xff, ip & 0xff);
     err_t err = udp_bind(*udp, &addr, port);
@@ -58,7 +62,8 @@ static int dns_socket_bind(struct udp_pcb **udp, uint32_t ip, uint16_t port) {
 }
 
 #if DUMP_DATA
-static void dump_bytes(const uint8_t *bptr, uint32_t len) {
+static void dump_bytes(const uint8_t *bptr, uint32_t len)
+{
     unsigned int i = 0;
 
     for (i = 0; i < len;) {
@@ -73,7 +78,8 @@ static void dump_bytes(const uint8_t *bptr, uint32_t len) {
 }
 #endif
 
-static int dns_socket_sendto(struct udp_pcb **udp, const void *buf, size_t len, const ip_addr_t *dest, uint16_t port) {
+static int dns_socket_sendto(struct udp_pcb **udp, const void *buf, size_t len, const ip_addr_t *dest, uint16_t port)
+{
     if (len > 0xffff) {
         len = 0xffff;
     }
@@ -100,12 +106,14 @@ static int dns_socket_sendto(struct udp_pcb **udp, const void *buf, size_t len, 
     return len;
 }
 
-static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *src_addr, u16_t src_port) {
+static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *src_addr,
+                               u16_t src_port)
+{
     dns_server_t *d = arg;
     DEBUG_printf("dns_server_process %u\n", p->tot_len);
 
     uint8_t dns_msg[MAX_DNS_MSG_SIZE];
-    dns_header_t *dns_hdr = (dns_header_t*)dns_msg;
+    dns_header_t *dns_hdr = (dns_header_t *)dns_msg;
 
     size_t msg_len = pbuf_copy_partial(p, dns_msg, sizeof(dns_msg), 0);
     if (msg_len < sizeof(dns_header_t)) {
@@ -151,9 +159,11 @@ static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
     const uint8_t *question_ptr_start = dns_msg + sizeof(dns_header_t);
     const uint8_t *question_ptr_end = dns_msg + msg_len;
     const uint8_t *question_ptr = question_ptr_start;
-    while(question_ptr < question_ptr_end) {
+    bool qname_terminated = false;
+    while (question_ptr < question_ptr_end) {
         if (*question_ptr == 0) {
             question_ptr++;
+            qname_terminated = true;
             break;
         } else {
             if (question_ptr > question_ptr_start) {
@@ -164,11 +174,20 @@ static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
                 DEBUG_printf("Invalid label\n");
                 goto ignore_request;
             }
+            if (question_ptr + label_len > question_ptr_end) {
+                DEBUG_printf("Label overruns packet\n");
+                goto ignore_request;
+            }
             DEBUG_printf("%.*s", label_len, question_ptr);
             question_ptr += label_len;
         }
     }
     DEBUG_printf("\n");
+
+    if (!qname_terminated) {
+        DEBUG_printf("Unterminated qname\n");
+        goto ignore_request;
+    }
 
     // Check question length
     if (question_ptr - question_ptr_start > 255) {
@@ -177,13 +196,21 @@ static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
     }
 
     // Skip QNAME and QTYPE
+    if (question_ptr + 4 > question_ptr_end) {
+        DEBUG_printf("Missing qtype/qclass\n");
+        goto ignore_request;
+    }
     question_ptr += 4;
 
     // Generate answer
     uint8_t *answer_ptr = dns_msg + (question_ptr - dns_msg);
-    *answer_ptr++ = 0xc0; // pointer
+    if (answer_ptr + 16 > dns_msg + sizeof(dns_msg)) {
+        DEBUG_printf("Answer would overflow buffer\n");
+        goto ignore_request;
+    }
+    *answer_ptr++ = 0xc0;                         // pointer
     *answer_ptr++ = question_ptr_start - dns_msg; // pointer to question
-    
+
     *answer_ptr++ = 0;
     *answer_ptr++ = 1; // host address
 
@@ -196,14 +223,13 @@ static void dns_server_process(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
     *answer_ptr++ = 60; // ttl 60s
 
     *answer_ptr++ = 0;
-    *answer_ptr++ = 4; // length
+    *answer_ptr++ = 4;                  // length
     memcpy(answer_ptr, &d->ip.addr, 4); // use our address
     answer_ptr += 4;
 
-    dns_hdr->flags = lwip_htons(
-                0x1 << 15 | // QR = response
-                0x1 << 10 | // AA = authoritative
-                0x1 << 7);   // RA = authenticated
+    dns_hdr->flags = lwip_htons(0x1 << 15 | // QR = response
+                                0x1 << 10 | // AA = authoritative
+                                0x1 << 7);  // RA = authenticated
     dns_hdr->question_count = lwip_htons(1);
     dns_hdr->answer_record_count = lwip_htons(1);
     dns_hdr->authority_record_count = 0;
@@ -217,7 +243,8 @@ ignore_request:
     pbuf_free(p);
 }
 
-void dns_server_init(dns_server_t *d, ip_addr_t *ip) {
+void dns_server_init(dns_server_t *d, ip_addr_t *ip)
+{
     if (dns_socket_new_dgram(&d->udp, d, dns_server_process) != ERR_OK) {
         DEBUG_printf("dns server failed to start\n");
         return;
@@ -230,6 +257,7 @@ void dns_server_init(dns_server_t *d, ip_addr_t *ip) {
     DEBUG_printf("dns server listening on port %d\n", PORT_DNS_SERVER);
 }
 
-void dns_server_deinit(dns_server_t *d) {
+void dns_server_deinit(dns_server_t *d)
+{
     dns_socket_free(&d->udp);
 }
