@@ -373,24 +373,6 @@ void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg)
     mock_ctx.sim.udp_recv_arg = recv_arg;
 }
 
-struct udp_pcb *udp_new(void)
-{
-    return udp_new_ip_type(IPADDR_TYPE_ANY);
-}
-
-void udp_remove(struct udp_pcb *pcb)
-{
-    (void)pcb;
-}
-
-err_t udp_bind(struct udp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port)
-{
-    (void)pcb;
-    (void)ipaddr;
-    (void)port;
-    return ERR_OK;
-}
-
 err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port)
 {
     (void)pcb;
@@ -405,18 +387,6 @@ err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u
     uint32_t latency = mock_ctx.inject.udp_latency_ms ? mock_ctx.inject.udp_latency_ms : 50;
     mock_ctx.sim.udp_fire_time = mock_ctx.spy.boot_time_ms + latency;
     return ERR_OK;
-}
-
-err_t udp_sendto_if(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port, struct netif *nif)
-{
-    (void)nif;
-    return udp_sendto(pcb, p, dst_ip, dst_port);
-}
-
-struct netif *ip_current_input_netif(void)
-{
-    static struct netif nif = {0};
-    return &nif;
 }
 
 struct tcp_pcb *tcp_new(void)

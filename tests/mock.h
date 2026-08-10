@@ -209,12 +209,7 @@ typedef void (*tcp_err_fn)(void *arg, err_t err);
 // --- UDP API ---
 struct udp_pcb *udp_new_ip_type(u8_t type);
 void udp_recv(struct udp_pcb *pcb, udp_recv_fn recv, void *recv_arg);
-struct udp_pcb *udp_new(void);
-void udp_remove(struct udp_pcb *pcb);
-err_t udp_bind(struct udp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port);
-err_t udp_sendto_if(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port, struct netif *nif);
 err_t udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port);
-struct netif *ip_current_input_netif(void);
 
 // --- TCP API ---
 int ip_addr_cmp(const ip_addr_t *addr1, const ip_addr_t *addr2);
