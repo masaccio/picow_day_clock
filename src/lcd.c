@@ -119,6 +119,9 @@ void lcd_print_line(lcd_state_t *state, color_t color, lcd_status_message_t msg)
 
 void lcd_print_clock_digit(lcd_state_t *state, color_t color, const char ascii_char)
 {
+    if (ascii_char < ' ' || ascii_char > '~') {
+        return;
+    }
     const font_glyph_t entry = clock_digit_font.table[ascii_char - ' '];
     uint16_t x_point = (LCD_WIDTH - entry.width) / 2;
     (void)lcd_write_char(state, x_point, 0, ascii_char, &clock_digit_font, color, BLACK);
@@ -363,6 +366,9 @@ void lcd_clear_screen(lcd_state_t *state, uint16_t color)
 int lcd_write_char(lcd_state_t *state, uint16_t x_point, uint16_t y_point, const char ascii_char, font_t *font,
                    color_t fg_color, color_t bg_color)
 {
+    if (ascii_char < ' ' || ascii_char > '~') {
+        return 0;
+    }
     const font_glyph_t *entry = &font->table[ascii_char - ' '];
     const uint8_t *ptr = entry->table;
     uint16_t font_width = entry->width;
