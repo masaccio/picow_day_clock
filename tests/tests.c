@@ -450,6 +450,43 @@ static int lcd_digits_to_int(const char *digits)
     return ((*digits - '0') * 10) + (*(digits + 1) - '0');
 }
 
+static int test_clock_timer_paths(void)
+{
+    repeating_timer_t timer;
+    clock_state_t *clock_state = create_test_clock_state(&timer, create_flash_config());
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.factory_reset_pressed = 1;
+    ASSERT_WITH_MESSAGE(clock_timer_callback(&timer), true, "clock timer callback should keep running");
+    ASSERT_WITH_MESSAGE(clock_state->clock_tick_updated, true, "clock tick should be marked updated");
+    ASSERT_WITH_MESSAGE(clock_state->ap_mode_triggered, 0, "button hold should not trigger immediately");
+
+    ASSERT_WITH_MESSAGE(clock_timer_callback(&timer), true, "second callback should keep running");
+    ASSERT_WITH_MESSAGE(clock_timer_callback(&timer), true, "third callback should trigger the hold path");
+    ASSERT_WITH_MESSAGE(clock_state->ap_mode_triggered, 1, "factory reset hold should trigger AP mode");
+
+    mock_ctx.inject.factory_reset_pressed = 0;
+    ASSERT_WITH_MESSAGE(clock_timer_callback(&timer), true, "released button should reset hold state");
+    ASSERT_WITH_MESSAGE(clock_state->ap_mode_triggered, 1, "released button should keep previous trigger state");
+
+    return 0;
+}
+
+static int test_clock_start_timer_failures(void)
+{
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.fail_clock_timer_init = 1;
+    EXECUTE_TEST("Clock timer init failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_INIT_ERROR);
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.fail_backlight_timer_init = 1;
+    EXECUTE_TEST("Backlight timer init failure", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_INIT_ERROR);
+
+    return 0;
+}
+
 static int test_ntp_time(void)
 {
     repeating_timer_t timer;
@@ -1343,6 +1380,8 @@ int main(const int argc, const char *argv[])
 
     status |= run_test(test_lcd, "Basic LCD hardware");
     status |= run_test(test_dst, "Daylight savings");
+    status |= run_test(test_clock_timer_paths, "Clock timer paths");
+    status |= run_test(test_clock_start_timer_failures, "Clock startup timer failures");
     status |= run_test(test_ntp_time, "NTP time checks");
     status |= run_test(test_wifi_errors, "Wi-Fi init error");
     status |= run_test(test_connect_to_wifi_direct, "Wi-Fi entry point: connect_to_wifi");

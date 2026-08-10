@@ -96,6 +96,8 @@ typedef struct
         uint32_t udp_latency_ms;               // Time to respond to a UDP request
         int watchdog_caused_reboot;            // Clock starts up with positive watchdog_caused_reboot()
         int factory_reset_pressed;             // Factory reset GPIO is asserted
+        int fail_clock_timer_init;             // Force clock timer registration to fail
+        int fail_backlight_timer_init;         // Force backlight timer registration to fail
         int fatal_reset_no_longjmp;            // Do not longjmp() inside fatal_reset()
         int exit_on_ntp_success;               // Terminate main loop if NTP returned valid
         time_t exit_after_ms;                  // Maximum number of ms to simulate

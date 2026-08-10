@@ -531,12 +531,18 @@ bool add_repeating_timer_ms(uint32_t delay_ms, bool (*callback)(repeating_timer_
 {
     // Scales very badly to multiple timers
     if (callback == clock_timer_callback) {
+        if (mock_ctx.inject.fail_clock_timer_init) {
+            return false;
+        }
         mock_ctx.sim.clock_timer_active = true;
         mock_ctx.sim.clock_timer_delay = delay_ms;
         mock_ctx.sim.clock_timer_cb = callback;
         mock_ctx.sim.clock_timer_arg = out;
         mock_ctx.sim.clock_timer_next_fire = mock_ctx.spy.boot_time_ms + delay_ms;
     } else {
+        if (mock_ctx.inject.fail_backlight_timer_init) {
+            return false;
+        }
         mock_ctx.sim.backlight_timer_active = true;
         mock_ctx.sim.backlight_timer_delay = delay_ms;
         mock_ctx.sim.backlight_timer_cb = callback;
