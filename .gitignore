@@ -5,6 +5,7 @@ build
 
 # Temporary files
 *.log
+.cache/
 
 # macOS
 .DS_Store
