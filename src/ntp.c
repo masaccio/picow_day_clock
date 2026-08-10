@@ -14,44 +14,8 @@
 // Local includes
 #include "clock.h"
 
-void ntp_atomic_status(ntp_state_t *state, ntp_status_t status, ntp_error_t error, uint32_t ms,
-                       ntp_atomic_state_t *atomic_state)
-{
-    uint32_t ints = save_and_disable_interrupts();
-    if (status != NTP_NULL_STATUS) {
-        state->status = status;
-    }
-    if (error != NTP_NULL_ERROR) {
-        state->error = error;
-    }
-    if (ms != 0) {
-        state->request_start_ms = ms;
-    }
-
-    if (atomic_state != NULL) {
-        atomic_state->status = state->status;
-        atomic_state->error = state->error;
-        atomic_state->request_start_ms = state->request_start_ms;
-    }
-    restore_interrupts(ints);
-}
-
-const char *ntp_error_to_string(ntp_error_t status)
-{
-    switch (status) {
-        STATUS_CASE(NTP_OK)
-        STATUS_CASE(NTP_INIT_ERROR)
-        STATUS_CASE(NTP_DNS_ERROR)
-        STATUS_CASE(NTP_TIMEOUT_ERROR)
-        STATUS_CASE(NTP_PROTOCOL_ERROR)
-        STATUS_CASE(NTP_MEMORY_ERROR)
-        STATUS_CASE(NTP_NULL_ERROR)
-    }
-    return "UNKNOWN_STATUS";
-}
-
 // Make an NTP request
-void ntp_request(ntp_state_t *state)
+static void ntp_start_udp_request(ntp_state_t *state)
 {
     cyw43_arch_lwip_begin();
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
@@ -85,7 +49,7 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
     (void)hostname;
     if (ipaddr && ipaddr->addr) {
         state->ntp_server_address = *ipaddr;
-        ntp_request(state);
+        ntp_start_udp_request(state);
     } else {
         CLOCK_DEBUG("NTP: DNS error for %s\r\n", hostname);
         ntp_atomic_status(state, NTP_FAILED, NTP_DNS_ERROR, 0, NULL);
@@ -93,7 +57,7 @@ static void ntp_dns_callback(const char *hostname, const ip_addr_t *ipaddr, void
 }
 
 // Called by lwIP when a UDP datagram is received
-static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+static void ntp_recv_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
     ntp_state_t *state = (ntp_state_t *)arg;
     (void)pcb;
@@ -147,7 +111,43 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     pbuf_free(p);
 }
 
-extern bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t time_handler)
+void ntp_atomic_status(ntp_state_t *state, ntp_status_t status, ntp_error_t error, uint32_t ms,
+                       ntp_atomic_state_t *atomic_state)
+{
+    uint32_t ints = save_and_disable_interrupts();
+    if (status != NTP_NULL_STATUS) {
+        state->status = status;
+    }
+    if (error != NTP_NULL_ERROR) {
+        state->error = error;
+    }
+    if (ms != 0) {
+        state->request_start_ms = ms;
+    }
+
+    if (atomic_state != NULL) {
+        atomic_state->status = state->status;
+        atomic_state->error = state->error;
+        atomic_state->request_start_ms = state->request_start_ms;
+    }
+    restore_interrupts(ints);
+}
+
+const char *ntp_error_to_string(ntp_error_t status)
+{
+    switch (status) {
+        STATUS_CASE(NTP_OK)
+        STATUS_CASE(NTP_INIT_ERROR)
+        STATUS_CASE(NTP_DNS_ERROR)
+        STATUS_CASE(NTP_TIMEOUT_ERROR)
+        STATUS_CASE(NTP_PROTOCOL_ERROR)
+        STATUS_CASE(NTP_MEMORY_ERROR)
+        STATUS_CASE(NTP_NULL_ERROR)
+    }
+    return "UNKNOWN_STATUS";
+}
+
+bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t time_handler)
 {
     memset(state, 0, sizeof(ntp_state_t));
     state->parent_state = parent_state;
@@ -163,7 +163,7 @@ extern bool ntp_init(ntp_state_t *state, void *parent_state, ntp_time_handler_t 
     }
 
     cyw43_arch_lwip_begin();
-    udp_recv(state->ntp_pcb, ntp_recv, state);
+    udp_recv(state->ntp_pcb, ntp_recv_callback, state);
     cyw43_arch_lwip_end();
 
     return true;
@@ -180,7 +180,7 @@ ntp_error_t ntp_request_async(ntp_state_t *state)
     cyw43_arch_lwip_end();
 
     if (dns_status == ERR_OK) {
-        ntp_request(state);
+        ntp_start_udp_request(state);
     } else if (dns_status != ERR_INPROGRESS) {
         CLOCK_DEBUG("NTP: DNS lookup failed with error %d\r\n", dns_status);
         return NTP_DNS_ERROR;
