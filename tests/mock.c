@@ -499,6 +499,9 @@ err_t tcp_recved(struct tcp_pcb *pcb, u16_t len)
 struct tcp_pcb *tcp_new_ip_type(u8_t type)
 {
     (void)type;
+    if (mock_ctx.inject.tcp_open_fail) {
+        return NULL;
+    }
     return tcp_new(); // Just return the standard mock PCB instance
 }
 
@@ -507,18 +510,27 @@ err_t tcp_bind(struct tcp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port)
     (void)pcb;
     (void)ipaddr;
     (void)port;
-    return 0; // ERR_OK
+    if (mock_ctx.inject.tcp_bind_fail) {
+        return ERR_VAL;
+    }
+    return ERR_OK;
 }
 
 struct tcp_pcb *tcp_listen_with_backlog(struct tcp_pcb *pcb, u8_t backlog)
 {
     (void)pcb;
     (void)backlog;
+    if (mock_ctx.inject.tcp_listen_fail) {
+        return NULL;
+    }
     return &mock_ctx.sim.listen_pcb;
 }
 err_t tcp_close(struct tcp_pcb *pcb)
 {
     (void)pcb;
+    if (mock_ctx.inject.tcp_close_fail) {
+        return ERR_MEM;
+    }
     return ERR_OK;
 }
 

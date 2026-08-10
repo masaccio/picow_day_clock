@@ -86,6 +86,9 @@ typedef struct
         uint32_t dns_latency_ms;               // Time to respond to a DNS request
         unsigned int pbuf_alloc_fail_at;       // Allows specific pbuf_alloc() calls to fail
         int tcp_open_fail;                     // tcp_open() fails
+        int tcp_bind_fail;                     // tcp_bind() fails
+        int tcp_listen_fail;                   // tcp_listen_with_backlog() fails
+        int tcp_close_fail;                    // tcp_close() fails
         int udp_invalid_addr;                  // Return an invalid sender address for UDP
         int udp_new_ip_type_fail;              // udp_new_ip_type() returns NULL
         udp_response_type_t udp_response_type; // Steers UDP responses for NTP

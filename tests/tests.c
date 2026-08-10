@@ -102,6 +102,9 @@ mock_context_t mock_ctx = {0};
         }                                                                                                              \
     } while (0)
 
+static bool mock_store_config_success(struct flash_config_t *config, bool invalidate);
+static bool mock_store_config_fail_then_success(struct flash_config_t *config, bool invalidate);
+
 static void set_localtime(clock_state_t *clock_state, int year, int mon, int mday, int hour, int min, int sec)
 {
 
@@ -217,6 +220,59 @@ static int test_dns_lookups(void)
     mock_ctx.inject.exit_on_ntp_success = 1;
     EXECUTE_TEST("DNS delay", EXPECT_OK);
     CHECK_ICONS_OK();
+
+    return 0;
+}
+
+static int test_connect_to_wifi_direct(void)
+{
+    RESET_MOCK_CONFIG();
+    bool wifi_initialized = false;
+    wifi_error_t err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_OK, "connect_to_wifi should succeed");
+    ASSERT_WITH_MESSAGE(wifi_initialized, true, "connect_to_wifi should mark initialized");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_arch_init_fail = 1;
+    wifi_initialized = false;
+    err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "connect_to_wifi should fail on init error");
+    ASSERT_WITH_MESSAGE(wifi_initialized, false, "connect_to_wifi should not mark initialized on init failure");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_auth_error_count = WIFI_BAD_AUTH_RETRY_COUNT;
+    wifi_initialized = false;
+    err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_AUTH_ERROR, "connect_to_wifi should fail after repeated auth errors");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_auth_timeout_count = 4;
+    wifi_initialized = false;
+    err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_TIMEOUT_ERROR, "connect_to_wifi should fail after repeated timeouts");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = PICO_ERROR_CONNECT_FAILED;
+    wifi_initialized = false;
+    err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_CONNECT_ERROR, "connect_to_wifi should fail on connect failure");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.cyw43_arch_wifi_connect_status = -99;
+    wifi_initialized = false;
+    err = connect_to_wifi("ssid", "pass", &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_UNKNOWN_ERROR, "connect_to_wifi should fail on unknown status");
+
+    return 0;
+}
+
+static int test_start_wifi_access_point_direct(void)
+{
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.tcp_open_fail = 1;
+    bool wifi_initialized = false;
+    wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "AP startup should fail when TCP setup fails");
 
     return 0;
 }
@@ -715,6 +771,162 @@ static void reset_wifi_test_state(void)
 // Access Point (AP) & TCP Server Tests
 // ============================================================================
 
+static int test_wifi_tcp_callback_paths(void)
+{
+    RESET_MOCK_CONFIG();
+
+    tcp_server_t server = {0};
+    struct tcp_pcb client = {0};
+    err_t result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "accept should succeed for a fresh connection");
+
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_poll_cb != NULL, 1, "poll callback should be registered");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_sent_cb != NULL, 1, "sent callback should be registered");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_err_cb != NULL, 1, "error callback should be registered");
+
+    mock_ctx.sim.tcp_poll_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb);
+    ASSERT_WITH_MESSAGE(server.active_connections, 0, "poll callback should close and release the connection");
+
+    RESET_MOCK_CONFIG();
+    server = (tcp_server_t){0};
+    result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "accept should succeed for the second pass");
+
+    mock_ctx.inject.tcp_close_fail = 1;
+    mock_ctx.sim.tcp_sent_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, 1);
+    ASSERT_WITH_MESSAGE(server.active_connections, 0, "sent callback should still clean up when tcp_close fails");
+
+    RESET_MOCK_CONFIG();
+    server = (tcp_server_t){0};
+    result = tcp_server_accept(&server, NULL, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_VAL, "accept should reject a null PCB");
+
+    result = tcp_server_accept(&server, &client, ERR_VAL);
+    ASSERT_WITH_MESSAGE(result, ERR_VAL, "accept should reject a non-OK accept error");
+
+    for (int i = 0; i < TCP_IP_MAX_CONNECTIONS; i++) {
+        server.connections[i].pcb = &client;
+    }
+    result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_MEM, "accept should reject when no connection slots are free");
+
+    return 0;
+}
+
+static int test_wifi_startup_failures(void)
+{
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.tcp_bind_fail = 1;
+    bool wifi_initialized = false;
+    wifi_error_t err = start_wifi_access_point(NULL, mock_store_config_success, &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "AP startup should fail when TCP bind fails");
+
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.tcp_listen_fail = 1;
+    wifi_initialized = false;
+    err = start_wifi_access_point(NULL, mock_store_config_success, &wifi_initialized);
+    ASSERT_WITH_MESSAGE(err, WIFI_INIT_ERROR, "AP startup should fail when TCP listen fails");
+
+    return 0;
+}
+
+static int test_wifi_request_parser_paths(void)
+{
+    RESET_MOCK_CONFIG();
+
+    tcp_connect_state_t con_state = {0};
+    struct pbuf p = {0};
+    err_t result = tcp_server_recv(&con_state, NULL, NULL, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "recv should close cleanly on null pbuf");
+
+    con_state = (tcp_connect_state_t){0};
+    p.tot_len = 0;
+    p.len = 0;
+    result = tcp_server_recv(&con_state, NULL, &p, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "recv should handle empty pbufs");
+
+    con_state = (tcp_connect_state_t){0};
+    const char *bad_len = "POST / HTTP/1.1\r\nContent-Length: \r\n\r\nbody";
+    strncpy((char *)p.payload, bad_len, sizeof(p.payload) - 1);
+    p.tot_len = (u16_t)strlen(bad_len);
+    p.len = p.tot_len;
+    result = tcp_server_recv(&con_state, NULL, &p, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_VAL, "recv should reject malformed content length headers");
+
+    con_state = (tcp_connect_state_t){0};
+    const char *invalid_num = "POST / HTTP/1.1\r\nContent-Length: abc\r\n\r\nbody";
+    strncpy((char *)p.payload, invalid_num, sizeof(p.payload) - 1);
+    p.tot_len = (u16_t)strlen(invalid_num);
+    p.len = p.tot_len;
+    result = tcp_server_recv(&con_state, NULL, &p, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_VAL, "recv should reject non-numeric content lengths");
+
+    con_state = (tcp_connect_state_t){0};
+    const char *incomplete = "POST / HTTP/1.1\r\nContent-Length: 10\r\n\r\nshort";
+    strncpy((char *)p.payload, incomplete, sizeof(p.payload) - 1);
+    p.tot_len = (u16_t)strlen(incomplete);
+    p.len = p.tot_len;
+    result = tcp_server_recv(&con_state, NULL, &p, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "recv should wait on incomplete POST bodies");
+
+    con_state = (tcp_connect_state_t){0};
+    con_state.store_config = mock_store_config_success;
+    const char *bad_req = "POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\ncto=0";
+    strncpy((char *)p.payload, bad_req, sizeof(p.payload) - 1);
+    p.tot_len = (u16_t)strlen(bad_req);
+    p.len = p.tot_len;
+    result = tcp_server_recv(&con_state, NULL, &p, ERR_OK);
+    ASSERT_WITH_MESSAGE(result, ERR_OK, "recv should return OK after handling a bad request");
+    ASSERT_WITH_MESSAGE(strstr(mock_ctx.sim.tcp_write_buffer, "400 Bad Request") != NULL, 1,
+                        "recv should write a 400 response for invalid config values");
+
+    tcp_server_t server = {0};
+    struct tcp_pcb client = {0};
+    err_t accept_result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(accept_result, ERR_OK, "accept should register the TCP callbacks");
+
+    con_state = (tcp_connect_state_t){0};
+    con_state.header_len = 4;
+    con_state.result_len = 4;
+    con_state.sent_len = 1;
+    mock_ctx.sim.tcp_sent_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, 1);
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_sent_pending, 0,
+                        "sent callback should not queue extra sends before completion");
+
+    RESET_MOCK_CONFIG();
+    server = (tcp_server_t){0};
+    accept_result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(accept_result, ERR_OK, "accept should register a fresh sent callback");
+
+    con_state = (tcp_connect_state_t){0};
+    con_state.header_len = 4;
+    con_state.result_len = 4;
+    con_state.sent_len = 8;
+    mock_ctx.sim.tcp_sent_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb, 1);
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_sent_pending, 0,
+                        "sent callback should complete and close the connection after transfer");
+
+    RESET_MOCK_CONFIG();
+    server = (tcp_server_t){0};
+    accept_result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(accept_result, ERR_OK, "accept should register the poll callback");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_poll_cb != NULL, 1, "poll callback should be available");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.conn_arg != NULL, 1, "poll callback should have a connection state");
+    mock_ctx.sim.tcp_poll_cb(mock_ctx.sim.conn_arg, &mock_ctx.sim.conn_pcb);
+    ASSERT_WITH_MESSAGE(server.active_connections, 0, "poll callback should close the connection");
+
+    RESET_MOCK_CONFIG();
+    server = (tcp_server_t){0};
+    accept_result = tcp_server_accept(&server, &client, ERR_OK);
+    ASSERT_WITH_MESSAGE(accept_result, ERR_OK, "accept should register the error callback");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.tcp_err_cb != NULL, 1, "error callback should be available");
+    ASSERT_WITH_MESSAGE(mock_ctx.sim.conn_arg != NULL, 1, "error callback should have a connection state");
+    mock_ctx.sim.tcp_err_cb(mock_ctx.sim.conn_arg, ERR_RST);
+    ASSERT_WITH_MESSAGE(server.active_connections, 0, "error callback should close the connection");
+
+    return 0;
+}
+
 static int test_wifi_config_urls(void)
 {
 
@@ -1128,6 +1340,11 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_dst, "Daylight savings");
     status |= run_test(test_ntp_time, "NTP time checks");
     status |= run_test(test_wifi_errors, "Wi-Fi init error");
+    status |= run_test(test_connect_to_wifi_direct, "Wi-Fi entry point: connect_to_wifi");
+    status |= run_test(test_start_wifi_access_point_direct, "Wi-Fi entry point: start_wifi_access_point");
+    status |= run_test(test_wifi_tcp_callback_paths, "Wi-Fi TCP callback paths");
+    status |= run_test(test_wifi_startup_failures, "Wi-Fi startup failures");
+    status |= run_test(test_wifi_request_parser_paths, "Wi-Fi request parser paths");
     status |= run_test(test_dns_lookups, "DNS lookups");
     status |= run_test(test_ntp_errors, "NTP errors");
     status |= run_test(test_error_strings, "Status error strings");
