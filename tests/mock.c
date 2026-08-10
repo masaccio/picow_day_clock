@@ -277,7 +277,8 @@ void sleep_ms(uint32_t ms)
                         req[1] = 0;
                         memcpy(&req[12], "RATE", 4);
                     } else if (mock_ctx.inject.udp_response_type == UDP_NTP_LEAP3) {
-                        req[0] = (0x3 << 6);
+                        // Leap indicator 3 and mode 4 (server response) with version 4 header.
+                        req[0] = (0x3 << 6) | (0x4 << 3) | 0x4;
                         req[1] = 2;
                     } else {
                         if (mock_ctx.inject.udp_response_type == UDP_NTP_INVALID) {

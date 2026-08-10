@@ -180,6 +180,7 @@ ntp_error_t ntp_request_async(ntp_state_t *state)
     cyw43_arch_lwip_end();
 
     if (dns_status == ERR_OK) {
+        // IP resolved immediately and callback will not happen so start UDP request right away
         ntp_start_udp_request(state);
     } else if (dns_status != ERR_INPROGRESS) {
         CLOCK_DEBUG("NTP: DNS lookup failed with error %d\r\n", dns_status);

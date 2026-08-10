@@ -552,6 +552,15 @@ static int test_ntp_time(void)
     return 0;
 }
 
+static int test_ntp_unsynchronized_server(void)
+{
+    RESET_MOCK_CONFIG();
+    mock_ctx.inject.udp_response_type = UDP_NTP_LEAP3;
+    EXECUTE_TEST("NTP unsynchronized", EXPECT_FAIL);
+    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
+    return 0;
+}
+
 static int test_ntp_errors(void)
 {
     RESET_MOCK_CONFIG();
@@ -567,11 +576,6 @@ static int test_ntp_errors(void)
     RESET_MOCK_CONFIG();
     mock_ctx.inject.udp_response_type = UDP_NTP_BAD_PORT;
     EXECUTE_TEST("NTP UDP bad port failure", EXPECT_FAIL);
-    EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
-
-    RESET_MOCK_CONFIG();
-    mock_ctx.inject.udp_response_type = UDP_NTP_LEAP3;
-    EXECUTE_TEST("NTP unsynchronized", EXPECT_FAIL);
     EXPECT_FATAL_NTP_ERROR(NTP_PROTOCOL_ERROR);
 
     RESET_MOCK_CONFIG();
@@ -1346,6 +1350,7 @@ int main(const int argc, const char *argv[])
     status |= run_test(test_wifi_startup_failures, "Wi-Fi startup failures");
     status |= run_test(test_wifi_request_parser_paths, "Wi-Fi request parser paths");
     status |= run_test(test_dns_lookups, "DNS lookups");
+    status |= run_test(test_ntp_unsynchronized_server, "NTP unsynchronized server");
     status |= run_test(test_ntp_errors, "NTP errors");
     status |= run_test(test_error_strings, "Status error strings");
     status |= run_test(test_watchdog, "Watchdog");
